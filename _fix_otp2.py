@@ -1,4 +1,5 @@
-// api/send-otp.js - Sends a 6-digit OTP via Fast2SMS.
+with open('api/send-otp.js', 'w', encoding='utf-8') as f:
+    f.write('''// api/send-otp.js - Sends a 6-digit OTP via Fast2SMS.
 const FAST2SMS_KEY = process.env.FAST2SMS_KEY || "";
 
 function generateOtp() {
@@ -6,7 +7,7 @@ function generateOtp() {
 }
 
 function normalizePhone(phone) {
-  const digits = String(phone || "").replace(/\D/g, "");
+  const digits = String(phone || "").replace(/\\D/g, "");
   if (digits.length === 10) return "91" + digits;
   if (digits.length === 12 && digits.startsWith("91")) return digits;
   return digits;
@@ -76,3 +77,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Server error: " + err.message });
   }
 }
+''')
+
+print('send-otp.js updated with debugging')
