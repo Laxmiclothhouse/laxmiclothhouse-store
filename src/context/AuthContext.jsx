@@ -181,6 +181,20 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // ── Password reset ───────────────────────────────────────
+  const sendPasswordReset = async (email) => {
+    try {
+      const { sendPasswordResetEmail } = await import('firebase/auth');
+      await sendPasswordResetEmail(auth, email);
+      return { ok: true };
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email.');
+      }
+      throw new Error(error.message || 'Failed to send reset email.');
+    }
+  };
+
   // ── Phone OTP login ──────────────────────────────────────
   const sendOtp = async (phone) => {
     const resp = await fetch('/api/send-otp', {
@@ -253,6 +267,7 @@ export function AuthProvider({ children }) {
         login,
         loginWithPhone,
         sendOtp,
+        sendPasswordReset,
         logout,
         loading,
         changePasswordWithCurrent,

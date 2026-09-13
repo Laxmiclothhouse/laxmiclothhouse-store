@@ -7,7 +7,7 @@ const DEMO = [
 ];
 
 export default function Login() {
-  const { login, loginWithPhone, sendOtp } = useAuth();
+  const { login, loginWithPhone, sendOtp, sendPasswordReset } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [tab, setTab] = useState("phone");
@@ -18,6 +18,8 @@ export default function Login() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [demoOtp, setDemoOtp] = useState("");
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const from = loc.state?.from || "/";
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -49,6 +51,20 @@ export default function Login() {
     if (busy) return; setErr(""); setBusy(true);
     try { await login({ email: form.email, password: form.password }); nav(from, { replace: true }); }
     catch (ex) { setErr(ex.message); } finally { setBusy(false); }
+  };
+
+    const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!form.email) { setErr("Enter your email address"); return; }
+    setErr(""); setBusy(true);
+    try {
+      await sendPasswordReset(form.email);
+      setResetSent(true);
+    } catch (ex) {
+      setErr(ex.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const fill = (email, pass) => { setForm({ ...form, email, password: pass }); setTab("email"); };
@@ -102,18 +118,52 @@ export default function Login() {
         )}
 
         {tab === "email" && (
-          <form onSubmit={handleEmailLogin} className="form">
-            <label>Email
-              <input type="email" required value={form.email} onChange={set("email")} placeholder="you@example.com" />
-            </label>
-            <label>Password
-              <input type="password" required value={form.password} onChange={set("password")} placeholder="........" />
-            </label>
-            {err && <p className="error">{err}</p>}
-            <button className="btn btn-gold btn-block" type="submit" disabled={busy}>
-              {busy ? "Logging in..." : "Log in"}
-            </button>
-          </form>
+          <>
+            {!showForgot ? (
+              <form onSubmit={handleEmailLogin} className="form">
+                <label>Email
+                  <input type="email" required value={form.email} onChange={set("email")} placeholder="you@example.com" />
+                </label>
+                <label>Password
+                  <input type="password" required value={form.password} onChange={set("password")} placeholder="........" />
+                </label>
+                {err && <p className="error">{err}</p>}
+                <button className="btn btn-gold btn-block" type="submit" disabled={busy}>
+                  {busy ? "Logging in..." : "Log in"}
+                </button>
+                <div className="forgot-row">
+                  <button type="button" className="linklike" onClick={() => { setShowForgot(true); setErr(""); }}>
+                    Forgot password?
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="form">
+                {!resetSent ? (
+                  <>
+                    <p className="muted center">Enter your email and we'll send you a reset link</p>
+                    <label>Email
+                      <input type="email" required value={form.email} onChange={set("email")} placeholder="you@example.com" />
+                    </label>
+                    {err && <p className="error">{err}</p>}
+                    <button className="btn btn-gold btn-block" type="submit" disabled={busy}>
+                      {busy ? "Sending..." : "Send reset link"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="ok center">Reset link sent! Check your email inbox.</p>
+                    <p className="muted center small">Click the link in the email to reset your password, then come back here to log in.</p>
+                  </>
+                )}
+                <div className="forgot-row">
+                  <button type="button" className="linklike" onClick={() => { setShowForgot(false); setResetSent(false); setErr(""); }}>
+                    Back to login
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
         )}
 
         <p className="muted center">New here? <Link to="/signup">Create an account</Link></p>
