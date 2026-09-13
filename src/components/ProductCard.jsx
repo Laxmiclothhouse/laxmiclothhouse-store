@@ -10,10 +10,12 @@ export default function ProductCard({ product }) {
   const soldOut = product.stock <= 0;
   const { user } = useAuth();
   const { isWishlisted, toggle } = useWishlist();
-  const { ratingFor } = useData();
+  const { ratingFor, getSalePrice } = useData();
   const nav = useNavigate();
   const saved = isWishlisted(product.id);
   const rating = ratingFor(product.id);
+  const sale = getSalePrice(product);
+  const onSale = sale.price < (sale.originalPrice || product.price);
 
   const onWish = () => {
     if (!user) {
@@ -29,8 +31,8 @@ export default function ProductCard({ product }) {
         <Link to={`/product/${product.id}`} className="pc-imglink">
           <img src={product.images?.[0] || product.image} alt={product.name} loading="lazy" />
           {soldOut && <span className="ribbon">Sold out</span>}
-          {!soldOut && product.shippingCost === 0 && <span className="ribbon free">Free ship</span>}
-          {!soldOut && product.shippingCost !== 0 && product.oldPrice ? <span className="ribbon sale">Sale</span> : null}
+          {!soldOut && onSale && <span className="ribbon sale">{sale.saleLabel || 'SALE'}</span>}
+          {!soldOut && !onSale && product.shippingCost === 0 && <span className="ribbon free">Free ship</span>}
         </Link>
         <button
           className={`wish-btn ${saved ? 'active' : ''}`}
@@ -46,9 +48,23 @@ export default function ProductCard({ product }) {
           <Link to={`/product/${product.id}`}>{product.name}</Link>
         </h3>
         <div className="pc-price">
-          <span className="price">{formatINR(product.price)}</span>
-          {product.mrp > product.price && (
-            <span className="mrp">{formatINR(product.mrp)}</span>
+          {onSale ? (
+            <>
+              <span className="price sale-price">{formatINR(sale.price)}</span>
+              <span className="mrp">{formatINR(sale.originalPrice)}</span>
+              <span className="sale-pct">
+                {sale.originalPrice > sale.price
+                  ? `${Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% off`
+                  : ''}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="price">{formatINR(product.price)}</span>
+              {product.mrp > product.price && (
+                <span className="mrp">{formatINR(product.mrp)}</span>
+              )}
+            </>
           )}
         </div>
         <div className="pc-meta-row">

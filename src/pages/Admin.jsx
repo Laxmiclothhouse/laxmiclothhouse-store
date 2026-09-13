@@ -7,6 +7,7 @@ import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils
 import { productImage } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
+import SalesManager from '../components/SalesManager.jsx';
 import { statusMeta } from '../orderFlow.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
@@ -186,7 +187,7 @@ function StaffRoleForm({ setUserRole }) {
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
-  const { payments, returns, updateReturnStatus } = useData();
+  const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
   const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -773,7 +774,17 @@ export default function Admin() {
       )}
 
       {tab === 'sales' && (
-        <SalesDashboard orders={orders} payments={payments} returns={returns} />
+        <>
+          <SalesDashboard orders={orders} payments={payments} returns={returns} />
+          <SalesManager
+            sales={sales}
+            products={products}
+            addSale={addSale}
+            updateSale={updateSale}
+            deleteSale={deleteSale}
+            toggleSale={toggleSale}
+          />
+        </>
       )}
 
       {tab === 'settings' && (

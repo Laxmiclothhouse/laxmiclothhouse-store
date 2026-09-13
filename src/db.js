@@ -19,6 +19,7 @@ const KEYS = {
   coupons: 'houselaxmicloth_coupons',
   payments: 'houselaxmicloth_payments',
   returns: 'houselaxmicloth_returns',
+  sales: 'houselaxmicloth_sales',
 
 };
 
@@ -302,6 +303,16 @@ export const db = {
   saveReturns(r) {
     write(KEYS.returns, r);
     syncToFirestore(KEYS.returns, r);
+  },
+
+  // sales: promotional discounts created by admin
+  // { id, type: 'product'|'category'|'storewide'|'flash', name, discountType: 'percent'|'flat', value, productId?, category?, startsAt?, endsAt?, active }
+  getSales() {
+    return read(KEYS.sales, []);
+  },
+  saveSales(s) {
+    write(KEYS.sales, s);
+    syncToFirestore(KEYS.sales, s);
   },
 
   uid,

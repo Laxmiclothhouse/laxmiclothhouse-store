@@ -1307,6 +1307,38 @@ p { margin: 0 0 .8em; }
   background: var(--brand-soft);
   border-radius: 10px;
   padding: 14px;
+
+/* ── Sale display on product cards ── */
+.sale-price { color: var(--ok) !important; font-weight: 700; }
+.sale-pct { font-size: 11px; color: var(--ok); font-weight: 600; margin-left: 6px; }
+.sale-pct.big { font-size: 14px; }
+.sale-label { font-size: 12px; color: var(--ok); font-weight: 600; margin: 4px 0 0; }
+
+/* ── Sales management form ── */
+.sales-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sale-form { background: var(--cream); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.sale-form .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.sale-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; }
+.sale-form select, .sale-form input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; background: #fff; }
+.sale-form .check-row { flex-direction: row; align-items: center; gap: 8px; margin: 8px 0; }
+.sale-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ── Sale list ── */
+.sale-list { margin-top: 16px; }
+.sale-list h3 { font-size: 14px; margin: 12px 0 8px; color: var(--muted); }
+.sale-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; background: #fff; }
+.sale-row.inactive { opacity: 0.5; }
+.sale-row-main { display: flex; align-items: center; gap: 10px; }
+.sale-badge { font-size: 10px; text-transform: uppercase; background: var(--brand); color: #fff; padding: 3px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.5px; }
+.sale-row-main strong { display: block; font-size: 14px; }
+.sale-scope { font-size: 12px; color: var(--muted); }
+.sale-row-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ── Sale chip in catalog ── */
+.sale-chip { background: var(--ok) !important; color: #fff !important; border-color: var(--ok) !important; }
+.sale-chip.active { background: #1b5e20 !important; }
+
+
   display: flex;
   flex-direction: column;
   gap: 4px;

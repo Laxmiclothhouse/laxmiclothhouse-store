@@ -11,13 +11,14 @@ export function CartProvider({ children }) {
     db.saveCart(next);
   };
 
-  const addItem = (product, qty = 1, size = '') => {
+  const addItem = (product, qty = 1, size = '', salePrice = null) => {
     const key = `${product.id}::${String(size || '').toUpperCase()}`;
+    const effectivePrice = salePrice !== null && salePrice !== undefined ? salePrice : product.price;
     let next;
     const idx = cart.findIndex((c) => c.key === key);
     if (idx >= 0) {
       next = cart.map((c, i) =>
-        i === idx ? { ...c, qty: c.qty + qty } : c
+        i === idx ? { ...c, qty: c.qty + qty, price: effectivePrice } : c
       );
     } else {
       next = [
@@ -26,7 +27,7 @@ export function CartProvider({ children }) {
           key,
           id: product.id,
           name: product.name,
-          price: product.price,
+          price: effectivePrice,
           image: product.image,
           color: product.color,
           size: String(size || ''),

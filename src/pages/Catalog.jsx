@@ -4,18 +4,26 @@ import { useData } from '../context/DataContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 
 export default function Catalog() {
-  const { products } = useData();
+  const { products, getSalePrice } = useData();
   const [params] = useSearchParams();
   const initialCat = params.get('cat') || '';
 
   const [category, setCategory] = useState(initialCat);
   const [sort, setSort] = useState('featured');
   const [q, setQ] = useState('');
+  const [showSaleOnly, setShowSaleOnly] = useState(false);
 
   const cats = ['', ...Array.from(new Set(products.map((p) => p.category)))];
 
+  const saleProducts = useMemo(() => {
+    return products.filter((p) => {
+      const sale = getSalePrice(p);
+      return sale.price < (sale.originalPrice || p.price);
+    });
+  }, [products, getSalePrice]);
+
   const list = useMemo(() => {
-    let res = products;
+    let res = showSaleOnly ? saleProducts : products;
     if (category) res = res.filter((p) => p.category === category);
     if (q.trim()) {
       const s = q.trim().toLowerCase();
@@ -32,7 +40,7 @@ export default function Catalog() {
       default: break;
     }
     return res;
-  }, [products, category, q, sort]);
+  }, [products, saleProducts, category, q, sort, showSaleOnly]);
 
   return (
     <main className="page">
@@ -43,10 +51,18 @@ export default function Catalog() {
 
       <div className="toolbar">
         <div className="chips">
+          {saleProducts.length > 0 && (
+            <button
+              className={`chip sale-chip ${showSaleOnly ? 'active' : ''}`}
+              onClick={() => setShowSaleOnly(!showSaleOnly)}
+            >
+              🔥 Sale ({saleProducts.length})
+            </button>
+          )}
           {cats.map((c) => (
             <button
               key={c || 'all'}
-              className={`chip ${category === c ? 'active' : ''}`}
+              className={`chip ${category === c && !showSaleOnly ? 'active' : ''}`}
               onClick={() => setCategory(c)}
             >
               {c || 'All'}

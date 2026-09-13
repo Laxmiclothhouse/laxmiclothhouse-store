@@ -11,7 +11,7 @@ import SizeGuide from '../components/SizeGuide.jsx';
 
 export default function ProductDetail() {
   const { id } = useParams();
-  const { products, reviewsFor, ratingFor, addReview, settings } = useData();
+  const { products, reviewsFor, ratingFor, addReview, settings, getSalePrice } = useData();
   const { addItem, cart } = useCart();
   const { user } = useAuth();
   const { isWishlisted, toggle } = useWishlist();
@@ -29,6 +29,8 @@ export default function ProductDetail() {
   const [shareMsg, setShareMsg] = useState('');
 
   const product = products.find((p) => p.id === id);
+  const sale = product ? getSalePrice(product) : { price: 0, originalPrice: 0, saleLabel: null };
+  const onSale = product && sale.price < (sale.originalPrice || product.price);
 
   // All images for this product; older products only have "image" (single).
   const images =
@@ -94,8 +96,8 @@ export default function ProductDetail() {
       setTimeout(() => setToast(''), 1800);
       return;
     }
-    addItem(product, qty, size);
-    setToast('✓ Added to cart' + (size ? ` (Size ${size})` : ''));
+    addItem(product, qty, size, onSale ? sale.price : null);
+    setToast('✓ Added to cart' + (size ? ` (Size ${size})` : '') + (onSale ? ' — sale price applied!' : ''));
     setTimeout(() => setToast(''), 1800);
   };
 
@@ -176,9 +178,24 @@ export default function ProductDetail() {
             </div>
           )}
           <div className="pc-price">
-            <span className="price big">{formatINR(product.price)}</span>
-            {product.mrp > product.price && (
-              <span className="mrp">{formatINR(product.mrp)}</span>
+            {onSale ? (
+              <>
+                <span className="price big sale-price">{formatINR(sale.price)}</span>
+                <span className="mrp">{formatINR(sale.originalPrice)}</span>
+                <span className="sale-pct big">
+                  {sale.originalPrice > sale.price
+                    ? `${Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% off`
+                    : ''}
+                </span>
+                <p className="sale-label">{sale.saleLabel}</p>
+              </>
+            ) : (
+              <>
+                <span className="price big">{formatINR(product.price)}</span>
+                {product.mrp > product.price && (
+                  <span className="mrp">{formatINR(product.mrp)}</span>
+                )}
+              </>
             )}
           </div>
           <p className={`stock-line ${soldOut ? 'out' : ''}`}>
