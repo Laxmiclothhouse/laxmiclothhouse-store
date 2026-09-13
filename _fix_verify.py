@@ -1,4 +1,5 @@
-// api/verify-otp.js - Verifies OTP and returns user data.
+with open('api/verify-otp.js', 'w', encoding='utf-8') as f:
+    f.write('''// api/verify-otp.js - Verifies OTP and returns user data.
 // Uses Firestore REST API (no Firebase Admin SDK needed).
 const FIREBASE_PROJECT = process.env.FIREBASE_PROJECT_ID || "onlinestore-10a26";
 const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || "";
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
     const { phone, name } = req.body || {};
     if (!phone) return res.status(400).json({ error: "Phone required" });
 
-    const phoneKey = "phone_" + String(phone).replace(/\D/g, "");
+    const phoneKey = "phone_" + String(phone).replace(/\\D/g, "");
     const userData = await firestoreGet("phoneUsers", phoneKey);
 
     if (userData) {
@@ -91,3 +92,6 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Failed to verify OTP: " + err.message });
   }
 }
+''')
+
+print('verify-otp.js fixed')
