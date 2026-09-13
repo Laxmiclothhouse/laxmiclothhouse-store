@@ -1252,3 +1252,110 @@ p { margin: 0 0 .8em; }
 .status-badge.picked,
 .status-badge.received,
 .status-badge.refunded { text-transform: uppercase; }
+
+
+/* ── WhatsApp opt-in (checkout) ── */
+.whatsapp-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.whatsapp-opt input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #25d366;
+}
+.whatsapp-opt span {
+  font-size: 14px;
+  color: #1b5e20;
+}
+
+/* ── Share on WhatsApp button ── */
+.share-whatsapp {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.btn-whatsapp {
+  background: #25d366 !important;
+  color: #fff !important;
+  border: none !important;
+}
+.btn-whatsapp:hover {
+  background: #1da851 !important;
+}
+
+/* ── Sales dashboard ── */
+.sales-range {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.sales-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.sales-card {
+  background: var(--brand-soft);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sales-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.sales-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+/* ── Customer 360 ── */
+.cust-search {
+  display: flex;
+  gap: 8px;
+}
+.cust-search input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.cust-profile {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.cust-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  background: var(--cream);
+  border-radius: 8px;
+}
+.cust-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.cust-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}

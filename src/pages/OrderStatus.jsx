@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { fetchDelhiveryTrack, isDelhiveryOrder } from '../utils/delhivery.js';
+import { whatsappShareLink } from '../utils/whatsappShare.js';
 const ORD_TIMELINE = [
   { status: 'placed', label: 'Order Placed', icon: '📋' },
   { status: 'confirmed', label: 'Confirmed', icon: '✅' },
@@ -345,6 +346,18 @@ export default function OrderStatus() {
                 <p className="muted tiny">Tracking number will be added once the order is shipped.</p>
               )}
             </div>
+          </div>
+
+          <div className="share-whatsapp">
+            <a
+              className="btn btn-sm btn-whatsapp"
+              href={whatsappShareLink(null, `Hi! Check my order status: Order ${order.id} from Houselaxmicloth Suit Collection. Track here: ${window.location.origin}/#/track?order=${order.id}`)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              📱 Share on WhatsApp
+            </a>
+            <p className="muted tiny">Forward your order link to family or friends</p>
           </div>
 
           {order.status === 'cancelled' ? (

@@ -360,6 +360,20 @@ export function DataProvider({ children }) {
         storeName: settings.storeName,
       },
     });
+    // WhatsApp notification (fire-and-forget; skips when no WhatsApp API configured).
+    if (order.whatsappOptIn && (order.phone || order.customer?.phone)) {
+      postApi('/api/send-whatsapp', {
+        type: 'placed',
+        to: order.phone || order.customer?.phone,
+        order: {
+          id: order.id,
+          customerPhone: order.phone || order.customer?.phone,
+          customerName: order.customer?.name,
+          total: order.total,
+          paymentMode: order.payment?.mode,
+        },
+      });
+    }
     return order;
   };
 
@@ -467,6 +481,23 @@ export function DataProvider({ children }) {
           storeName: settings.storeName,
         },
       });
+      // WhatsApp notification for status changes (fire-and-forget).
+      const whatsappTypes = ['packed', 'shipped', 'delivered', 'cancelled', 'returned'];
+      if (changed.whatsappOptIn && whatsappTypes.includes(status) && (changed.phone || changed.customer?.phone)) {
+        postApi('/api/send-whatsapp', {
+          type: status,
+          to: changed.phone || changed.customer?.phone,
+          order: {
+            id: changed.id,
+            customerPhone: changed.phone || changed.customer?.phone,
+            customerName: changed.customer?.name,
+            total: changed.total,
+            paymentMode: changed.payment?.mode,
+            trackingNo: changed.trackingNo,
+            courier: changed.courier,
+          },
+        });
+      }
     }
   };
 

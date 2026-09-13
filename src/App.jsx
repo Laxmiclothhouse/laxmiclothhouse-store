@@ -23,6 +23,7 @@ import MyOrders from './pages/MyOrders.jsx';
 import Returns from './pages/Returns.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Admin from './pages/Admin.jsx';
+import Customer360 from './pages/Customer360.jsx';
 import StaffDashboard from './pages/StaffDashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import About from './pages/About.jsx';
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="/returns" element={<Returns />} />
               <Route path="/wishlist" element={<Wishlist />} />
                             <Route path="/admin" element={<Admin />} />
+              <Route path="/customer360" element={<Customer360 />} />
               <Route path="/dashboard" element={<StaffDashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/about" element={<About />} />

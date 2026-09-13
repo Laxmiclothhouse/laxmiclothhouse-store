@@ -406,10 +406,16 @@ export default function Admin() {
           </button>
         )}
         {isAdmin && (
+          <button className={tab === 'sales' ? 'chip active' : 'chip'} onClick={() => setTab('sales')}>
+            Sales
+          </button>
+        )}
+        {isAdmin && (
           <button className={tab === 'staff' ? 'chip active' : 'chip'} onClick={() => setTab('staff')}>
             Staff
           </button>
         )}
+        <Link to="/customer360" className="chip">Customer 360</Link>
         <Link to="/dashboard" className="chip">Live board</Link>
       </div>
 
@@ -766,6 +772,10 @@ export default function Admin() {
         </section>
       )}
 
+      {tab === 'sales' && (
+        <SalesDashboard orders={orders} payments={payments} returns={returns} />
+      )}
+
       {tab === 'settings' && (
         <section className="card-box">
           <h2>Store settings</h2>
@@ -945,6 +955,145 @@ export default function Admin() {
       )}
 
       </main>
+  );
+}
+
+function SalesDashboard({ orders, payments, returns }) {
+  const [range, setRange] = useState('all');
+  const now = new Date();
+
+  const filtered = orders.filter((o) => {
+    if (range === 'all') return true;
+    const d = new Date(o.orderDate);
+    if (range === 'today') return d.toDateString() === now.toDateString();
+    if (range === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 86400000);
+      return d >= weekAgo;
+    }
+    if (range === 'month') {
+      const monthAgo = new Date(now.getTime() - 30 * 86400000);
+      return d >= monthAgo;
+    }
+    return true;
+  });
+
+  const completed = filtered.filter((o) => o.status !== 'cancelled');
+  const revenue = completed.reduce((s, o) => s + (o.total || 0), 0);
+  const orderCount = completed.length;
+  const avgOrder = orderCount > 0 ? revenue / orderCount : 0;
+  const cancelledCount = filtered.filter((o) => o.status === 'cancelled').length;
+  const returnCount = returns.length;
+  const returnRate = orderCount > 0 ? ((returnCount / orderCount) * 100).toFixed(1) : '0.0';
+
+  // Top products
+  const productSales = {};
+  completed.forEach((o) => {
+    (o.items || []).forEach((it) => {
+      if (!productSales[it.id]) productSales[it.id] = { id: it.id, name: it.name, qty: 0, revenue: 0 };
+      productSales[it.id].qty += it.qty;
+      productSales[it.id].revenue += (it.price || 0) * (it.qty || 1);
+    });
+  });
+  const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+  // City breakdown
+  const citySales = {};
+  completed.forEach((o) => {
+    const city = o.shipping?.city || o.customer?.city || 'Unknown';
+    if (!citySales[city]) citySales[city] = { city, orders: 0, revenue: 0 };
+    citySales[city].orders += 1;
+    citySales[city].revenue += o.total || 0;
+  });
+  const topCities = Object.values(citySales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+  return (
+    <>
+      <section className="card-box">
+        <h2>Sales overview</h2>
+        <div className="sales-range">
+          {[
+            { id: 'all', label: 'All time' },
+            { id: 'today', label: 'Today' },
+            { id: 'week', label: 'Last 7 days' },
+            { id: 'month', label: 'Last 30 days' },
+          ].map((r) => (
+            <button
+              key={r.id}
+              className={range === r.id ? 'chip active' : 'chip'}
+              onClick={() => setRange(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <div className="sales-cards">
+          <div className="sales-card">
+            <span className="sales-label">Revenue</span>
+            <span className="sales-value">{formatINR(revenue)}</span>
+          </div>
+          <div className="sales-card">
+            <span className="sales-label">Orders</span>
+            <span className="sales-value">{orderCount}</span>
+          </div>
+          <div className="sales-card">
+            <span className="sales-label">Avg. order</span>
+            <span className="sales-value">{formatINR(avgOrder)}</span>
+          </div>
+          <div className="sales-card">
+            <span className="sales-label">Cancelled</span>
+            <span className="sales-value">{cancelledCount}</span>
+          </div>
+          <div className="sales-card">
+            <span className="sales-label">Return rate</span>
+            <span className="sales-value">{returnRate}%</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="card-box">
+        <h2>Top products by revenue</h2>
+        {topProducts.length === 0 ? (
+          <p className="muted">No sales data yet.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead><tr><th>Product</th><th>Units sold</th><th>Revenue</th></tr></thead>
+              <tbody>
+                {topProducts.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td>{p.qty}</td>
+                    <td>{formatINR(p.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="card-box">
+        <h2>Top cities by revenue</h2>
+        {topCities.length === 0 ? (
+          <p className="muted">No location data yet.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead><tr><th>City</th><th>Orders</th><th>Revenue</th></tr></thead>
+              <tbody>
+                {topCities.map((c) => (
+                  <tr key={c.city}>
+                    <td>{c.city}</td>
+                    <td>{c.orders}</td>
+                    <td>{formatINR(c.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 

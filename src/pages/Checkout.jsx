@@ -35,6 +35,7 @@ export default function Checkout() {
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null); // coupon CODE string
   const [couponMsg, setCouponMsg] = useState('');
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false); // double-submit lock
 
   const shippingFee = cart.reduce((sum, c) => {
@@ -187,6 +188,8 @@ export default function Checkout() {
       items: cart,
       customer: { name: shipping.name, phone: shipping.phone, email: shipping.email },
       shipping: { address: shipping.address, city: shipping.city, state: shipping.state, pincode: shipping.pincode },
+      phone: shipping.phone,
+      whatsappOptIn,
       subtotal, shippingFee,
       discount,
       couponCode: appliedCoupon?.code || null,
@@ -307,6 +310,15 @@ export default function Checkout() {
               {pinInfo.state === 'no' && <span className="pin-msg error">✕ {pinInfo.label}</span>}
             </label>
           </div>
+
+          <label className="whatsapp-opt">
+            <input
+              type="checkbox"
+              checked={whatsappOptIn}
+              onChange={(e) => setWhatsappOptIn(e.target.checked)}
+            />
+            <span>📱 Get order updates on WhatsApp</span>
+          </label>
         </section>
 
         <section className="card-box">
