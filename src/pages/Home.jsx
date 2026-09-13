@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
-import { formatINR } from '../utils/format.js';
 
 const CATS = [
   { name: 'Suits', emoji: '👗', blurb: '2D & 3D designer suits' },
@@ -80,31 +79,17 @@ export default function Home() {
 
       {/* sale section */}
       {saleProducts.length > 0 && (
-        <section className="section sale-section">
+        <section className="section cream">
           <div className="section-head">
             <p className="eyebrow">Limited time offers</p>
             <h2>🔥 Sale — Shop Now & Save</h2>
           </div>
-          <div className="sale-grid">
-            {saleProducts.map(({ product, sale }) => (
-              <Link to={`/catalog?sale=${product.id}`} key={product.id} className="sale-card">
-                <div className="sale-card-badge">
-                  {sale.saleLabel || `${Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% off`}
-                </div>
-                <div className="sale-card-img">
-                  <img src={product.images?.[0] || product.image} alt={product.name} loading="lazy" />
-                </div>
-                <div className="sale-card-body">
-                  <h4>{product.name}</h4>
-                  <div className="sale-card-price">
-                    <span className="current">{formatINR(sale.price)}</span>
-                    <span className="original">{formatINR(sale.originalPrice)}</span>
-                  </div>
-                </div>
-              </Link>
+          <div className="product-grid">
+            {saleProducts.map(({ product }) => (
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
-          <div className="center" style={{ marginTop: 16 }}>
+          <div className="center">
             <Link to="/catalog" className="btn btn-dark">View all sale products</Link>
           </div>
         </section>
