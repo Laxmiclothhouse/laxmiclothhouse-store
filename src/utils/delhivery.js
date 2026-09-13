@@ -10,7 +10,7 @@
  */
 export async function fetchDelhiveryTrack(awb) {
   try {
-    const res = await fetch(`/api/delhivery/track?awb=${encodeURIComponent(String(awb || '').trim())}`);
+    const res = await fetch(`/api/delhivery?action=track&awb=${encodeURIComponent(String(awb || '').trim())}`);
     const data = await res.json();
     return { ...data, http: res.status };
   } catch {
@@ -24,7 +24,7 @@ export async function fetchDelhiveryTrack(awb) {
  */
 export async function bookDelhiveryShipment(order) {
   try {
-    const res = await fetch('/api/delhivery/create-shipment', {
+    const res = await fetch('/api/delhivery?action=create-shipment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),
@@ -42,7 +42,7 @@ export async function bookDelhiveryShipment(order) {
  */
 export async function bookReversePickup(ret) {
   try {
-    const res = await fetch('/api/delhivery/create-reverse-pickup', {
+    const res = await fetch('/api/delhivery?action=reverse-pickup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ret }),
