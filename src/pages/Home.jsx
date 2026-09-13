@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
+import { formatINR } from '../utils/format.js';
 
 const CATS = [
   { name: 'Suits', emoji: '👗', blurb: '2D & 3D designer suits' },
@@ -11,8 +12,19 @@ const CATS = [
 ];
 
 export default function Home() {
-  const { products, settings } = useData();
+  const { products, settings, getSalePrice } = useData();
   const featured = products.filter((p) => p.featured);
+
+  const saleProducts = products
+    .map((p) => ({ product: p, sale: getSalePrice(p) }))
+    .filter(({ product, sale }) => sale.price < (sale.originalPrice || product.price))
+    .sort((a, b) => {
+      const aPct = a.sale.originalPrice ? ((a.sale.originalPrice - a.sale.price) / a.sale.originalPrice) : 0;
+      const bPct = b.sale.originalPrice ? ((b.sale.originalPrice - b.sale.price) / b.sale.originalPrice) : 0;
+      return bPct - aPct;
+    })
+    .slice(0, 8)
+    .map(({ product, sale }) => ({ product, sale }));
 
   return (
     <main>
@@ -65,6 +77,38 @@ export default function Home() {
           <Link to="/catalog" className="btn btn-dark">View all products</Link>
         </div>
       </section>
+
+      {/* sale section */}
+      {saleProducts.length > 0 && (
+        <section className="section sale-section">
+          <div className="section-head">
+            <p className="eyebrow">Limited time offers</p>
+            <h2>🔥 Sale — Shop Now & Save</h2>
+          </div>
+          <div className="sale-grid">
+            {saleProducts.map(({ product, sale }) => (
+              <Link to={`/catalog?sale=${product.id}`} key={product.id} className="sale-card">
+                <div className="sale-card-badge">
+                  {sale.saleLabel || `${Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% off`}
+                </div>
+                <div className="sale-card-img">
+                  <img src={product.images?.[0] || product.image} alt={product.name} loading="lazy" />
+                </div>
+                <div className="sale-card-body">
+                  <h4>{product.name}</h4>
+                  <div className="sale-card-price">
+                    <span className="current">{formatINR(sale.price)}</span>
+                    <span className="original">{formatINR(sale.originalPrice)}</span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="center" style={{ marginTop: 16 }}>
+            <Link to="/catalog" className="btn btn-dark">View all sale products</Link>
+          </div>
+        </section>
+      )}
 
       {/* features strip */}
       <section className="features">

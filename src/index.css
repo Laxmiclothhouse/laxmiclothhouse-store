@@ -1338,6 +1338,29 @@ p { margin: 0 0 .8em; }
 .sale-chip { background: var(--ok) !important; color: #fff !important; border-color: var(--ok) !important; }
 .sale-chip.active { background: #1b5e20 !important; }
 
+/* ── Button styles ── */
+.btn-danger { background: var(--err) !important; color: #fff !important; border-color: var(--err) !important; }
+.btn-danger:hover { background: #a93226 !important; }
+.btn-dark { background: var(--ink) !important; color: #fff !important; border-color: var(--ink) !important; }
+.btn-dark:hover { background: #1a1418 !important; }
+
+/* ── Homepage sale section ── */
+.sale-section { background: linear-gradient(135deg, #fdf0f4 0%, #f5e6ec 100%); }
+.sale-section .section-head h2 { color: var(--brand); }
+.sale-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.sale-card { background: #fff; border: 2px solid var(--ok); border-radius: 12px; overflow: hidden; transition: .3s; position: relative; }
+.sale-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.sale-card-img { aspect-ratio: 4/5; overflow: hidden; }
+.sale-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.sale-card-body { padding: 12px; }
+.sale-card-body h4 { font-size: 14px; margin: 0 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sale-card-price { display: flex; align-items: center; gap: 6px; }
+.sale-card-price .current { font-size: 16px; font-weight: 700; color: var(--ok); }
+.sale-card-price .original { font-size: 13px; color: var(--muted); text-decoration: line-through; }
+.sale-card-badge { position: absolute; top: 8px; left: 8px; background: var(--ok); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+.sale-card-badge.flash { background: #e67e22; }
+
+
 
   display: flex;
   flex-direction: column;

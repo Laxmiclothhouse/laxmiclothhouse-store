@@ -22,11 +22,14 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
         </div>
       </div>
       <div className="sale-row-actions">
-        <button className="linklike" onClick={() => onToggle(sale.id)}>
+        <button
+          className={"btn btn-sm " + (sale.active === false ? 'btn-gold' : 'btn-ghost')}
+          onClick={() => onToggle(sale.id)}
+        >
           {sale.active === false ? 'Activate' : 'Deactivate'}
         </button>
-        <button className="linklike" onClick={() => onEdit(sale)}>Edit</button>
-        <button className="linklike danger" onClick={() => { if (window.confirm('Delete this sale?')) onDelete(sale.id); }}>Delete</button>
+        <button className="btn btn-sm btn-dark" onClick={() => onEdit(sale)}>Edit</button>
+        <button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm('Delete this sale?')) onDelete(sale.id); }}>Delete</button>
       </div>
     </div>
   );
