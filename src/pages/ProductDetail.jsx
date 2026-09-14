@@ -251,7 +251,7 @@ export default function ProductDetail() {
                 <circle cx="12" cy="12" r="8.6" />
                 <circle cx="9.2" cy="10.5" r="2.1" />
                 <circle cx="14.6" cy="10.5" r="2.1" />
-                <path d="M10.2 14.6a3.5 3.5 0 0 13.6 1.6 2.4h-2.4v2" />
+                <path d="M9.5 15.5c1.5 1.5 4.5 1.5 6 0" />
               </svg>
               Share
             </button>
