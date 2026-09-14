@@ -326,6 +326,8 @@ export function DataProvider({ children }) {
       customer: payload.customer,
       shipping: payload.shipping,
       payment: payload.payment,
+      phone: payload.phone || null,
+      whatsappOptIn: !!payload.whatsappOptIn,
       subtotal: payload.subtotal,
       shippingFee: payload.shippingFee,
       discount: Number(payload.discount) || 0,
