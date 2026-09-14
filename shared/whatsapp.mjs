@@ -1,9 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// shared/whatsapp.mjs — WhatsApp order notifications via WATI.
+// shared/whatsapp.mjs — WhatsApp order notifications via WATI V3 API.
 // ─────────────────────────────────────────────────────────────
 
 const KEY = process.env.WHATSAPP_API_KEY || '';
-const WATI_ENDPOINT = process.env.WATI_ENDPOINT || '';
+// WATI V3 endpoint: your tenant URL + /api/ext/v3/conversations/messages/text
+// e.g. https://live-server-1234.wati.io/api/ext/v3/conversations/messages/text
+const WATI_BASE = process.env.WATI_ENDPOINT || ''; // e.g. "live-server-1234.wati.io"
+const WATI_URL = WATI_BASE ? `https://${WATI_BASE}/api/ext/v3/conversations/messages/text` : '';
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://online-store-sigma-three.vercel.app';
 
 const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -33,7 +36,7 @@ export async function sendWhatsApp({ to, type, order }) {
   const phone = String(to || '').replace(/\D/g, '');
   if (!phone || phone.length < 10) {
     console.log('[whatsapp] FAIL: invalid phone', phone);
-    return { ok: false, error: 'invalid phone' };
+    return { ok: false, error: 'invalid-phone' };
   }
   const fullPhone = phone.startsWith('91') && phone.length === 12 ? phone : '91' + phone;
 
@@ -42,27 +45,32 @@ export async function sendWhatsApp({ to, type, order }) {
     return { ok: false, error: 'no-api-key' };
   }
 
-  if (!WATI_ENDPOINT) {
-    console.log('[whatsapp] FAIL: no WATI_ENDPOINT set');
+  if (!WATI_URL) {
+    console.log('[whatsapp] FAIL: no WATI_ENDPOINT set (or invalid endpoint)');
     return { ok: false, error: 'no-wati-endpoint' };
   }
 
   const message = renderWhatsApp(type, order);
-  const url = `https://${WATI_ENDPOINT}/api/v1/sendSessionMessage/${fullPhone}`;
 
-  console.log('[whatsapp] ATTEMPT:', { type, fullPhone, endpoint: WATI_ENDPOINT, keyLength: KEY.length, messageLength: message.length });
-  console.log('[whatsapp] URL:', url);
+  console.log('[whatsapp] ATTEMPT:', { type, phone: fullPhone, endpoint: WATI_BASE, keyLength: KEY.length });
+  console.log('[whatsapp] URL:', WATI_URL);
 
   try {
-    const formData = new URLSearchParams();
-    formData.append('messageText', message);
+    const body = {
+      target: fullPhone,   // WATI V3: phone number as target (E.164 format, without +)
+      text: message,        // WATI V3: 'text' not 'messageText'
+      is_bot: false,        // use human-agent reply window
+    };
 
-    const resp = await fetch(url, {
+    console.log('[whatsapp] BODY:', JSON.stringify(body));
+
+    const resp = await fetch(WATI_URL, {
       method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         Authorization: `Bearer ${KEY}`,
       },
-      body: formData,
+      body: JSON.stringify(body),
     });
 
     const text = await resp.text();
@@ -70,7 +78,7 @@ export async function sendWhatsApp({ to, type, order }) {
     console.log('[whatsapp] RESPONSE BODY:', text);
 
     if (!resp.ok) {
-      return { ok: false, error: `http ${resp.status}`, details: text };
+      return { ok: false, error: `http-${resp.status}`, details: text };
     }
 
     let result = {};
