@@ -1,4 +1,5 @@
-// WhatsApp order notification API endpoint.
+with open('api/send-whatsapp.js', 'w', encoding='utf-8') as f:
+    f.write('''// WhatsApp order notification API endpoint.
 import { sendWhatsApp } from '../shared/whatsapp.mjs';
 
 const VALID_TYPES = ['placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled', 'returned'];
@@ -12,7 +13,7 @@ export default async function handler(req, res) {
     if (!order.id) return res.status(400).json({ error: 'Order id required' });
 
     // Get phone from either the 'to' field or order object
-    const target = String(to || order.customerPhone || order.customer?.phone || order.phone || '').replace(/\D/g, '');
+    const target = String(to || order.customerPhone || order.customer?.phone || order.phone || '').replace(/\\D/g, '');
     if (!target || target.length < 10) return res.status(400).json({ error: 'Valid phone number required' });
 
     console.log('[whatsapp] sending', type, 'to', target, 'for order', order.id);
@@ -24,3 +25,6 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'Failed to send WhatsApp message: ' + err.message });
   }
 }
+''')
+
+print('send-whatsapp.js fixed')
