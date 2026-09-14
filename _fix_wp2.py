@@ -1,4 +1,5 @@
-// ─────────────────────────────────────────────────────────────
+with open('shared/whatsapp.mjs', 'w', encoding='utf-8') as f:
+    f.write('''// ─────────────────────────────────────────────────────────────
 // shared/whatsapp.mjs — WhatsApp order notifications via WATI.
 // Sends only if WHATSAPP_API_KEY is configured — otherwise logs and skips.
 // ─────────────────────────────────────────────────────────────
@@ -21,17 +22,17 @@ export function renderWhatsApp(type, orderRaw) {
   const track = `${APP_ORIGIN}/#/order-manage/${encodeURIComponent(id || '')}`;
 
   const COPY = {
-    placed: `📋 *Order Placed — ${id}*\n\nHi ${name}! We have received your order.\n\nTotal: ${total}\nPayment: ${mode}\n\nTrack your order:\n${track}`,
-    confirmed: `✅ *Order Confirmed — ${id}*\n\nHi ${name}! Your order has been confirmed and we'll start packing it shortly.\n\nTotal: ${total}\n\nTrack: ${track}`,
-    packed: `📦 *Order Packed — ${id}*\n\nGreat news ${name}! Your order has been carefully packed and will be shipped soon.\n\nTrack: ${track}`,
-    shipped: `🚚 *Order Shipped — ${id}*\n\nHi ${name}! Your order is on the way!${
+    placed: `📋 *Order Placed — ${id}*\\n\\nHi ${name}! We have received your order.\\n\\nTotal: ${total}\\nPayment: ${mode}\\n\\nTrack your order:\\n${track}`,
+    confirmed: `✅ *Order Confirmed — ${id}*\\n\\nHi ${name}! Your order has been confirmed and we'll start packing it shortly.\\n\\nTotal: ${total}\\n\\nTrack: ${track}`,
+    packed: `📦 *Order Packed — ${id}*\\n\\nGreat news ${name}! Your order has been carefully packed and will be shipped soon.\\n\\nTrack: ${track}`,
+    shipped: `🚚 *Order Shipped — ${id}*\\n\\nHi ${name}! Your order is on the way!${
       o.trackingNo
-        ? `\n\nTracking: ${o.courier || 'Courier'} · ${o.trackingNo}\n\nTrack live: https://delhivery.com/track/package/${o.trackingNo}`
-        : `\n\nTrack: ${track}`
+        ? `\\n\\nTracking: ${o.courier || 'Courier'} · ${o.trackingNo}\\n\\nTrack live: https://delhivery.com/track/package/${o.trackingNo}`
+        : `\\n\\nTrack: ${track}`
     }`,
-    delivered: `🎉 *Order Delivered — ${id}*\n\nHi ${name}! Your order has been delivered. We hope you love it!\n\nIf anything is missing or damaged, reply to this message.`,
-    cancelled: `❌ *Order Cancelled — ${id}*\n\nHi ${name}, your order has been cancelled. Any paid amount will be refunded to the original payment method.\n\nQuestions? Reply to this message.`,
-    returned: `↩️ *Return Processed — ${id}*\n\nHi ${name}, your return has been processed successfully.\n\nRefund of ${total} will be credited to your original payment method within 5-7 working days.`,
+    delivered: `🎉 *Order Delivered — ${id}*\\n\\nHi ${name}! Your order has been delivered. We hope you love it!\\n\\nIf anything is missing or damaged, reply to this message.`,
+    cancelled: `❌ *Order Cancelled — ${id}*\\n\\nHi ${name}, your order has been cancelled. Any paid amount will be refunded to the original payment method.\\n\\nQuestions? Reply to this message.`,
+    returned: `↩️ *Return Processed — ${id}*\\n\\nHi ${name}, your return has been processed successfully.\\n\\nRefund of ${total} will be credited to your original payment method within 5-7 working days.`,
   };
 
   return COPY[type] || COPY.placed;
@@ -46,7 +47,7 @@ export function renderWhatsApp(type, orderRaw) {
  * @returns {Promise<{ok: boolean, error?: string, skipped?: boolean}>}
  */
 export async function sendWhatsApp({ to, type, order }) {
-  const phone = String(to || '').replace(/\D/g, '');
+  const phone = String(to || '').replace(/\\D/g, '');
   if (!phone || phone.length < 10) return { ok: false, error: 'invalid phone' };
   const fullPhone = phone.startsWith('91') && phone.length === 12 ? phone : '91' + phone;
 
@@ -100,7 +101,7 @@ export async function sendWhatsApp({ to, type, order }) {
 export function buildWhatsAppLink(text, phone = '') {
   const msg = encodeURIComponent(String(text || ''));
   if (phone) {
-    const p = String(phone).replace(/\D/g, '');
+    const p = String(phone).replace(/\\D/g, '');
     return `https://wa.me/${p}?text=${msg}`;
   }
   return `https://wa.me/?text=${msg}`;
@@ -113,7 +114,7 @@ export function productShareText(product) {
   const name = product.name || 'this product';
   const price = money(product.price || 0);
   const url = `${APP_ORIGIN}/#/product/${product.id || ''}`;
-  return `Check out ${name} (${price}) at ${STORE_NAME}:\n${url}`;
+  return `Check out ${name} (${price}) at ${STORE_NAME}:\\n${url}`;
 }
 
 /**
@@ -122,5 +123,8 @@ export function productShareText(product) {
 export function orderShareText(order) {
   const id = order.id || '';
   const url = `${APP_ORIGIN}/#/order-status?order=${encodeURIComponent(id)}`;
-  return `My order ${id} from ${STORE_NAME}:\n${url}`;
+  return `My order ${id} from ${STORE_NAME}:\\n${url}`;
 }
+''')
+
+print('whatsapp.mjs fixed for WATI API v1')
