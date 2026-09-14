@@ -1,12 +1,10 @@
 // ─────────────────────────────────────────────────────────────
-// shared/whatsapp.mjs — WhatsApp order notifications via WATI V3 API.
+// shared/whatsapp.mjs — WhatsApp order notifications via WATI.
 // ─────────────────────────────────────────────────────────────
 
 const KEY = process.env.WHATSAPP_API_KEY || '';
-// WATI V3 endpoint: your tenant URL + /api/ext/v3/conversations/messages/text
-// e.g. https://live-server-1234.wati.io/api/ext/v3/conversations/messages/text
-const WATI_BASE = process.env.WATI_ENDPOINT || ''; // e.g. "live-server-1234.wati.io"
-const WATI_URL = WATI_BASE ? `https://${WATI_BASE}/api/ext/v3/conversations/messages/text` : '';
+// WATI endpoint: your tenant URL (e.g. "live.wati.io" or "live.wati.io/10250078")
+const WATI_ENDPOINT = process.env.WATI_ENDPOINT || ''; // e.g. "live.wati.io"
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://online-store-sigma-three.vercel.app';
 
 const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -45,32 +43,30 @@ export async function sendWhatsApp({ to, type, order }) {
     return { ok: false, error: 'no-api-key' };
   }
 
-  if (!WATI_URL) {
+  if (!WATI_ENDPOINT) {
     console.log('[whatsapp] FAIL: no WATI_ENDPOINT set (or invalid endpoint)');
     return { ok: false, error: 'no-wati-endpoint' };
   }
 
   const message = renderWhatsApp(type, order);
 
-  console.log('[whatsapp] ATTEMPT:', { type, phone: fullPhone, endpoint: WATI_BASE, keyLength: KEY.length });
+  // Build WATI URL: https://live.wati.io/api/v1/sendSessionMessage/{phone}
+  const baseUrl = WATI_ENDPOINT.startsWith('http') ? WATI_ENDPOINT.replace(/\/+$/, '') : `https://${WATI_ENDPOINT.replace(/^\/+/, '').replace(/\/.*$/, '')}`;
+  const WATI_URL = `${baseUrl}/api/v1/sendSessionMessage/${fullPhone}`;
+
+  console.log('[whatsapp] ATTEMPT:', { type, phone: fullPhone, endpoint: WATI_ENDPOINT, keyLength: KEY.length });
   console.log('[whatsapp] URL:', WATI_URL);
 
   try {
-    const body = {
-      target: fullPhone,   // WATI V3: phone number as target (E.164 format, without +)
-      text: message,        // WATI V3: 'text' not 'messageText'
-      is_bot: false,        // use human-agent reply window
-    };
-
-    console.log('[whatsapp] BODY:', JSON.stringify(body));
+    const formData = new URLSearchParams();
+    formData.append('messageText', message);
 
     const resp = await fetch(WATI_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         Authorization: `Bearer ${KEY}`,
       },
-      body: JSON.stringify(body),
+      body: formData,
     });
 
     const text = await resp.text();
