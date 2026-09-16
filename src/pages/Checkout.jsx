@@ -36,7 +36,10 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState(null); // coupon CODE string
   const [couponMsg, setCouponMsg] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
-  const [submitting, setSubmitting] = useState(false); // double-submit lock
+  const [submitting, setSubmitting] = useState(false);
+  const [showPinList, setShowPinList] = useState(false);
+  const [filterPin, setFilterPin] = useState('');
+  const [filteredPins, setFilteredPins] = useState([]);
 
   const shippingFee = cart.reduce((sum, c) => {
     const p = products.find((x) => x.id === c.id);
@@ -305,7 +308,69 @@ export default function Checkout() {
           <div className="grid3">
             <label>City<input value={shipping.city} onChange={setShip('city')} /></label>
             <label>State<input value={shipping.state} onChange={setShip('state')} /></label>
-            <label>Pincode<input value={shipping.pincode} onChange={setShip('pincode')} maxLength={6} />
+            <label>Pincode
+              <input
+                value={shipping.pincode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  setShip('pincode')({ target: { value: val } });
+                  // Re-filter dropdown while typing if it's open
+                  if (showPinList) {
+                    const p = Array.isArray(settings.serviceablePincodes)
+                      ? settings.serviceablePincodes
+                      : [];
+                    setFilterPin(val);
+                    setFilteredPins(
+                      p.length === 0
+                        ? []
+                        : val
+                          ? p.filter((x) => x.startsWith(val))
+                          : p
+                    );
+                  }
+                }}
+                onFocus={() => {
+                  const p = Array.isArray(settings.serviceablePincodes)
+                    ? settings.serviceablePincodes
+                    : [];
+                  setShowPinList(true);
+                  setFilterPin(shipping.pincode);
+                  setFilteredPins(
+                    p.length === 0
+                      ? []
+                      : shipping.pincode
+                        ? p.filter((x) => x.startsWith(shipping.pincode))
+                        : p
+                  );
+                }}
+                onBlur={() => setTimeout(() => setShowPinList(false), 180)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredPins.length === 1) {
+                    setShip('pincode')({ target: { value: filteredPins[0] } });
+                    setShowPinList(false);
+                  }
+                }}
+                maxLength={6}
+                placeholder="Type or select pincode"
+                aria-label="Pincode"
+              />
+              {showPinList && filteredPins.length > 0 && (
+                <ul className="pin-dropdown">
+                  {filteredPins.map((pin) => (
+                    <li
+                      key={pin}
+                      className={shipping.pincode === pin ? 'selected' : ''}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setShip('pincode')({ target: { value: pin } });
+                        setShowPinList(false);
+                      }}
+                    >
+                      {pin}
+                    </li>
+                  ))}
+                </ul>
+              )}
               {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
               {pinInfo.state === 'no' && <span className="pin-msg error">✕ {pinInfo.label}</span>}
             </label>
