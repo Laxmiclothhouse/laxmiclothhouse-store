@@ -7,6 +7,8 @@
 
 const KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = process.env.MAIL_FROM || 'onboarding@resend.dev';
+
+const MERCHANT_EMAIL = process.env.MERCHANT_EMAIL || '';
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://online-store-sigma-three.vercel.app';
 const STORE_NAME = process.env.STORE_NAME || 'Houselaxmicloth Suit Collection';
 
@@ -30,11 +32,23 @@ export function renderOrderMail(type, orderRaw) {
   const tracking = o.trackingNo ? `${esc(o.courier || 'Courier')} Â· ${esc(o.trackingNo)}` : '';
 
   const COPY = {
+    placed: {
+      subject: `🛒 Order placed — ${o.id}`,
+      title: 'Your order has been placed',
+      body: `Hi${name === 'there' ? '' : `, ${name}`}! Thank you for your order <strong>${id}</strong>. We'll process it shortly.`,
+      extra: `Payment method: <strong>${mode}</strong> · Order total: <strong>${total}</strong>`,
+    },
     confirmed: {
       subject: `âœ… Order confirmed â€” ${o.id}`,
       title: 'Your order is confirmed',
       body: `Thanks for shopping with us${name === 'there' ? '' : `, ${name}`}! We have received your order <strong>${id}</strong> and will start packing it shortly.`,
       extra: `Payment method: <strong>${mode}</strong> Â· Order total: <strong>${total}</strong>`,
+    },
+    packed: {
+      subject: `📦 Order packed — ${o.id}`,
+      title: 'Your order is packed and ready',
+      body: `Great news${name === 'there' ? '' : ', ' + name}! Your order <strong>${id}</strong> has been packed and will ship soon.`,
+      extra: 'We will send you a tracking link once it ships.',
     },
     shipped: {
       subject: `ðŸšš Your order has shipped â€” ${o.id}`,
@@ -53,6 +67,12 @@ export function renderOrderMail(type, orderRaw) {
       title: 'Your order was cancelled',
       body: `Hi${name === 'there' ? '' : ` ${name}`}, your order <strong>${id}</strong> has been cancelled. Any paid amount will be refunded to the original payment method.`,
       extra: 'Questions? Reply to this email and our team will assist you.',
+    },
+    returned: {
+      subject: `↩️ Return processed — ${o.id}`,
+      title: 'Your return has been processed',
+      body: `Hi${name === 'there' ? '' : ', ' + name}, your return for order <strong>${id}</strong> has been received and processed.`,
+      extra: 'Once we receive the item, we will initiate your refund to the original payment method.',
     },
   };
 
@@ -141,6 +161,55 @@ export async function sendOrderMail({ type, to, order }) {
       const text = await resp.text();
       console.error('[mail] resend error', resp.status, text.slice(0, 300));
       return { ok: false, error: `resend ${resp.status}` };
+    }
+
+    // Send a merchant (store-owner) copy of every order status e-mail.
+    if (MERCHANT_EMAIL && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(MERCHANT_EMAIL)) {
+      const mTotal = money(o.total);
+      const mTrack = o.trackingNo ? `${esc(o.courier || 'Courier')} ${esc(o.trackingNo)}` : '';
+      const mSubject = `[Merchant] ${subject}`;
+      const mHtml = `<!doctype html>
+<html style="font-family:Arial,Helvetica,sans-serif;background:#faf6f0;padding:24px">
+<body style="max-width:600px;margin:0 auto">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff;border-radius:14px;border:1px solid #eadfd6;overflow:hidden">
+    <tr>
+      <td style="padding:22px 28px;background:#222;color:#fff">
+        <div style="font-size:20px;font-weight:700">${esc(STORE_NAME)} — Order Notification</div>
+        <div style="font-size:13px;opacity:.85">Internal copy · Do not reply</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:26px 28px">
+        <h1 style="font-size:21px;margin:0 0 12px">${subject}</h1>
+        <p style="font-size:14px;margin:0 0 6px"><strong>Customer:</strong> ${esc(o.customerName || '—')}</p>
+        <p style="font-size:14px;margin:0 0 6px"><strong>Customer email:</strong> ${esc(o.customerEmail || '—')}</p>
+        <p style="font-size:14px;margin:0 0 6px"><strong>Order total:</strong> ${mTotal}</p>
+        <p style="font-size:14px;margin:0 0 6px"><strong>Payment:</strong> ${esc(o.paymentMode || '—')}</p>
+        ${mTrack ? `<p style="font-size:14px;margin:0 0 6px"><strong>Tracking:</strong> ${mTrack}</p>` : ''}
+         <a href="${APP_ORIGIN}/#/order-manage/${encodeURIComponent(o.id || '')}" style="display:inline-block;background:#9b1c3d;color:#fff;text-decoration:none;padding:11px 22px;border-radius:30px;font-size:14px;margin-top:6px">View order →</a>
+        <p style="font-size:12px;color:#7c6f72;margin:22px 0 0">This is a system-generated internal notification.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+      try {
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: `${STORE_NAME} <${FROM_EMAIL}>`,
+            to: [MERCHANT_EMAIL],
+            subject: mSubject,
+            html: mHtml,
+          }),
+        });
+      } catch (mErr) {
+        console.error('[mail] merchant copy error:', mErr.message);
+      }
     }
     return { ok: true };
   } catch (err) {
