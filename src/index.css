@@ -1221,6 +1221,11 @@ p { margin: 0 0 .8em; }
 .di-stock-low { color: #b06d16; font-size: .75rem; }
 /* ── Checkout: pincode & delivery promise ────────── */
 .pin-msg { display: block; font-size: .78rem; margin-top: 4px; }
+.live-shipping {
+  margin-top: 6px;
+}
+.live-shipping .pin-msg + .pin-msg { margin-left: 6px; }
+
 .pin-dropdown {
   position: absolute;
   z-index: 50;

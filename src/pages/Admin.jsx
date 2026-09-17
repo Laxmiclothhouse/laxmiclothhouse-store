@@ -34,6 +34,39 @@ const emptyForm = {
   customImages: [],
 };
 
+// ── Delhivery rate card ⇄ compact text ──────────────────────
+// One zone per line:  key | base | per500g | codExtra | minCharge | freeAbove
+// A zone key is matched as the longest `pin:12345` prefix, then a lowercase
+// state name (e.g. `haryana`), then `default`.
+const rateCardToText = (card) => {
+  const zones = card && card.zones ? card.zones : null;
+  if (!zones || typeof zones !== "object") return "";
+  return Object.keys(zones)
+    .map((k) => {
+      const z = zones[k] || {};
+      return [k, z.same || 0, z.per500g || 0, z.codExtra || 0, z.minCharge || 0, z.freeAbove || 0].join(" | ");
+    })
+    .join("\n");
+};
+
+const textToRateCard = (text) => {
+  const zones = {};
+  String(text || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const parts = line.split("|").map((p) => p.trim());
+      const key = parts[0];
+      if (!key) return;
+      const num = (i) => {
+        const n = Number(String(parts[i] === undefined ? "" : parts[i]).replace(/[^\d.]/g, ""));
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      };
+      zones[key] = { same: num(1), per500g: num(2), codExtra: num(3), minCharge: num(4), freeAbove: num(5) };
+    });
+  return { zones };
+};
 function InvoicePreviewModal({ order, settings, onClose }) {
   const [url, setUrl] = React.useState('');
   React.useEffect(() => {
@@ -493,6 +526,21 @@ export default function Admin() {
               </div>
               {/* ── Shipping cost ─────────────────────────── */}
               <div className="grid2">
+               {/* ── Product weight ─────────────────────────── */}
+               <div className="grid2">
+                 <label>Product weight (grams)
+                   <input
+                     type="number"
+                     min="50"
+                     step="10"
+                     value={form.weightGrams || 500}
+                     onChange={(e) => setForm({ ...form, weightGrams: Number(e.target.value) || 500 })}
+                     placeholder="500"
+                   />
+                   <span className="muted tiny">Used by live Delhivery shipping to calculate rate by weight.</span>
+                 </label>
+               </div>
+
                 <label>Shipping cost per unit (₹)
                   <input
                     type="number"
@@ -918,6 +966,38 @@ export default function Admin() {
               </div>
               <p className="muted tiny">The checkout shows e.g. <strong>"Expected delivery Mon, 15 Sep – Thu, 18 Sep"</strong> once a valid, serviceable pincode is entered.</p>
             </div>
+               <div className="grid2">
+                 <label>Shipping cost source
+                   <select value={s.shippingSource || 'product'} onChange={(e) => setSField('shippingSource')(e)}>
+                     <option value="product">Per-product shipping cost (current)</option>
+                     <option value="delhivery">Live Delhivery rate by pincode + weight</option>
+                   </select>
+                 </label>
+                 <span className="muted tiny">Choose how checkout calculates shipping. 'delhivery' uses live courier rates based on pincode + order weight.</span>
+               </div>
+
+            {(s.shippingSource || "product") === "delhivery" && (
+              <div className="flash-sale-settings">
+                <h3 style={{ margin: "6px 0 10px" }}>📦 Delhivery rate card</h3>
+                <label>Zones — one per line: key | base | per500g | codExtra | minCharge | freeAbove
+                  <textarea
+                    rows="6"
+                    value={rateCardToText(s.rateCard)}
+                    onChange={(e) => setS({ ...s, rateCard: textToRateCard(e.target.value) })}
+                    placeholder={"pin:124 | 40 | 25 | 20 | 60 | 0\ndefault | 90 | 50 | 40 | 120 | 0"}
+                  />
+                  <span className="muted tiny">
+                    Checkout charges the courier rate for the parcel weight plus the COD surcharge.
+                    A key is matched as the longest <code>pin:12345</code> prefix, then a lowercase
+                    state name (e.g. <code>haryana</code>), then <code>default</code>.
+                    <strong> base</strong> is a flat charge, <strong>per500g</strong> is added per
+                    500 g slab, <strong>minCharge</strong> is a floor, and <strong>freeAbove</strong>
+                    makes that zone free at or above the given order value (0 = never free).
+                    Copy these numbers from your Delhivery contract — the courier has no public rate API.
+                  </span>
+                </label>
+              </div>
+            )}
             <div className="pay-mode-row">
               <label style={{ display: 'block', marginBottom: 4 }}>Payment mode</label>
               <div className="pay-mode-options">

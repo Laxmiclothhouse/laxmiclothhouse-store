@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
+import { useCartWeightGrams } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatINR } from '../utils/format.js';
@@ -40,12 +41,33 @@ export default function Checkout() {
   const [showPinList, setShowPinList] = useState(false);
   const [filterPin, setFilterPin] = useState('');
   const [filteredPins, setFilteredPins] = useState([]);
+  const cartWeightGrams = useCartWeightGrams();
+  const [liveShipping, setLiveShipping] = useState(null);
+  const [liveShippingLoading, setLiveShippingLoading] = useState(false);
+  const [liveShippingError, setLiveShippingError] = useState(null);
 
-  const shippingFee = cart.reduce((sum, c) => {
-    const p = products.find((x) => x.id === c.id);
-    const perUnit = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
-    return sum + perUnit * c.qty;
-  }, 0);
+
+  const shippingSource = settings.shippingSource || 'product';
+  // Serialised rate card — a stable primitive for the live-quote effect's
+  // dependency list (the object's identity changes when settings reload).
+  const rateCardKey = JSON.stringify(settings.rateCard || null);
+  let shippingFee = 0;
+  if (shippingSource === 'delhivery') {
+    const fb = cart.reduce((sum, c) => {
+      const p = products.find((x) => x.id === c.id);
+      const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
+      return sum + pu * c.qty;
+    }, 0);
+    shippingFee = liveShipping && liveShipping.serviceable && Number.isFinite(liveShipping.shippingCost)
+      ? Math.max(0, liveShipping.shippingCost) : fb;
+  } else {
+    shippingFee = cart.reduce((sum, c) => {
+      const p = products.find((x) => x.id === c.id);
+      const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
+      return sum + pu * c.qty;
+    }, 0);
+  }
+
   // Discount is re-derived on every render so it stays correct if the
   // cart changes after a coupon is applied.
   const couponRes = appliedCoupon ? validateCoupon(appliedCoupon, subtotal) : null;
@@ -60,6 +82,88 @@ export default function Checkout() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedCoupon, subtotal]);
+
+  // ── Live Delhivery serviceability + shipping cost ───────────
+  // Runs whenever the pincode or the cart weight changes (debounced).
+  // When the store ships via Delhivery this replaces the flat per-product
+  // fee with the courier's real rate for the parcel weight. Any failure
+  // falls back silently to the per-product fee, so the API can never
+  // block checkout.
+  React.useEffect(() => {
+    if (shippingSource !== 'delhivery') {
+      setLiveShipping(null);
+      setLiveShippingError(null);
+      setLiveShippingLoading(false);
+      return undefined;
+    }
+    const pin = String(shipping.pincode || '').trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setLiveShipping(null);
+      setLiveShippingError(null);
+      setLiveShippingLoading(false);
+      return undefined;
+    }
+
+    const ctrl = new AbortController();
+    setLiveShippingLoading(true);
+    setLiveShippingError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/delhivery/pincode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pincode: pin,
+            weightGrams: cartWeightGrams > 0 ? cartWeightGrams : 500,
+            state: shipping.state || '',
+            // COD carries a courier surcharge, so the quote must know the mode.
+            paymentMode: String(method || '').toLowerCase() === 'cod' ? 'cod' : 'prepaid',
+            orderValue: subtotal,
+            rateCard: settings.rateCard || null,
+            deliveryMinDays: settings.deliveryMinDays,
+            deliveryMaxDays: settings.deliveryMaxDays,
+          }),
+          signal: ctrl.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (ctrl.signal.aborted) return;
+        if (res.ok && data.ok) {
+          setLiveShipping({
+            serviceable: !!data.serviceable,
+            shippingCost: Number.isFinite(data.shippingCost) ? data.shippingCost : null,
+            expectedDelivery: data.expectedDelivery || null,
+            via: data.via || '',
+          });
+          setLiveShippingError(null);
+        } else {
+          setLiveShipping(null);
+          setLiveShippingError(data.error || 'Could not check delivery');
+        }
+      } catch (ex) {
+        if (ex.name !== 'AbortError' && !ctrl.signal.aborted) {
+          setLiveShipping(null);
+          setLiveShippingError('Could not check delivery');
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setLiveShippingLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    shipping.pincode,
+    shipping.state,
+    cartWeightGrams,
+    shippingSource,
+    method,
+    subtotal,
+    rateCardKey,
+  ]);
 
   const applyCoupon = () => {
     setCouponMsg('');
@@ -85,6 +189,21 @@ export default function Checkout() {
   const pinCode = String(shipping.pincode || '').trim();
   const pinInfo = /^\d{6}$/.test(pinCode)
     ? (() => {
+        // With Delhivery shipping the courier decides serviceability, so its
+        // live answer wins over the static serviceablePincodes list. When the
+        // API is unavailable nothing is set, so we fall back to the list and
+        // never wrongly block a valid pincode.
+        if (shippingSource === 'delhivery' && liveShipping) {
+          if (liveShipping.serviceable) {
+            return {
+              state: 'ok',
+              label: liveShipping.expectedDelivery
+                ? `Expected delivery ${liveShipping.expectedDelivery}`
+                : 'Delivery available to this pincode',
+            };
+          }
+          return { state: 'no', label: `We don't deliver to pincode ${pinCode} yet` };
+        }
         const pins = Array.isArray(settings.serviceablePincodes)
           ? settings.serviceablePincodes
           : [];
@@ -153,8 +272,11 @@ export default function Checkout() {
   const setShip = (k) => (e) => setShipping({ ...shipping, [k]: e.target.value });
 
   const validate = () => {
-    for (const k of ['name', 'phone', 'address', 'city', 'state', 'pincode']) {
+    for (const k of ['name', 'phone', 'email', 'address', 'city', 'state', 'pincode']) {
       if (!shipping[k].trim()) return 'Please fill all shipping details.';
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(shipping.email.trim())) {
+      return 'Enter a valid email address — we send your order updates there.';
     }
     if (!/^\d{6}$/.test(shipping.pincode)) return 'Enter a valid 6-digit pincode.';
     if (pinInfo.state === 'no') return `We don't deliver to pincode ${pinCode} yet. Please check another pincode.`;
@@ -303,7 +425,15 @@ export default function Checkout() {
             <label>Full name<input value={shipping.name} onChange={setShip('name')} /></label>
             <label>Phone<input value={shipping.phone} onChange={setShip('phone')} /></label>
           </div>
-          <label>Email<input type="email" value={shipping.email} onChange={setShip('email')} /></label>
+          <label>Email
+            <input
+              type="email"
+              value={shipping.email}
+              onChange={setShip('email')}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </label>
           <label>Address<input value={shipping.address} onChange={setShip('address')} placeholder="House no, street, area" /></label>
           <div className="grid3">
             <label>City<input value={shipping.city} onChange={setShip('city')} /></label>
@@ -371,6 +501,27 @@ export default function Checkout() {
                   ))}
                 </ul>
               )}
+
+              {/* ── Live shipping info ─────────────────────────── */}
+              {shippingSource === "delhivery" && liveShipping && (
+                <div className="live-shipping">
+                  {liveShippingLoading && <span className="pin-msg muted">Checking shipping…</span>}
+                  {!liveShippingLoading && liveShipping.shippingCost != null && (
+                    <span className="pin-msg ok">
+                      Shipping <strong>₹{liveShipping.shippingCost}</strong>
+                      {liveShipping.via ? ` <span className="tiny muted">· {liveShipping.via}</span>` : ''}
+                    </span>
+                  )}
+                  {!liveShippingLoading && liveShipping.shippingCost == null && liveShipping.serviceable && (
+                    <span className="pin-msg muted">Shipping calculated at order confirmation</span>
+                  )}
+                  {liveShippingError && <span className="pin-msg error">Shipping: {liveShippingError}</span>}
+                  {liveShipping.expectedDelivery && !liveShippingLoading && (
+                    <span className="pin-msg ok tiny">{liveShipping.expectedDelivery}</span>
+                  )}
+                </div>
+              )}
+
               {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
               {pinInfo.state === 'no' && <span className="pin-msg error">✕ {pinInfo.label}</span>}
             </label>

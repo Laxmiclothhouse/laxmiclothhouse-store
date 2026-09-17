@@ -31,6 +31,7 @@ export function CartProvider({ children }) {
           image: product.image,
           color: product.color,
           size: String(size || ''),
+          weightGrams: Number(product.weightGrams) || 500,
           qty,
         },
       ];
@@ -71,4 +72,21 @@ export function CartProvider({ children }) {
 
 export function useCart() {
   return useContext(CartContext);
+}
+
+/**
+ * Total weight of the current cart in grams.
+ * Each cart item must carry a `weightGrams` field (inherited from the
+ * product at add-time). Falls back to 0 for any item missing the field.
+ */
+export function useCartWeightGrams() {
+  const { cart } = useCart();
+  return useMemo(() => {
+    let total = 0;
+    for (const c of cart) {
+      const w = Number.isFinite(c.weightGrams) ? c.weightGrams : 0;
+      total += w * c.qty;
+    }
+    return total;
+  }, [cart]);
 }

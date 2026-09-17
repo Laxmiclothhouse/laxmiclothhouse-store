@@ -79,11 +79,14 @@ export default async function handler(req, res) {
     // Dispatch the matching customer e-mail when the order snapshot is supplied.
     const mailType = MAIL_TYPES[status];
     if (mailType && orderInfo && orderInfo.customerEmail) {
-      await sendOrderMail({
+      const mailed = await sendOrderMail({
         type: mailType,
         to: orderInfo.customerEmail,
         order: { ...orderInfo, trackingNo, courier },
       });
+      if (!mailed.ok) {
+        console.error('[update-order-status] customer mail failed:', mailed.error, '->', orderInfo.customerEmail);
+      }
     }
 
     res.json({ ok: true });

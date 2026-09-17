@@ -31,7 +31,16 @@ export default async function handler(req, res) {
     }
 
     const result = await sendOrderMail({ type, to: target, order });
-    res.json({ ok: true, skipped: result.skipped === true });
+    if (result.error) console.error('send-order-mail: customer send failed:', result.error);
+    if (result.merchantError) console.error('send-order-mail: merchant copy failed:', result.merchantError);
+    res.json({
+      ok: result.ok === true,
+      skipped: result.skipped === true,
+      customerSent: result.customerSent === true,
+      merchantSent: result.merchantSent === true,
+      error: result.error || null,
+      merchantError: result.merchantError || null,
+    });
   } catch (err) {
     console.error('send-order-mail error:', err);
     res.status(500).json({ error: 'Failed to send mail' });

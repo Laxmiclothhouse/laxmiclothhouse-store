@@ -136,13 +136,30 @@ export function renderOrderMail(type, orderRaw) {
 
 /** Send a status e-mail. Always returns { ok } â€” never throws. */
 export async function sendOrderMail({ type, to, order }) {
-  const email = String(to || '').trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: 'invalid recipient' };
+  const email = String(to || order?.customerEmail || order?.customer?.email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { ok: false, error: 'invalid recipient', customerSent: false, merchantSent: false };
+  }
   if (!KEY) {
     console.log(`[mail] skipped (no RESEND_API_KEY): ${type} â†’ ${email}`);
-    return { ok: true, skipped: true };
+    return { ok: true, skipped: true, customerSent: false, merchantSent: false };
   }
   const { subject, html } = renderOrderMail(type, order);
+
+  // Resend's shared onboarding@resend.dev address can ONLY deliver to the
+  // Resend account owner. Without a domain you own + verify, every other
+  // customer address is rejected (HTTP 403). Warn loudly in the logs so this
+  // misconfiguration is obvious instead of silently losing customer e-mails.
+  if (/@resend\.dev$/i.test(String(FROM_EMAIL).trim())) {
+    console.warn(
+      '[mail] MAIL_FROM is still the shared resend.dev sandbox address. Resend will only ' +
+      'deliver to the account owner — real customers get nothing. Verify a domain at ' +
+      'https://resend.com/domains and set MAIL_FROM to an address on it ' +
+      '(e.g. orders@yourdomain.com).'
+    );
+  }
+
+  let customerResult;
   try {
     const resp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -160,11 +177,18 @@ export async function sendOrderMail({ type, to, order }) {
     if (!resp.ok) {
       const text = await resp.text();
       console.error('[mail] resend error', resp.status, text.slice(0, 300));
-      return { ok: false, error: `resend ${resp.status}` };
+      customerResult = { ok: false, error: `resend ${resp.status}: ${text.slice(0, 200)}` };
+    } else {
+      customerResult = { ok: true };
     }
 
     // Send a merchant (store-owner) copy of every order status e-mail.
+    let merchantResult = { ok: false, skipped: true };
     if (MERCHANT_EMAIL && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(MERCHANT_EMAIL)) {
+      // `o` is the order snapshot handed to THIS function. renderOrderMail()
+      // has its own scoped `o`; referencing that one from here threw
+      // "ReferenceError: o is not defined" and aborted the whole send.
+      const o = order || {};
       const mTotal = money(o.total);
       const mTrack = o.trackingNo ? `${esc(o.courier || 'Courier')} ${esc(o.trackingNo)}` : '';
       const mSubject = `[Merchant] ${subject}`;
@@ -194,7 +218,7 @@ export async function sendOrderMail({ type, to, order }) {
 </body>
 </html>`;
       try {
-        await fetch('https://api.resend.com/emails', {
+        const mResp = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${KEY}`,
@@ -207,11 +231,25 @@ export async function sendOrderMail({ type, to, order }) {
             html: mHtml,
           }),
         });
+        if (!mResp.ok) {
+          const mText = await mResp.text();
+          console.error('[mail] merchant resend error', mResp.status, mText.slice(0, 300));
+          merchantResult = { ok: false, error: `resend ${mResp.status}: ${mText.slice(0, 200)}` };
+        } else {
+          merchantResult = { ok: true };
+        }
       } catch (mErr) {
+        merchantResult = { ok: false, error: mErr.message };
         console.error('[mail] merchant copy error:', mErr.message);
       }
     }
-    return { ok: true };
+    return {
+      ok: customerResult.ok,
+      customerSent: customerResult.ok,
+      merchantSent: merchantResult.ok,
+      error: customerResult.error || null,
+      merchantError: merchantResult.error || null,
+    };
   } catch (err) {
     console.error('[mail] send error:', err.message);
     return { ok: false, error: err.message };

@@ -135,6 +135,7 @@ function seedProducts() {
     shippingCost: shipCosts[i],
     paymentMethods: payMethods[i],
     returnsAccepted: retAccept[i],
+    weightGrams: 500,
     returnDays: retDays[i],
   }));
 }
@@ -178,6 +179,25 @@ const DEFAULT_SETTINGS = {
   serviceablePincodes: [],
   deliveryMinDays: 4,
   deliveryMaxDays: 7,
+  shippingSource: 'product',  // 'product' | 'delhivery'
+  // Delhivery-style rate card — used when shippingSource === 'delhivery'.
+  // A zone key is matched as: longest `pin:12345` prefix → lowercase state
+  // name → 'default'. Per zone:
+  //   same      flat base charge (₹)
+  //   per500g   added for every 500 g slab of parcel weight (₹)
+  //   codExtra  surcharge when the payment mode is COD (₹)
+  //   minCharge floor for the zone (₹)
+  //   freeAbove free shipping at/above this order value (0 = never free)
+  // Delhivery has no public unauthenticated rate API — the real numbers come
+  // from your Delhivery contract. Edit them in Admin → Settings → Delivery.
+  rateCard: {
+    zones: {
+      'pin:124': { same: 40, per500g: 25, codExtra: 20, minCharge: 60, freeAbove: 0 },
+      'pin:12': { same: 60, per500g: 35, codExtra: 25, minCharge: 80, freeAbove: 0 },
+      'pin:13': { same: 60, per500g: 35, codExtra: 25, minCharge: 80, freeAbove: 0 },
+      default: { same: 90, per500g: 50, codExtra: 40, minCharge: 120, freeAbove: 0 },
+    },
+  },
 };
 
 function seedSettings() {

@@ -18,6 +18,9 @@
 // while testing, and remove it when going live.
 const BASE = String(process.env.DELHIVERY_API_BASE || 'https://track.delhivery.com').replace(/\/+$/, '');
 
+/** Delhivery API base URL — exported so route handlers can reuse it. */
+export const API_BASE = BASE;
+
 export function isDemo() {
   const d = String(process.env.DELHIVERY_DEMO || '').trim().toLowerCase();
   return d === '1' || d === 'true' || d === 'yes';
@@ -39,10 +42,6 @@ function authFetch(url, options = {}) {
   return fetch(url, { ...options, headers: authHeaders(options.headers) });
 }
 
-// ── Create a shipment (waybill) ──────────────────────────────
-// order: { id, customer:{name,phone}, shipping:{address,city,state,pincode},
-//          items:[{name,qty}], payment:{mode,status}, total }
-// Returns { ok, waybill, labelUrl, raw } or { ok:false, error }.
 export async function createShipment(order, pickup = {}) {
   if (!isConfigured()) return { ok: false, error: 'Delhivery API token not configured' };
 
@@ -309,5 +308,175 @@ export function mapToStoreStatus(raw) {
   if (s.includes('delivered') && !s.includes('rto')) return 'delivered';
   if (s.includes('rto')) return 'returned';
   return 'shipped';
+}
+
+// ── Pincode serviceability (READ-ONLY) ───────────────────────
+/**
+ * Check whether Delhivery serves a destination pincode.
+ *
+ * Uses the read-only lookup endpoint:
+ *   GET {BASE}/cmu/pin-codes/json/?filter_codes=<PIN>
+ *
+ * SAFE TO CALL FROM CHECKOUT — it never creates a shipment, never
+ * allocates a waybill and never bills the account. (Booking is done
+ * exclusively by /api/delhivery?action=create-shipment.)
+ *
+ * Returns { ok, serviceable, city, state, cod, prepaid, expectedDays }.
+ * Never throws.
+ */
+export async function checkServiceability(pincode) {
+  const pin = String(pincode || '').replace(/\D/g, '').slice(0, 6);
+  if (!/^\d{6}$/.test(pin)) {
+    return { ok: false, serviceable: false, error: 'pincode must be 6 digits' };
+  }
+
+  // DEMO MODE — assume everything in India is serviceable.
+  if (isDemo()) {
+    return {
+      ok: true,
+      serviceable: true,
+      demo: true,
+      city: '',
+      state: '',
+      district: '',
+      cod: true,
+      prepaid: true,
+      pickup: true,
+      expectedDays: null,
+    };
+  }
+
+  if (!isConfigured()) {
+    return {
+      ok: false,
+      serviceable: false,
+      configured: false,
+      error: 'Delhivery API token not configured',
+    };
+  }
+
+  try {
+    const resp = await fetch(
+      `${BASE}/cmu/pin-codes/json/?filter_codes=${encodeURIComponent(pin)}`,
+      { headers: authHeaders() }
+    );
+    if (!resp.ok) {
+      return { ok: false, serviceable: false, error: `Delhivery API ${resp.status}` };
+    }
+    const body = await resp.json().catch(() => ({}));
+    const entry = (body && body.delivery_codes ? body.delivery_codes : [])[0];
+    const pc = entry && (entry.postal_code || entry.postalCode);
+    if (!pc) {
+      // A 200 with no entry means Delhivery does not serve this pincode.
+      return { ok: true, serviceable: false, error: 'pincode not serviced by Delhivery' };
+    }
+    const yes = (v) => String(v === undefined || v === null ? '' : v).trim().toUpperCase() === 'Y';
+    const days = Number(String(pc.days === undefined ? '' : pc.days).replace(/\D/g, ''));
+    return {
+      ok: true,
+      serviceable: true,
+      city: pc.city || '',
+      district: pc.district || '',
+      state: pc.state_code || pc.state || '',
+      cod: yes(pc.cash) || yes(pc.cod),
+      prepaid: yes(pc.pre_paid) || yes(pc.prepaid),
+      pickup: yes(pc.pickup),
+      expectedDays: Number.isFinite(days) && days > 0 ? days : null,
+    };
+  } catch (err) {
+    return { ok: false, serviceable: false, error: err.message || 'Network error calling Delhivery' };
+  }
+}
+
+// ── Shipping cost from a Delhivery rate card (pure function) ──
+/**
+ * Compute the shipping charge for a parcel from a Delhivery-style rate
+ * card. Pure + synchronous so the client can recompute instantly when
+ * the cart, pincode or payment mode changes — no round trip needed.
+ *
+ * rateCard: {
+ *   zones: {
+ *     <zoneKey>: {
+ *       same?: number,        // charge when a matching zone bucket applies
+ *       per500g?: number,     // charge per slab, by cart weight
+ *       codExtra?: number,    // added when payment mode is COD
+ *       minCharge?: number,   // floor
+ *       freeAbove?: number,   // free shipping above this order value
+ *     }
+ *   }
+ * }
+ * zoneKey is resolved as: pincode prefix bucket -> state bucket -> 'default'.
+ * Pincode prefix buckets are written as `pin:123`, `pin:1234`, `pin:12345`.
+ *
+ * Returns { cost, zone, slabs, free, cod, breakdown } — cost is in rupees.
+ * Never throws; returns { cost: 0, unknown: true } for an unusable rate card.
+ */
+export function calcShippingCost(rateCard, opts = {}) {
+  try {
+    const pincode = String(opts.pincode || '').replace(/\D/g, '');
+    const state = String(opts.state || '').trim().toLowerCase();
+    const cod = String(opts.paymentMode || '').trim().toLowerCase() === 'cod';
+    const weightGrams = Math.max(0, Number(opts.weightGrams) || 0);
+    const orderValue = Math.max(0, Number(opts.orderValue) || 0);
+
+    const zones = rateCard && rateCard.zones ? rateCard.zones : null;
+    if (!zones || typeof zones !== 'object') {
+      return { cost: 0, unknown: true, breakdown: 'no rate card configured' };
+    }
+
+    // Longest pincode prefix wins, then state, then 'default'.
+    let zoneKey = null;
+    let matched = 0;
+    if (/^\d{6}$/.test(pincode)) {
+      for (const key of Object.keys(zones)) {
+        const m = /^pin:(\d+)$/.exec(key);
+        if (!m) continue;
+        const prefix = m[1];
+        if (pincode.startsWith(prefix) && prefix.length > matched) {
+          zoneKey = key;
+          matched = prefix.length;
+        }
+      }
+    }
+    if (!zoneKey && state && zones[state]) zoneKey = state;
+    if (!zoneKey && zones.default) zoneKey = 'default';
+
+    const zone = zoneKey ? zones[zoneKey] : null;
+    if (!zone || typeof zone !== 'object') {
+      return { cost: 0, unknown: true, breakdown: `no rate for zone ${zoneKey || '(none)'}` };
+    }
+
+    if (Number(zone.freeAbove) > 0 && orderValue >= Number(zone.freeAbove)) {
+      return { cost: 0, zone: zoneKey, free: true, cod, slabs: 0, breakdown: `free above ${zone.freeAbove}` };
+    }
+
+    let cost = Number(zone.same) || 0;
+    let slabs = 0;
+    const per500g = Number(zone.per500g) || 0;
+    if (per500g > 0 && weightGrams > 0) {
+      slabs = Math.max(1, Math.ceil(weightGrams / 500));
+      cost += per500g * slabs;
+    }
+
+    let codFee = 0;
+    if (cod && Number(zone.codExtra) > 0) {
+      codFee = Number(zone.codExtra);
+      cost += codFee;
+    }
+
+    const minCharge = Number(zone.minCharge) || 0;
+    if (minCharge > 0) cost = Math.max(cost, minCharge);
+
+    return {
+      cost: Math.max(0, Math.round(cost)),
+      zone: zoneKey,
+      slabs,
+      cod,
+      codFee,
+      breakdown: `${zoneKey}: base ${Number(zone.same) || 0}${slabs ? ` + ${slabs}x${per500g}` : ''}${codFee ? ` + COD ${codFee}` : ''}${minCharge ? ` (min ${minCharge})` : ''}`,
+    };
+  } catch (err) {
+    return { cost: 0, unknown: true, breakdown: err.message };
+  }
 }
 
