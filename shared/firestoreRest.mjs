@@ -9,7 +9,7 @@
 // succeed if Firestore rules allow them — failures degrade gracefully.
 // ─────────────────────────────────────────────────────────────
 
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'onlinestore-10a26';
+const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'laxmiclothhouse-store';
 const API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyD-ICgenL_WQ8z0mfyvtPseOJUPbVMsxNs';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 

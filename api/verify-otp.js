@@ -1,6 +1,6 @@
 // api/verify-otp.js - Verifies OTP and returns user data.
 // Uses Firestore REST API (no Firebase Admin SDK needed).
-const FIREBASE_PROJECT = process.env.FIREBASE_PROJECT_ID || "onlinestore-10a26";
+const FIREBASE_PROJECT = process.env.FIREBASE_PROJECT_ID || "laxmiclothhouse-store";
 const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || "";
 const BASE = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT + "/databases/(default)/documents";
 
