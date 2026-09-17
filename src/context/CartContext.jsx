@@ -76,15 +76,15 @@ export function useCart() {
 
 /**
  * Total weight of the current cart in grams.
- * Each cart item must carry a `weightGrams` field (inherited from the
- * product at add-time). Falls back to 0 for any item missing the field.
+ * Each cart item carries a `weightGrams` field (inherited from the
+ * product at add-time). Items saved before the field existed fall back to 500 g.
  */
 export function useCartWeightGrams() {
   const { cart } = useCart();
   return useMemo(() => {
     let total = 0;
     for (const c of cart) {
-      const w = Number.isFinite(c.weightGrams) ? c.weightGrams : 0;
+      const w = Number.isFinite(c.weightGrams) && c.weightGrams > 0 ? c.weightGrams : 500;
       total += w * c.qty;
     }
     return total;
