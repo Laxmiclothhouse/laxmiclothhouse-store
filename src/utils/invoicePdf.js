@@ -1,11 +1,11 @@
-import jsPDF from "jspdf";
+﻿import jsPDF from "jspdf";
 import * as qrcode from "qrcode";
 
-const MONEY = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+const MONEY = (n) => "â‚¹" + Number(n || 0).toLocaleString("en-IN");
 const fmtDt = (d) => {
   if (!d) return "";
   const x = new Date(d);
-  return x.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " · " +
+  return x.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " Â· " +
     x.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 };
 
@@ -25,7 +25,7 @@ export function invoiceLines(order, settings) {
   const couponCode = order?.couponCode || "";
   const total = Number(order?.total ?? subtotal + shipping - discount);
   return {
-    brand: s.storeName || "Houselaxmicloth",
+    brand: s.storeName || "Laxmiclothhouse",
     tagline: s.tagline || "Ethnic fashion store",
     phone: s.contactPhone || "",
     email: s.contactEmail || "",
@@ -33,7 +33,7 @@ export function invoiceLines(order, settings) {
     invoiceNo: order?.id || "ORD-",
     date: fmtDt(order?.orderDate),
     status: (order?.status || "placed").toUpperCase(),
-    payment: order?.payment?.mode?.toUpperCase() || "—",
+    payment: order?.payment?.mode?.toUpperCase() || "â€”",
     customer: order?.customer || {},
     shippingAddr: order?.shipping || {},
     items,
@@ -82,7 +82,7 @@ export async function buildInvoicePdf(order, settings) {
   doc.text(M, 19, L.tagline || "");
 
   doc.setFontSize(8);
-  if (L.phone || L.email) doc.text(M, 25, [L.phone, L.email].filter(Boolean).join("  ·  "));
+  if (L.phone || L.email) doc.text(M, 25, [L.phone, L.email].filter(Boolean).join("  Â·  "));
   if (L.address) {
     const aLines = wraps(doc, L.address, 78, 8);
     aLines.slice(0, 2).forEach((ln, i) => doc.text(M, 30 + i * 4, ln));
@@ -170,7 +170,7 @@ export async function buildInvoicePdf(order, settings) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(inkR, inkG, inkB);
-      doc.text(M, y, L.brand + " — " + L.invoiceNo + " (continued)");
+      doc.text(M, y, L.brand + " â€” " + L.invoiceNo + " (continued)");
       y += 8;
       doc.setFont("helvetica", "normal");
     }
@@ -205,7 +205,7 @@ export async function buildInvoicePdf(order, settings) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(inkR, inkG, inkB);
-    doc.text(M, y, L.brand + " — " + L.invoiceNo + " (summary)");
+    doc.text(M, y, L.brand + " â€” " + L.invoiceNo + " (summary)");
     y += 8;
   }
 
@@ -290,7 +290,7 @@ export async function downloadInvoicePdf(order, settings) {
   a.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
-/** Compact picking/packing slip — no prices, just items + checklist info (Step 7). */
+/** Compact picking/packing slip â€” no prices, just items + checklist info (Step 7). */
 async function buildPackingSlip(order, settings) {
   const L = invoiceLines(order, settings);
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -321,7 +321,7 @@ async function buildPackingSlip(order, settings) {
   doc.text(W - M, 12, "PACKING SLIP", { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(W - M, 18, L.invoiceNo + " · " + L.date, { align: "right" });
+  doc.text(W - M, 18, L.invoiceNo + " Â· " + L.date, { align: "right" });
 
   let y = 34;
   doc.setFont("helvetica", "bold");
@@ -364,7 +364,7 @@ async function buildPackingSlip(order, settings) {
   for (const it of L.items) {
     n += 1;
     const nameLines = wraps(doc, it.name, 100, 9);
-    const sizeText = it.size ? String(it.size) : "—";
+    const sizeText = it.size ? String(it.size) : "â€”";
     const rowH = Math.max(8, nameLines.length * 4.2 + 3);
     if (y + rowH > H - 46) {
       doc.addPage();
@@ -390,18 +390,18 @@ async function buildPackingSlip(order, settings) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(brandR, brandG, brandB);
-  doc.text(M, y, "Total items: " + L.items.length + "   ·   Total qty: " + totalQty);
+  doc.text(M, y, "Total items: " + L.items.length + "   Â·   Total qty: " + totalQty);
   y += 8;
 
-  // ── Packer checklist: one tick per piece, then final seals ──
+  // â”€â”€ Packer checklist: one tick per piece, then final seals â”€â”€
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(inkR, inkG, inkB);
-  doc.text(M, y, "Packer checklist — tick each piece as it goes in:");
+  doc.text(M, y, "Packer checklist â€” tick each piece as it goes in:");
   y += 6;
   for (const it of L.items) {
     const sizeText = it.size ? ` (Size ${it.size})` : "";
-    const label = `☐  ${it.name}${sizeText} × ${it.qty}`;
+    const label = `â˜  ${it.name}${sizeText} Ã— ${it.qty}`;
     const labelLines = wraps(doc, label, CW - 6, 9);
     if (y + labelLines.length * 4.2 > H - 40) {
       doc.addPage();
@@ -411,9 +411,9 @@ async function buildPackingSlip(order, settings) {
     y += labelLines.length * 4.2 + 1.4;
   }
   y += 2;
-  doc.text(M, y, "☐  Invoice slip included in the package");
+  doc.text(M, y, "â˜  Invoice slip included in the package");
   y += 6;
-  doc.text(M, y, "☐  Package sealed and dispatched");
+  doc.text(M, y, "â˜  Package sealed and dispatched");
 
   const buf = doc.output("arraybuffer");
   return new Blob([buf], { type: "application/pdf" });

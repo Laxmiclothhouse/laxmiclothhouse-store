@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams, Navigate, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -7,21 +7,21 @@ import { formatINR, formatDateTime } from '../utils/format.js';
 import { fetchDelhiveryTrack, isDelhiveryOrder } from '../utils/delhivery.js';
 import { whatsappShareLink } from '../utils/whatsappShare.js';
 const ORD_TIMELINE = [
-  { status: 'placed', label: 'Order Placed', icon: '📋' },
-  { status: 'confirmed', label: 'Confirmed', icon: '✅' },
-  { status: 'packed', label: 'Packed', icon: '📦' },
-  { status: 'shipped', label: 'Shipped', icon: '🚚' },
-  { status: 'delivered', label: 'Delivered', icon: '🎉' },
+  { status: 'placed', label: 'Order Placed', icon: 'ðŸ“‹' },
+  { status: 'confirmed', label: 'Confirmed', icon: 'âœ…' },
+  { status: 'packed', label: 'Packed', icon: 'ðŸ“¦' },
+  { status: 'shipped', label: 'Shipped', icon: 'ðŸšš' },
+  { status: 'delivered', label: 'Delivered', icon: 'ðŸŽ‰' },
 ];
 
 // Friendly descriptions for each courier scan status.
 const SCAN_MEANINGS = {
   'pickup': 'Parcel picked up from seller',
   'in transit': 'Parcel is on the move',
-  'out for delivery': 'Parcel is out for delivery today — keep your phone nearby!',
+  'out for delivery': 'Parcel is out for delivery today â€” keep your phone nearby!',
   'delivered': 'Parcel delivered successfully',
   'rto': 'Return to sender initiated',
-  'undelivered': 'Delivery attempted — will try again',
+  'undelivered': 'Delivery attempted â€” will try again',
   'manifested': 'Shipment booked, awaiting pickup',
 };
 
@@ -192,7 +192,7 @@ export default function OrderStatus() {
               const isCurrent = i === currentIndex;
               return (
                 <div className={`tl-step ${done ? 'done' : ''} ${isCurrent ? 'current' : ''}`} key={t.status}>
-                  <div className="tl-dot">{done ? '✓' : i + 1}</div>
+                  <div className="tl-dot">{done ? 'âœ“' : i + 1}</div>
                   <div>
                     <strong>{t.label}</strong>
                     {isCurrent && <span className="tl-now">Current status</span>}
@@ -202,33 +202,33 @@ export default function OrderStatus() {
             })}
           </div>
 
-          {/* Shipping details — visible for packed / shipped / delivered */}
+          {/* Shipping details â€” visible for packed / shipped / delivered */}
           {['packed', 'shipped', 'delivered'].includes(order.status) && (
             <div className="shipping-details">
-              <h4>🚚 Shipping details</h4>
+              <h4>ðŸšš Shipping details</h4>
               <div className="shipping-address">
                 <div className="name">{order.customer?.name}</div>
                 <div>{order.shipping?.address}</div>
                 <div>{order.shipping?.city}, {order.shipping?.state} {order.shipping?.pincode}</div>
               </div>
               <div className="shipping-meta">
-                <span>📦 {order.items?.length} item{(order.items?.length || 0) > 1 ? 's' : ''}</span>
-                <span>💰 {order.payment?.mode === 'cod' ? 'Cash on Delivery' : `Paid via ${order.payment?.mode?.toUpperCase() || '—'}`}</span>
-                <span>📋 {formatINR(order.total)}</span>
+                <span>ðŸ“¦ {order.items?.length} item{(order.items?.length || 0) > 1 ? 's' : ''}</span>
+                <span>ðŸ’° {order.payment?.mode === 'cod' ? 'Cash on Delivery' : `Paid via ${order.payment?.mode?.toUpperCase() || 'â€”'}`}</span>
+                <span>ðŸ“‹ {formatINR(order.total)}</span>
               </div>
               {order.status === 'packed' && (
                 <div className="packed-ready">
-                  Your order has been packed and will be shipped soon — you'll get a tracking number once it's dispatched.
+                  Your order has been packed and will be shipped soon â€” you'll get a tracking number once it's dispatched.
                 </div>
               )}
               {order.status === 'shipped' && !order.trackingNo && (
                 <div className="shipping-next">
-                  📦 Order shipped — tracking number will appear shortly.
+                  ðŸ“¦ Order shipped â€” tracking number will appear shortly.
                 </div>
               )}
               {order.status === 'delivered' && (
                 <div className="packed-ready">
-                  🎉 Your order has been delivered. Thank you for shopping with us!
+                  ðŸŽ‰ Your order has been delivered. Thank you for shopping with us!
                 </div>
               )}
             </div>
@@ -245,14 +245,14 @@ export default function OrderStatus() {
                     onClick={loadCourierTrack}
                     disabled={courierBusy}
                   >
-                    {courierBusy ? 'Checking…' : '⟳ Refresh'}
+                    {courierBusy ? 'Checkingâ€¦' : 'âŸ³ Refresh'}
                   </button>
                 )}
               </div>
               {order.trackingNo ? (
                 <p className="muted" style={{ margin: '6px 0' }}>
-                  📦 {order.courier || 'Courier'} · <strong>{order.trackingNo}</strong>
-                  {order.delhivery?.expectedDelivery ? ` · Expected by ${formatDateTime(order.delhivery.expectedDelivery)}` : ''}
+                  ðŸ“¦ {order.courier || 'Courier'} Â· <strong>{order.trackingNo}</strong>
+                  {order.delhivery?.expectedDelivery ? ` Â· Expected by ${formatDateTime(order.delhivery.expectedDelivery)}` : ''}
                 </p>
               ) : (
                 <p className="muted" style={{ margin: '6px 0' }}>
@@ -278,9 +278,9 @@ export default function OrderStatus() {
                       return (
                         <li key={i} style={{ fontWeight: i === 0 ? 700 : 400 }}>
                           <strong>{sc.status}</strong>
-                          {meaning ? ` — ${meaning}` : ''}
-                          {sc.location ? ` · ${sc.location}` : ''}
-                          {sc.time ? <span className="muted"> · {formatDateTime(sc.time)}</span> : null}
+                          {meaning ? ` â€” ${meaning}` : ''}
+                          {sc.location ? ` Â· ${sc.location}` : ''}
+                          {sc.time ? <span className="muted"> Â· {formatDateTime(sc.time)}</span> : null}
                         </li>
                       );
                     })}
@@ -295,7 +295,7 @@ export default function OrderStatus() {
               <h3>Items</h3>
               <ul className="sum-items">
                 {order.items.map((it) => (
-                  <li key={it.id}><span>{it.name} × {it.qty}</span><span>{formatINR(it.price * it.qty)}</span></li>
+                  <li key={it.id}><span>{it.name} Ã— {it.qty}</span><span>{formatINR(it.price * it.qty)}</span></li>
                 ))}
               </ul>
               <div className="sum-lines">
@@ -304,18 +304,18 @@ export default function OrderStatus() {
             </div>
             <div className="card-box inner">
               <h3>Payment</h3>
-              <p><strong>{order.payment.mode}</strong> · {order.payment.status === 'paid' ? 'Paid' : 'Pending (COD)'}</p>
+              <p><strong>{order.payment.mode}</strong> Â· {order.payment.status === 'paid' ? 'Paid' : 'Pending (COD)'}</p>
             </div>
 
-            {/* ── Shipping details ── */}
+            {/* â”€â”€ Shipping details â”€â”€ */}
             <div className="card-box inner">
-              <h3>🚚 Shipping details</h3>
+              <h3>ðŸšš Shipping details</h3>
               <p style={{ fontWeight: 600 }}>{order.customer?.name}</p>
               <p>
                 {order.shipping?.address}<br />
-                {order.shipping?.city}, {order.shipping?.state} — {order.shipping?.pincode}
+                {order.shipping?.city}, {order.shipping?.state} â€” {order.shipping?.pincode}
               </p>
-              <p className="muted">📞 {order.customer?.phone}</p>
+              <p className="muted">ðŸ“ž {order.customer?.phone}</p>
               {order.trackingNo ? (
                 <div className="ship-track">
                   <div className="ship-track-row">
@@ -338,7 +338,7 @@ export default function OrderStatus() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    📍 Track on Delhivery
+                    ðŸ“ Track on Delhivery
                   </a>
                   <p className="muted tiny track-hint">See live location on Delhivery's website</p>
                 </div>
@@ -351,11 +351,11 @@ export default function OrderStatus() {
           <div className="share-whatsapp">
             <a
               className="btn btn-sm btn-whatsapp"
-              href={whatsappShareLink(null, `Hi! Check my order status: Order ${order.id} from Houselaxmicloth Suit Collection. Track here: ${window.location.origin}/#/track?order=${order.id}`)}
+              href={whatsappShareLink(null, `Hi! Check my order status: Order ${order.id} from Laxmiclothhouse Suit Collection. Track here: ${window.location.origin}/#/track?order=${order.id}`)}
               target="_blank"
               rel="noopener noreferrer"
             >
-              📱 Share on WhatsApp
+              ðŸ“± Share on WhatsApp
             </a>
             <p className="muted tiny">Forward your order link to family or friends</p>
           </div>

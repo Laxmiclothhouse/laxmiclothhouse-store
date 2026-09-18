@@ -1,22 +1,22 @@
-// ─────────────────────────────────────────────────────────────
-// shared/mail.mjs — Transactional order e-mails (Resend.com).
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// shared/mail.mjs â€” Transactional order e-mails (Resend.com).
 // Lives OUTSIDE api/ so Vercel never treats it as a function.
-// Sends only if RESEND_API_KEY is configured — otherwise it logs
+// Sends only if RESEND_API_KEY is configured â€” otherwise it logs
 // and skips, so the store keeps working until you add the key.
 //
-// Design: Houselaxmicloth brand — maroon #9b1c3d, gold #c9a24b,
+// Design: Laxmiclothhouse brand â€” maroon #9b1c3d, gold #c9a24b,
 // cream #faf6f0. Solid colors only (email clients strip CSS
 // gradients); tables + inline styles for maximum client support.
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const KEY = process.env.RESEND_API_KEY || '';
 const FROM_EMAIL = process.env.MAIL_FROM || 'onboarding@resend.dev';
 
 const MERCHANT_EMAIL = process.env.MERCHANT_EMAIL || '';
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.vercel.app';
-const STORE_NAME = process.env.STORE_NAME || 'Houselaxmicloth Suit Collection';
+const STORE_NAME = process.env.STORE_NAME || 'Laxmiclothhouse Suit Collection';
 
-const money = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+const money = (n) => "â‚¹" + Number(n || 0).toLocaleString("en-IN");
 
 function esc(s) {
   return String(s || '')
@@ -25,7 +25,7 @@ function esc(s) {
     .replace(/>/g, '&gt;');
 }
 
-// ── Shared brand blocks ──────────────────────────────────────
+// â”€â”€ Shared brand blocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const C = {
   brand: '#9b1c3d',
@@ -43,7 +43,7 @@ function brandHeader() {
   return `
     <tr>
       <td style="padding:28px 40px;background:${C.brand};text-align:center">
-        <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:3px">HOUSELAXMICLOTH</div>
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:3px">LAXMICLOTHHOUSE</div>
         <div style="font-size:11px;letter-spacing:4px;color:${C.gold};margin-top:6px">TIMELESS &middot; ELEGANT &middot; YOU</div>
       </td>
     </tr>`;
@@ -53,7 +53,7 @@ function brandFooter() {
   return `
     <tr>
       <td style="background:${C.brandSoft};padding:22px 40px;text-align:center">
-        <p style="margin:0;font-size:13px;color:${C.brandDark}">Questions? Just reply to this email — we always answer.</p>
+        <p style="margin:0;font-size:13px;color:${C.brandDark}">Questions? Just reply to this email â€” we always answer.</p>
         <p style="margin:8px 0 0 0;font-size:11px;color:#9a8f93">&copy; ${esc(STORE_NAME)} &middot; Crafted with care for you</p>
       </td>
     </tr>`;
@@ -61,13 +61,13 @@ function brandFooter() {
 
 // Status ribbon: icon + label on a full-width colored strip.
 const STATUS_STYLE = {
-  placed:    { icon: '🛒', label: 'ORDER PLACED',        bg: '#c9a24b' },
-  confirmed: { icon: '✅', label: 'ORDER CONFIRMED',     bg: '#1e7d43' },
-  packed:    { icon: '📦', label: 'ORDER PACKED',        bg: '#2f6fb1' },
-  shipped:   { icon: '🚚', label: 'ORDER SHIPPED',       bg: '#2f6fb1' },
-  delivered: { icon: '🎉', label: 'ORDER DELIVERED',     bg: '#1e7d43' },
-  cancelled: { icon: '❌', label: 'ORDER CANCELLED',     bg: '#b3261e' },
-  returned:  { icon: '↩️', label: 'RETURN PROCESSED',    bg: '#b06d16' },
+  placed:    { icon: 'ðŸ›’', label: 'ORDER PLACED',        bg: '#c9a24b' },
+  confirmed: { icon: 'âœ…', label: 'ORDER CONFIRMED',     bg: '#1e7d43' },
+  packed:    { icon: 'ðŸ“¦', label: 'ORDER PACKED',        bg: '#2f6fb1' },
+  shipped:   { icon: 'ðŸšš', label: 'ORDER SHIPPED',       bg: '#2f6fb1' },
+  delivered: { icon: 'ðŸŽ‰', label: 'ORDER DELIVERED',     bg: '#1e7d43' },
+  cancelled: { icon: 'âŒ', label: 'ORDER CANCELLED',     bg: '#b3261e' },
+  returned:  { icon: 'â†©ï¸', label: 'RETURN PROCESSED',    bg: '#b06d16' },
 };
 
 function statusRibbon(type) {
@@ -80,7 +80,7 @@ function statusRibbon(type) {
     </tr>`;
 }
 
-// ── Order details blocks (items + totals) ────────────────────
+// â”€â”€ Order details blocks (items + totals) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function itemsTable(items) {
   const list = Array.isArray(items) ? items : [];
@@ -111,7 +111,7 @@ function totalsTable(o) {
   if (has(o.subtotal)) rows.push(['Subtotal', money(o.subtotal), false]);
   if (has(o.shippingFee)) rows.push(['Shipping', Number(o.shippingFee) === 0 ? 'FREE' : money(o.shippingFee), false]);
   if (has(o.discount) && Number(o.discount) > 0) {
-    rows.push([`Discount${o.couponCode ? ` (${esc(o.couponCode)})` : ''}`, '− ' + money(o.discount), 'green']);
+    rows.push([`Discount${o.couponCode ? ` (${esc(o.couponCode)})` : ''}`, 'âˆ’ ' + money(o.discount), 'green']);
   }
   if (!rows.length && !has(o.total)) return '';
   const totalRow = has(o.total)
@@ -141,58 +141,58 @@ export function renderOrderMail(type, orderRaw) {
   const track = `${APP_ORIGIN}/#/track?order=${encodeURIComponent(o.id || '')}`;
   const total = money(o.total);
   const mode = esc(o.paymentMode || 'online');
-  const tracking = o.trackingNo ? `${esc(o.courier || 'Courier')} · ${esc(o.trackingNo)}` : '';
+  const tracking = o.trackingNo ? `${esc(o.courier || 'Courier')} Â· ${esc(o.trackingNo)}` : '';
 
   const COPY = {
     placed: {
-      subject: `🛒 Order placed — ${o.id}`,
+      subject: `ðŸ›’ Order placed â€” ${o.id}`,
       title: 'Thank you for your order!',
       body: `${greet} We have received your order <strong>${id}</strong> and will start processing it shortly. Here is everything you ordered:`,
       extra: '',
     },
     confirmed: {
-      subject: `✅ Order confirmed — ${o.id}`,
+      subject: `âœ… Order confirmed â€” ${o.id}`,
       title: 'Your order is confirmed',
       body: `${greet} We have received your order <strong>${id}</strong> and will start packing it shortly.`,
       extra: 'We will email you again the moment it ships.',
     },
     packed: {
-      subject: `📦 Order packed — ${o.id}`,
+      subject: `ðŸ“¦ Order packed â€” ${o.id}`,
       title: 'Your order is packed and ready',
-      body: `${greet} Great news — your order <strong>${id}</strong> has been packed with care and will ship soon.`,
+      body: `${greet} Great news â€” your order <strong>${id}</strong> has been packed with care and will ship soon.`,
       extra: 'You will get a tracking link the moment it leaves our warehouse.',
     },
     shipped: {
-      subject: `🚚 Your order has shipped — ${o.id}`,
+      subject: `ðŸšš Your order has shipped â€” ${o.id}`,
       title: 'Your order is on the way!',
-      body: `${greet} Exciting news — your order <strong>${id}</strong> is out for delivery!`,
+      body: `${greet} Exciting news â€” your order <strong>${id}</strong> is out for delivery!`,
       extra: tracking ? `Tracking: <strong>${tracking}</strong>` : 'Track your order to see live status.',
     },
     delivered: {
-      subject: `🎉 Order delivered — ${o.id}`,
+      subject: `ðŸŽ‰ Order delivered â€” ${o.id}`,
       title: 'Your order has been delivered',
       body: `${greet} Your order <strong>${id}</strong> has been delivered. We hope you love every piece!`,
       extra: 'If anything is missing or damaged, just reply to this email and we will make it right.',
     },
     cancelled: {
-      subject: `Order cancelled — ${o.id}`,
+      subject: `Order cancelled â€” ${o.id}`,
       title: 'Your order was cancelled',
       body: `${greet} your order <strong>${id}</strong> has been cancelled. Any paid amount will be refunded to the original payment method.`,
       extra: 'Questions? Reply to this email and our team will assist you.',
     },
     returned: {
-      subject: `↩️ Return processed — ${o.id}`,
+      subject: `â†©ï¸ Return processed â€” ${o.id}`,
       title: 'Your return has been processed',
       body: `${greet} your return for order <strong>${id}</strong> has been received and processed.`,
       extra: 'Once we receive the item, we will initiate your refund to the original payment method.',
     },
   };
 
-  // Special-day wish (birthday / anniversary gift code) — own layout.
+  // Special-day wish (birthday / anniversary gift code) â€” own layout.
   if (type === 'specialday') {
     const giftCode = esc(o.code || 'GIFT');
     const specialType = esc(o.specialType || 'Birthday');
-    const subject = `🎉 Happy ${specialType}! A gift inside from ${STORE_NAME}`;
+    const subject = `ðŸŽ‰ Happy ${specialType}! A gift inside from ${STORE_NAME}`;
     const html = `<!doctype html>
 <html>
 <body style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:${C.cream};padding:24px;max-width:640px;margin:0 auto">
@@ -200,17 +200,17 @@ export function renderOrderMail(type, orderRaw) {
     ${brandHeader()}
     <tr>
       <td style="background:${C.gold};padding:12px 40px;text-align:center">
-        <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1.5px">🎂 A GIFT FOR YOU</span>
+        <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1.5px">ðŸŽ‚ A GIFT FOR YOU</span>
       </td>
     </tr>
     <tr>
       <td style="padding:34px 40px;text-align:center">
-        <div style="font-size:46px;line-height:1">🎂🎁</div>
+        <div style="font-size:46px;line-height:1">ðŸŽ‚ðŸŽ</div>
         <h1 style="font-family:Georgia,serif;font-size:23px;color:${C.ink};margin:14px 0 12px">Happy ${specialType}${name === 'there' ? '' : `, ${name}`}!</h1>
-        <p style="font-size:15px;line-height:1.7;color:#6b5f63;margin:0 0 20px">On your special day, we have a little gift for you — a discount code to celebrate in style.</p>
+        <p style="font-size:15px;line-height:1.7;color:#6b5f63;margin:0 0 20px">On your special day, we have a little gift for you â€” a discount code to celebrate in style.</p>
         <div style="display:inline-block;background:#fdf0f4;border:2px dashed ${C.brand};color:${C.brand};font-size:24px;font-weight:800;letter-spacing:3px;padding:12px 28px;border-radius:12px">${giftCode}</div>
         <p style="font-size:13px;color:${C.muted};margin:14px 0 22px">Enter this code at checkout. Valid during your special month.</p>
-        <a href="${APP_ORIGIN}/#/catalog" style="display:inline-block;background:${C.gold};color:#fff;text-decoration:none;padding:13px 34px;border-radius:50px;font-size:14px;font-weight:600;letter-spacing:0.5px">SHOP WITH YOUR GIFT →</a>
+        <a href="${APP_ORIGIN}/#/catalog" style="display:inline-block;background:${C.gold};color:#fff;text-decoration:none;padding:13px 34px;border-radius:50px;font-size:14px;font-weight:600;letter-spacing:0.5px">SHOP WITH YOUR GIFT â†’</a>
       </td>
     </tr>
     ${brandFooter()}
@@ -225,7 +225,7 @@ export function renderOrderMail(type, orderRaw) {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${C.cream};border-radius:10px;margin:18px 0 0 0">
       <tr>
         <td style="padding:12px 16px;font-size:13px;color:#6b5f63">
-          <strong style="color:${C.ink}">Order:</strong> ${id} &nbsp;·&nbsp; <strong style="color:${C.ink}">Payment:</strong> ${mode}${o.orderDate ? ` &nbsp;·&nbsp; <strong style="color:${C.ink}">Placed:</strong> ${esc(o.orderDate)}` : ''}
+          <strong style="color:${C.ink}">Order:</strong> ${id} &nbsp;Â·&nbsp; <strong style="color:${C.ink}">Payment:</strong> ${mode}${o.orderDate ? ` &nbsp;Â·&nbsp; <strong style="color:${C.ink}">Placed:</strong> ${esc(o.orderDate)}` : ''}
         </td>
       </tr>
     </table>`;
@@ -256,14 +256,14 @@ export function renderOrderMail(type, orderRaw) {
   return { subject: c.subject, html };
 }
 
-/** Send a status e-mail. Always returns { ok } — never throws. */
+/** Send a status e-mail. Always returns { ok } â€” never throws. */
 export async function sendOrderMail({ type, to, order }) {
   const email = String(to || order?.customerEmail || order?.customer?.email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { ok: false, error: 'invalid recipient', customerSent: false, merchantSent: false };
   }
   if (!KEY) {
-    console.log(`[mail] skipped (no RESEND_API_KEY): ${type} → ${email}`);
+    console.log(`[mail] skipped (no RESEND_API_KEY): ${type} â†’ ${email}`);
     return { ok: true, skipped: true, customerSent: false, merchantSent: false };
   }
   const { subject, html } = renderOrderMail(type, order);
@@ -275,7 +275,7 @@ export async function sendOrderMail({ type, to, order }) {
   if (/@resend\.dev$/i.test(String(FROM_EMAIL).trim())) {
     console.warn(
       '[mail] MAIL_FROM is still the shared resend.dev sandbox address. Resend will only ' +
-      'deliver to the account owner — real customers get nothing. Verify a domain at ' +
+      'deliver to the account owner â€” real customers get nothing. Verify a domain at ' +
       'https://resend.com/domains and set MAIL_FROM to an address on it ' +
       '(e.g. orders@yourdomain.com).'
     );
@@ -304,7 +304,7 @@ export async function sendOrderMail({ type, to, order }) {
       customerResult = { ok: true };
     }
 
-    // ── Merchant (store-owner) copy — branded summary ──────────
+    // â”€â”€ Merchant (store-owner) copy â€” branded summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let merchantResult = { ok: false, skipped: true };
     if (MERCHANT_EMAIL && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(MERCHANT_EMAIL)) {
       const o = order || {};
@@ -323,12 +323,12 @@ export async function sendOrderMail({ type, to, order }) {
     <tr>
       <td style="padding:26px 36px">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;color:${C.ink}">
-          <tr><td style="padding:5px 0;width:150px;color:${C.muted}">Order</td><td style="padding:5px 0;font-weight:700">${esc(o.id || '—')}</td></tr>
-          <tr><td style="padding:5px 0;color:${C.muted}">Customer</td><td style="padding:5px 0">${esc(o.customerName || '—')}</td></tr>
-          <tr><td style="padding:5px 0;color:${C.muted}">Email</td><td style="padding:5px 0">${esc(o.customerEmail || '—')}</td></tr>
+          <tr><td style="padding:5px 0;width:150px;color:${C.muted}">Order</td><td style="padding:5px 0;font-weight:700">${esc(o.id || 'â€”')}</td></tr>
+          <tr><td style="padding:5px 0;color:${C.muted}">Customer</td><td style="padding:5px 0">${esc(o.customerName || 'â€”')}</td></tr>
+          <tr><td style="padding:5px 0;color:${C.muted}">Email</td><td style="padding:5px 0">${esc(o.customerEmail || 'â€”')}</td></tr>
           ${o.customerPhone ? `<tr><td style="padding:5px 0;color:${C.muted}">Phone</td><td style="padding:5px 0">${esc(o.customerPhone)}</td></tr>` : ''}
           <tr><td style="padding:5px 0;color:${C.muted}">Total</td><td style="padding:5px 0;font-weight:700;color:${C.brand}">${money(o.total)}</td></tr>
-          <tr><td style="padding:5px 0;color:${C.muted}">Payment</td><td style="padding:5px 0">${esc(o.paymentMode || '—')}</td></tr>
+          <tr><td style="padding:5px 0;color:${C.muted}">Payment</td><td style="padding:5px 0">${esc(o.paymentMode || 'â€”')}</td></tr>
           ${o.orderDate ? `<tr><td style="padding:5px 0;color:${C.muted}">Placed</td><td style="padding:5px 0">${esc(o.orderDate)}</td></tr>` : ''}
           ${mTrack ? `<tr><td style="padding:5px 0;color:${C.muted}">Tracking</td><td style="padding:5px 0">${mTrack}</td></tr>` : ''}
         </table>
@@ -340,13 +340,13 @@ export async function sendOrderMail({ type, to, order }) {
           </td></tr>
         </table>` : ''}
         <div style="text-align:center;margin:24px 0 4px 0">
-          <a href="${APP_ORIGIN}/#/order-manage/${encodeURIComponent(o.id || '')}" style="display:inline-block;background:${C.brand};color:#fff;text-decoration:none;padding:12px 34px;border-radius:50px;font-size:13px;font-weight:600;letter-spacing:0.5px">OPEN ORDER →</a>
+          <a href="${APP_ORIGIN}/#/order-manage/${encodeURIComponent(o.id || '')}" style="display:inline-block;background:${C.brand};color:#fff;text-decoration:none;padding:12px 34px;border-radius:50px;font-size:13px;font-weight:600;letter-spacing:0.5px">OPEN ORDER â†’</a>
         </div>
       </td>
     </tr>
     <tr>
       <td style="background:${C.brandSoft};padding:18px 40px;text-align:center">
-        <p style="margin:0;font-size:11px;color:#9a8f93">Internal notification · ${esc(STORE_NAME)}</p>
+        <p style="margin:0;font-size:11px;color:#9a8f93">Internal notification Â· ${esc(STORE_NAME)}</p>
       </td>
     </tr>
   </table>

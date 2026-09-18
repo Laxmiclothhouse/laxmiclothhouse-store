@@ -1,5 +1,5 @@
-// ─────────────────────────────────────────────────────────────
-// api/mail-health.js — GET /api/mail-health
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// api/mail-health.js â€” GET /api/mail-health
 // Diagnoses why order e-mails may not be reaching customers.
 //
 // The most common cause: MAIL_FROM is still Resend's shared
@@ -8,7 +8,7 @@
 // a domain you own is verified at https://resend.com/domains.
 //
 // The API key itself is never returned.
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const KEY = process.env.RESEND_API_KEY || '';
 const MAIL_FROM = (process.env.MAIL_FROM || 'onboarding@resend.dev').trim();
@@ -34,8 +34,8 @@ export default async function handler(req, res) {
 
   if (!KEY) {
     report.problems.push(
-      'RESEND_API_KEY is not set — every order e-mail is skipped. ' +
-      'Add it in Vercel → Project → Settings → Environment Variables, then redeploy.'
+      'RESEND_API_KEY is not set â€” every order e-mail is skipped. ' +
+      'Add it in Vercel â†’ Project â†’ Settings â†’ Environment Variables, then redeploy.'
     );
   }
 
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     );
     report.hint =
       'Verify a domain at https://resend.com/domains, then set MAIL_FROM to an address on it ' +
-      '(e.g. orders@houselaxmicloth.store) and redeploy.';
+      '(e.g. orders@laxmiclothhouse.com) and redeploy.';
   }
 
   // When the key is present, ask Resend which domains are actually verified.
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
 
   if (!MERCHANT_EMAIL) {
     report.problems.push(
-      'MERCHANT_EMAIL is not set — no store-owner copy of order e-mails will be sent.'
+      'MERCHANT_EMAIL is not set â€” no store-owner copy of order e-mails will be sent.'
     );
   }
 

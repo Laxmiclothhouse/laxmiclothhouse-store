@@ -1,20 +1,20 @@
-// ─────────────────────────────────────────────────────────────
-// shared/whatsapp.mjs — WhatsApp order notifications.
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// shared/whatsapp.mjs â€” WhatsApp order notifications.
 //
 // Channel 1 (preferred): META WHATSAPP CLOUD API (direct, no
-// middleman, ~₹0.11/utility message in India).
+// middleman, ~â‚¹0.11/utility message in India).
 //   Env vars (set in Vercel):
-//     WHATSAPP_ACCESS_TOKEN    — permanent System User token
-//     WHATSAPP_PHONE_NUMBER_ID — from Meta App → API Setup
-//     WHATSAPP_TEMPLATE_NAME   — approved template (default: order_update)
-//     WHATSAPP_GRAPH_VERSION   — Graph API version (default: v23.0)
+//     WHATSAPP_ACCESS_TOKEN    â€” permanent System User token
+//     WHATSAPP_PHONE_NUMBER_ID â€” from Meta App â†’ API Setup
+//     WHATSAPP_TEMPLATE_NAME   â€” approved template (default: order_update)
+//     WHATSAPP_GRAPH_VERSION   â€” Graph API version (default: v23.0)
 //
-// Channel 2 (fallback): Twilio WhatsApp — used automatically when
+// Channel 2 (fallback): Twilio WhatsApp â€” used automatically when
 //   the Meta env vars are absent but Twilio's are present:
 //     TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM
 //
 // If neither channel is configured, sending skips gracefully.
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const META_TOKEN      = String(process.env.WHATSAPP_ACCESS_TOKEN || '').trim();
 const META_PHONE_ID   = String(process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
@@ -26,7 +26,7 @@ const TWILIO_SID      = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN    = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM     = process.env.TWILIO_WHATSAPP_FROM || '';
 
-const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const money = (n) => 'â‚¹' + Number(n || 0).toLocaleString('en-IN');
 
 export function buildWhatsAppLink(text, phone = '') {
   const msg = encodeURIComponent(String(text || ''));
@@ -40,10 +40,10 @@ export function buildWhatsAppLink(text, phone = '') {
 export function productShareText(product) {
   const name  = product.name || 'this product';
   const price = money(product.price || 0);
-  return `Check out "${name}" (₹${price}) at Houselaxmicloth: ${APP_ORIGIN}/#/product/${product.id || ''}`;
+  return `Check out "${name}" (â‚¹${price}) at Laxmiclothhouse: ${APP_ORIGIN}/#/product/${product.id || ''}`;
 }
 
-// ── Meta Cloud API helpers ───────────────────────────────────
+// â”€â”€ Meta Cloud API helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const STATUS_WORD = {
   placed: 'placed', confirmed: 'confirmed', packed: 'packed',
@@ -57,10 +57,10 @@ function metaTemplatePayload(type, order, toE164) {
   const name = o.customerName || 'there';
   const track = `${APP_ORIGIN}/#/track?order=${encodeURIComponent(id)}`;
 
-  // {{4}} — a short context line per status (never empty: template
+  // {{4}} â€” a short context line per status (never empty: template
   // variables must all be filled for Meta to accept the message).
   let extra = `Track: ${track}`;
-  if (type === 'placed') extra = `Total: ${money(o.total)} · Payment: ${o.paymentMode || 'online'}. ${track}`;
+  if (type === 'placed') extra = `Total: ${money(o.total)} Â· Payment: ${o.paymentMode || 'online'}. ${track}`;
   else if (type === 'confirmed') extra = `Total: ${money(o.total)}. We start packing soon.`;
   else if (type === 'packed') extra = `It will ship soon. ${track}`;
   else if (type === 'shipped' && o.trackingNo) extra = `Tracking (${o.courier || 'courier'}): ${o.trackingNo}. ${track}`;
@@ -118,7 +118,7 @@ async function sendViaMeta(type, order, phone) {
   }
 }
 
-// ── Twilio fallback (kept from the original version) ─────────
+// â”€â”€ Twilio fallback (kept from the original version) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function sendViaTwilio(type, order, phone) {
   const { default: twilio } = await import('twilio');
@@ -138,7 +138,7 @@ async function sendViaTwilio(type, order, phone) {
   }
 }
 
-// ── Plain-text templates (Twilio path) ───────────────────────
+// â”€â”€ Plain-text templates (Twilio path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function renderWhatsApp(type, orderRaw) {
   const o  = orderRaw || {};
@@ -161,7 +161,7 @@ export function renderWhatsApp(type, orderRaw) {
   return COPY[type] || COPY.placed;
 }
 
-// ── Core send function ───────────────────────────────────────
+// â”€â”€ Core send function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function sendWhatsApp({ to, type, order }) {
   const phone = String(to || '').replace(/\D/g, '');
@@ -173,14 +173,14 @@ export async function sendWhatsApp({ to, type, order }) {
   // E.164: Indian numbers get the 91 prefix.
   const fullPhone = phone.startsWith('91') && phone.length === 12 ? phone : '91' + phone;
 
-  // Channel 1 — Meta Cloud API when configured.
+  // Channel 1 â€” Meta Cloud API when configured.
   if (META_TOKEN && META_PHONE_ID) {
     return sendViaMeta(type, order, `+${fullPhone}`);
   }
 
-  // Channel 2 — Twilio fallback.
+  // Channel 2 â€” Twilio fallback.
   if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
-    console.log('[whatsapp] Meta not configured — falling back to Twilio');
+    console.log('[whatsapp] Meta not configured â€” falling back to Twilio');
     return sendViaTwilio(type, order, fullPhone);
   }
 

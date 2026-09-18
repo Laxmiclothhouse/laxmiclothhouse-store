@@ -1,21 +1,21 @@
-// ─────────────────────────────────────────────────────────────
-// shared/sms.mjs — SMS order notifications via Twilio SMS.
+﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// shared/sms.mjs â€” SMS order notifications via Twilio SMS.
 // Lives OUTSIDE api/ so Vercel never treats it as a function.
 // Mirrors shared/whatsapp.mjs: sends only when Twilio SMS env
-// vars are configured — otherwise logs and skips so the store
+// vars are configured â€” otherwise logs and skips so the store
 // keeps working until the credentials are added.
 //
 // Env vars (set in Vercel):
-//   TWILIO_ACCOUNT_SID  — from Twilio Console (starts with AC...)
-//   TWILIO_AUTH_TOKEN   — from Twilio Console
-//   TWILIO_SMS_FROM     — your Twilio SMS sender number (e.g. +14155239999)
-//   APP_ORIGIN          — your app URL (default below)
+//   TWILIO_ACCOUNT_SID  â€” from Twilio Console (starts with AC...)
+//   TWILIO_AUTH_TOKEN   â€” from Twilio Console
+//   TWILIO_SMS_FROM     â€” your Twilio SMS sender number (e.g. +14155239999)
+//   APP_ORIGIN          â€” your app URL (default below)
 //
 // NOTE for India: transactional SMS to Indian numbers requires a
 // DLT-registered sender ID + templates (TRAI regulation). Configure
 // the DLT entity/sender in Twilio (or a DLT-connected provider)
 // before going live; delivery failures are logged and skipped.
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import twilio from 'twilio';
 
@@ -28,9 +28,9 @@ const APP_ORIGIN  = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.ver
 // so only create the client when credentials exist.
 const client = ACCOUNT_SID && AUTH_TOKEN ? twilio(ACCOUNT_SID, AUTH_TOKEN) : null;
 
-const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const money = (n) => 'â‚¹' + Number(n || 0).toLocaleString('en-IN');
 
-// ── Message templates (plain text; SMS has no HTML) ──────────
+// â”€â”€ Message templates (plain text; SMS has no HTML) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function renderSms(type, orderRaw) {
   const o = orderRaw || {};
@@ -41,19 +41,19 @@ export function renderSms(type, orderRaw) {
   const track = `${APP_ORIGIN}/#/track?order=${encodeURIComponent(id || '')}`;
 
   const COPY = {
-    placed:    `Houselaxmicloth: Order ${id} placed. Hi ${name}, we received your order. Total ${total} (${mode}). Track: ${track}`,
-    confirmed: `Houselaxmicloth: Order ${id} confirmed! Hi ${name}, we start packing soon. Total ${total}.`,
-    packed:    `Houselaxmicloth: Order ${id} packed and ready to ship, ${name}!`,
-    shipped:   `Houselaxmicloth: Order ${id} shipped!${o.trackingNo ? ` Tracking (${o.courier || 'courier'}): ${o.trackingNo}.` : ''} Track: ${track}`,
-    delivered: `Houselaxmicloth: Order ${id} delivered. Thanks for shopping with us, ${name}!`,
-    cancelled: `Houselaxmicloth: Order ${id} has been cancelled. Reply to this message if you have questions.`,
-    returned:  `Houselaxmicloth: Return for order ${id} processed. Refund is on its way.`,
+    placed:    `Laxmiclothhouse: Order ${id} placed. Hi ${name}, we received your order. Total ${total} (${mode}). Track: ${track}`,
+    confirmed: `Laxmiclothhouse: Order ${id} confirmed! Hi ${name}, we start packing soon. Total ${total}.`,
+    packed:    `Laxmiclothhouse: Order ${id} packed and ready to ship, ${name}!`,
+    shipped:   `Laxmiclothhouse: Order ${id} shipped!${o.trackingNo ? ` Tracking (${o.courier || 'courier'}): ${o.trackingNo}.` : ''} Track: ${track}`,
+    delivered: `Laxmiclothhouse: Order ${id} delivered. Thanks for shopping with us, ${name}!`,
+    cancelled: `Laxmiclothhouse: Order ${id} has been cancelled. Reply to this message if you have questions.`,
+    returned:  `Laxmiclothhouse: Return for order ${id} processed. Refund is on its way.`,
   };
 
   return COPY[type] || COPY.placed;
 }
 
-// ── Core send function ───────────────────────────────────────
+// â”€â”€ Core send function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function isSmsConfigured() {
   return Boolean(ACCOUNT_SID && AUTH_TOKEN && FROM_NUMBER);

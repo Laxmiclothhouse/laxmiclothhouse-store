@@ -146,7 +146,7 @@ function seedUsers() {
     {
       id: 'U-admin',
       name: 'Store Admin',
-      email: 'admin@houselaxmicloth.store',
+      email: 'admin@laxmiclothhouse.com',
       // password stored plainly for demo purposes (hint only)
       password: 'admin123',
       role: 'admin',
@@ -156,7 +156,7 @@ function seedUsers() {
 
 // ---- Default site settings ---------------------------------
 const DEFAULT_SETTINGS = {
-  storeName: 'Houselaxmicloth Suit Collection',
+  storeName: 'Laxmiclothhouse Suit Collection',
      logoUrl: null,
    logoWidth: 40,
    logoLetter: 'B',
@@ -166,7 +166,7 @@ const DEFAULT_SETTINGS = {
   heroSubheading:
     'Heavy 3D work, rich zari, finest fabrics â€” made for your special days.',
   contactPhone: '+91 98765 43210',
-  contactEmail: 'support@houselaxmicloth.store',
+  contactEmail: 'support@laxmiclothhouse.com',
   contactAddress:
     'Najafgarh Road, Near Balour More, Opp. Sector 9, Bahadurgarh â€” 124507',
   // Razorpay merchant key. Use a TEST key for the sandbox,
