@@ -39,6 +39,7 @@ a { color: var(--brand); text-decoration: none; }
 img { max-width: 100%; display: block; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: 1rem; }
+.input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
 p { margin: 0 0 .8em; }
 
 .accent { color: var(--gold); }
