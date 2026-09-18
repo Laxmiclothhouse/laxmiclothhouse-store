@@ -1188,6 +1188,7 @@ function SalesDashboard({ orders, payments, returns }) {
       </section>
     </>
   );
+}
 
 // ── Orders report: date-range filter + PDF download ──────────
 function OrdersReport({ orders, settings }) {
@@ -1257,6 +1258,5 @@ function OrdersReport({ orders, settings }) {
       ) : null}
     </div>
   );
-}
 }
 
