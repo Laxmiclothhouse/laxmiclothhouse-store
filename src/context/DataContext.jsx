@@ -93,6 +93,59 @@ export function DataProvider({ children }) {
       ? reviews.filter((r) => r.productId === productId)
       : [];
 
+  // Admin-only: remove a single review by id (moderation).
+  const deleteReview = (reviewId) => {
+    const next = reviews.filter((r) => r.id !== reviewId);
+    setReviews(next);
+    db.saveReviews(next);
+  };
+
+  // Admin-only: delete a customer's account data. Removes the stored
+  // profile entry, their reviews and wishlist. Returns what was removed.
+  // NOTE: the Firebase Auth login itself cannot be deleted from the
+  // browser — it needs the server-side Admin SDK (documented in the UI).
+  const deleteUserAccount = (targetUser) => {
+    const uid = targetUser?.id;
+    const email = String(targetUser?.email || '').toLowerCase();
+    const phone = String(targetUser?.phone || '').replace(/\D/g, '');
+
+    // 1) stored profile entry
+    const users = db.getUsers();
+    const nextUsers = users.filter((u) => {
+      if (uid && u.id === uid) return false;
+      if (email && String(u.email || '').toLowerCase() === email) return false;
+      return true;
+    });
+    db.saveUsers(nextUsers);
+
+    // 2) their reviews
+    const nextReviews = reviews.filter((r) => {
+      const rUid = r.userId;
+      const rMail = String(r.userEmail || '').toLowerCase();
+      if (uid && rUid === uid) return false;
+      if (email && rMail === email) return false;
+      return true;
+    });
+    setReviews(nextReviews);
+    db.saveReviews(nextReviews);
+
+    // 3) their wishlist
+    let wishlistRemoved = false;
+    try {
+      const wKey = 'houselaxmicloth_wishlist_' + (uid || email);
+      if (uid && localStorage.getItem(wKey) !== null) {
+        localStorage.removeItem(wKey);
+        wishlistRemoved = true;
+      }
+    } catch { /* ignore */ }
+
+    return {
+      users: users.length - nextUsers.length,
+      reviews: reviews.length - nextReviews.length,
+      wishlistRemoved,
+    };
+  };
+
   const ratingFor = (productId) => {
     const list = reviewsFor(productId);
     if (!list.length) return { avg: 0, count: 0 };
@@ -710,8 +763,10 @@ export function DataProvider({ children }) {
       updateSettings,
       reviews,
       addReview,
+      deleteReview,
       reviewsFor,
       ratingFor,
+      deleteUserAccount,
       addProduct,
       updateProduct,
       deleteProduct,

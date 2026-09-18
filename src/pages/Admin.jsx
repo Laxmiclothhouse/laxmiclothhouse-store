@@ -5,7 +5,7 @@ import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
 import { filterOrdersByRange, downloadOrdersReportPdf } from '../utils/ordersReportPdf.js';
-import { productImage } from '../db.js';
+import { productImage, db } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
@@ -220,7 +220,7 @@ function StaffRoleForm({ setUserRole }) {
 
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole } = useAuth();
-  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
+  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
   const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
   const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
   const [form, setForm] = useState(emptyForm);
@@ -420,6 +420,16 @@ export default function Admin() {
         <button className={tab === 'orders' ? 'chip active' : 'chip'} onClick={() => setTab('orders')}>
           Orders ({orders.length})
         </button>
+        {isAdmin && (
+          <button className={tab === 'reviews' ? 'chip active' : 'chip'} onClick={() => setTab('reviews')}>
+            Reviews {reviews.length ? `(${reviews.length})` : ''}
+          </button>
+        )}
+        {isAdmin && (
+          <button className={tab === 'customers' ? 'chip active' : 'chip'} onClick={() => setTab('customers')}>
+            Customers
+          </button>
+        )}
         {isAdmin && (
           <button className={tab === 'settings' ? 'chip active' : 'chip'} onClick={() => setTab('settings')}>
             Settings
@@ -675,6 +685,9 @@ export default function Admin() {
           )}
         </section>
       )}
+
+      {tab === 'reviews' && <ReviewsAdmin />}
+      {tab === 'customers' && <CustomersAdmin />}
 
       {tab === 'staff' && (
         <section className="card-box">
@@ -1257,6 +1270,200 @@ function OrdersReport({ orders, settings }) {
         </p>
       ) : null}
     </div>
+  );
+}
+
+// ── Review moderation: delete a specific review for a product ──
+function ReviewsAdmin() {
+  const { products, reviews, deleteReview } = useData();
+  const [productId, setProductId] = useState('');
+  const list = productId ? reviews.filter((r) => r.productId === productId) : reviews;
+  const sorted = [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const nameFor = (pid) => products.find((p) => p.id === pid)?.name || pid;
+
+  return (
+    <>
+      <section className="card-box">
+        <h2>Review moderation</h2>
+        <p className="muted small">
+          Delete a single review for any product. The change is permanent and syncs to every device.
+        </p>
+        <label style={{ fontSize: 13 }}>
+          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Filter by product</span>
+          <select className="input" value={productId} onChange={(e) => setProductId(e.target.value)} style={{ minWidth: 260 }}>
+            <option value="">All products ({reviews.length} reviews)</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+      </section>
+      <section className="card-box">
+        {sorted.length === 0 ? (
+          <p className="muted">{productId ? 'No reviews for this product.' : 'No reviews yet.'}</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr><th>Product</th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {sorted.map((r) => (
+                  <tr key={r.id}>
+                    <td>{nameFor(r.productId)}</td>
+                    <td>{r.userName || '—'}</td>
+                    <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
+                      {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
+                    </td>
+                    <td style={{ maxWidth: 280 }}>{r.comment || '—'}</td>
+                    <td>{formatDateTime(r.date)}</td>
+                    <td>
+                      <button
+                        className="btn btn-sm danger"
+                        onClick={() => {
+                          if (window.confirm(`Delete this review by ${r.userName || 'this customer'}?\n\nThis cannot be undone.`)) {
+                            deleteReview(r.id);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+// ── Customer accounts: view + delete account data ─────────────
+function CustomersAdmin() {
+  const { deleteUserAccount } = useData();
+  const { user } = useAuth();
+  const [users, setUsers] = useState(() => db.getUsers());
+  const [query, setQuery] = useState('');
+  const [pending, setPending] = useState(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [msg, setMsg] = useState(null);
+
+  const q = query.trim().toLowerCase();
+  const list = users
+    .filter((u) =>
+      !q ||
+      String(u.name || '').toLowerCase().includes(q) ||
+      String(u.email || '').toLowerCase().includes(q) ||
+      String(u.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+    )
+    .sort((a, b) => String(a.email || '').localeCompare(String(b.email || '')));
+
+  const startDelete = (u) => {
+    setMsg(null);
+    setConfirmText('');
+    setPending(u);
+  };
+
+  const confirmDelete = () => {
+    if (!pending) return;
+    if ((pending.email || '').trim().toLowerCase() !== confirmText.trim().toLowerCase()) {
+      setMsg({ ok: false, text: 'Type the customer’s email exactly as shown to confirm deletion.' });
+      return;
+    }
+    const res = deleteUserAccount(pending);
+    setUsers(db.getUsers());
+    setPending(null);
+    setMsg({
+      ok: true,
+      text: `Deleted: ${res.users} profile, ${res.reviews} review(s)${res.wishlistRemoved ? ', wishlist' : ''}. ` +
+            'Note: the underlying Firebase login can only be fully removed with server-side setup.',
+    });
+  };
+
+  const isStaffRole = (r) => r === 'admin' || ['manager', 'packer', 'shipper', 'support'].includes(r);
+
+  return (
+    <>
+      <section className="card-box">
+        <h2>Customer accounts</h2>
+        <p className="muted small">
+          Search registered accounts. Deleting an account removes the customer's stored profile,
+          their reviews and their wishlist. <strong>Orders are kept</strong> — they are business records.
+          The Firebase login itself is not removable from here (needs server-side setup).
+        </p>
+        <input
+          className="input"
+          style={{ maxWidth: 360 }}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, email or phone…"
+        />
+      </section>
+
+      {msg && (
+        <section className="card-box">
+          <p className={msg.ok ? 'ok' : 'error'}>{msg.text}</p>
+        </section>
+      )}
+
+      {pending && (
+        <section className="card-box" style={{ borderColor: '#b3261e' }}>
+          <h2>⚠ Delete account</h2>
+          <p>
+            <strong>{pending.name || 'Unknown'}</strong> — {pending.email || 'no email'} (role: {pending.role || 'customer'})
+          </p>
+          <p className="muted small">
+            This permanently deletes their profile, reviews and wishlist from the store.
+            Type their email below to confirm.
+          </p>
+          <div className="row-gap" style={{ alignItems: 'center' }}>
+            <input
+              className="input"
+              style={{ maxWidth: 320 }}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={pending.email || 'type their email'}
+            />
+            <button className="btn btn-sm danger" onClick={confirmDelete}>Confirm deletion</button>
+            <button className="btn btn-sm" onClick={() => { setPending(null); setConfirmText(''); }}>Cancel</button>
+          </div>
+        </section>
+      )}
+
+      <section className="card-box">
+        {list.length === 0 ? (
+          <p className="muted">No accounts match the search.</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {list.map((u) => (
+                  <tr key={u.id || u.email}>
+                    <td>{u.name || '—'}</td>
+                    <td>{u.email || '—'}</td>
+                    <td>{u.role || 'customer'}</td>
+                    <td>
+                      {u.id === user?.id ? (
+                        <span className="muted tiny">You</span>
+                      ) : isStaffRole(u.role) ? (
+                        <span className="muted tiny">Staff — protected</span>
+                      ) : (
+                        <button className="btn btn-sm danger" onClick={() => startDelete(u)}>Delete account</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
