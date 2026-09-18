@@ -155,12 +155,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // 2) OTP flow: send a 6-digit OTP to the user's email.
-  //    In production the OTP is generated & emailed server-side.
-  //    Here we also trigger Firebase's sendPasswordResetEmail so a real
-  //    email is dispatched, and return the OTP for demo verification.
-
-  // Update password without re-verifying current (used after OTP is verified)
   // ── Profile update helper ──────────────────────────────
   const updateUserProfile = async (data) => {
     try {
@@ -193,43 +187,6 @@ export function AuthProvider({ children }) {
       }
       throw new Error(error.message || 'Failed to send reset email.');
     }
-  };
-
-  // ── Phone OTP login ──────────────────────────────────────
-  const sendOtp = async (phone) => {
-    const resp = await fetch('/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed to send OTP');
-    return data;
-  };
-
-  const loginWithPhone = async (phone, name) => {
-    const resp = await fetch('/api/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Failed to verify OTP');
-
-    const session = {
-      id: data.user.id || `phone_${String(phone).replace(/\D/g, '')}`,
-      name: data.user.name || name || '',
-      email: data.user.email || '',
-      phone: phone,
-      address: data.user.address || '',
-      role: data.user.role || 'customer',
-      specialDate: data.user.specialDate || '',
-      specialDateType: data.user.specialDateType || 'Birthday',
-      loginMethod: 'phone',
-    };
-    setUser(session);
-    db.saveSession(session);
-    return { ...data, session };
   };
 
   const isAdmin = user?.role === 'admin';
@@ -265,8 +222,6 @@ export function AuthProvider({ children }) {
         ROLE_LABELS,
         signup,
         login,
-        loginWithPhone,
-        sendOtp,
         sendPasswordReset,
         logout,
         loading,

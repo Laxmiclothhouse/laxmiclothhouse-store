@@ -1390,11 +1390,7 @@ p { margin: 0 0 .8em; }
 .sale-card-badge { position: absolute; top: 8px; left: 8px; background: var(--ok); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
 .sale-card-badge.flash { background: #e67e22; }
 
-/* ── OTP Login ── */
-.auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; }
-.otp-input { letter-spacing: 8px; font-size: 24px; text-align: center; font-weight: 600; }
-.otp-demo { background: #fff3cd; border: 1px solid #ffc107; padding: 8px 12px; border-radius: 6px; text-align: center; font-size: 14px; color: #856404; }
-.otp-resend { text-align: center; margin-top: 8px; }
+/* ── Login ── */
 .forgot-row { text-align: right; margin-top: 8px; margin-bottom: 8px; }
 .forgot-row .linklike { font-size: 13px; color: var(--brand); text-decoration: underline; }
 .forgot-row .linklike:hover { color: var(--brand-dark); }
