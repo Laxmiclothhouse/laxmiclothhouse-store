@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
+import { filterOrdersByRange, downloadOrdersReportPdf } from '../utils/ordersReportPdf.js';
 import { productImage } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
@@ -659,6 +660,7 @@ export default function Admin() {
       {tab === 'orders' && (
         <section className="card-box">
           <h2>Orders queue</h2>
+          <OrdersReport orders={orders} settings={settings} />
           {orders.length === 0 ? (
             <p className="muted">No orders yet. Orders placed by customers will appear here.</p>
           ) : (
@@ -1186,5 +1188,75 @@ function SalesDashboard({ orders, payments, returns }) {
       </section>
     </>
   );
+
+// ── Orders report: date-range filter + PDF download ──────────
+function OrdersReport({ orders, settings }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const filtered = filterOrdersByRange(orders, from, to);
+  const completed = filtered.filter((o) => o.status !== "cancelled");
+  const revenue = completed.reduce((s, o) => s + (o.total || 0), 0);
+
+  const applyPreset = (days) => {
+    if (days == null) { setFrom(""); setTo(""); return; }
+    const now = new Date();
+    const start = new Date(now.getTime() - days * 86400000);
+    setFrom(start.toISOString().slice(0, 10));
+    setTo(now.toISOString().slice(0, 10));
+  };
+
+  const download = () => {
+    if (busy || !filtered.length) return;
+    setBusy(true);
+    try {
+      downloadOrdersReportPdf(filtered, { from, to, storeName: settings?.storeName });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card-box" style={{ background: '#faf6f0', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+        <label style={{ fontSize: 13 }}>
+          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>From</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input" />
+        </label>
+        <label style={{ fontSize: 13 }}>
+          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>To</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input" />
+        </label>
+        <div className="row-gap" style={{ paddingBottom: 2 }}>
+          <button className="chip" onClick={() => applyPreset(0)}>Today</button>
+          <button className="chip" onClick={() => applyPreset(7)}>Last 7 days</button>
+          <button className="chip" onClick={() => applyPreset(30)}>Last 30 days</button>
+          <button className="chip" onClick={() => applyPreset(null)}>All time</button>
+        </div>
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ fontSize: 13 }}>
+            <strong>{filtered.length}</strong> orders · <strong style={{ color: '#9b1c3d' }}>{formatINR(revenue)}</strong> revenue
+            {from || to ? <span className="muted"> (filtered)</span> : ''}
+          </div>
+          <button
+            className="btn btn-gold btn-sm"
+            style={{ marginTop: 6 }}
+            disabled={busy || !filtered.length}
+            onClick={download}
+            title={filtered.length ? 'Download the orders report as PDF' : 'No orders in this date range'}
+          >
+            {busy ? 'Preparing…' : '⬇ Download PDF'}
+          </button>
+        </div>
+      </div>
+      {from || to ? (
+        <p className="muted tiny" style={{ margin: '10px 0 0 0' }}>
+          Range: {from || 'beginning'} → {to || 'today'}. The PDF includes every order in this range with a revenue total.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 }
 
