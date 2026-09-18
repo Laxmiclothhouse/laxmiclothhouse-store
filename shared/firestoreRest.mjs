@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'laxmiclothhouse-store';
-const API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyD-ICgenL_WQ8z0mfyvtPseOJUPbVMsxNs';
+const API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyBq2vkuVE8HjCAwZjaP9WG_OkMZ6L8c-VQ';
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 // ── Decode Firestore REST typed values → plain JS ────────────
