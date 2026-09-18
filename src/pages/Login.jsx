@@ -2,10 +2,6 @@
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const DEMO = [
-  { label: "Admin", email: "admin@houselaxmicloth.store", pass: "admin123" },
-];
-
 export default function Login() {
   const { login, loginWithPhone, sendOtp, sendPasswordReset } = useAuth();
   const nav = useNavigate();
@@ -66,8 +62,6 @@ export default function Login() {
       setBusy(false);
     }
   };
-
-  const fill = (email, pass) => { setForm({ ...form, email, password: pass }); setTab("email"); };
 
   return (
     <main className="page auth">
@@ -167,13 +161,6 @@ export default function Login() {
         )}
 
         <p className="muted center">New here? <Link to="/signup">Create an account</Link></p>
-
-        <div className="demo-row">
-          <span>Demo:</span>
-          {DEMO.map((d) => (
-            <button key={d.email} className="chip" disabled={busy} onClick={() => fill(d.email, d.pass)}>{d.label}</button>
-          ))}
-        </div>
       </div>
     </main>
   );
