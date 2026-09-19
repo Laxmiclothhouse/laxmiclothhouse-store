@@ -48,10 +48,6 @@ export default function Checkout() {
   const [liveShippingError, setLiveShippingError] = useState(null);
   // Pincode → city / district / state details (/api/pincode, free India Post data)
   const [pinLookup, setPinLookup] = useState({ status: 'idle' });
-  const [pinSearch, setPinSearch] = useState(''); // area / city name search
-  const [pinSearchRes, setPinSearchRes] = useState([]);
-  const [pinSearchBusy, setPinSearchBusy] = useState(false);
-  const [pinSearchMsg, setPinSearchMsg] = useState('');
   // City/state filled by a lookup may be refreshed by a later lookup; as
   // soon as the customer types in those fields by hand, we stop touching them.
   const autoCity = React.useRef(false);
@@ -242,50 +238,16 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipping.pincode]);
 
-  const searchPinAreas = async (text) => {
-    const q = String(text || '').trim();
-    if (q.length < 3) {
-      setPinSearchRes([]);
-      setPinSearchMsg('Type at least 3 letters of the area or city name.');
-      return;
-    }
-    setPinSearchBusy(true);
-    setPinSearchMsg('');
-    try {
-      const res = await fetch(`/api/pincode?q=${encodeURIComponent(q)}`);
-      const data = await res.json().catch(() => null);
-      const results = data && data.ok === true && Array.isArray(data.results) ? data.results : [];
-      setPinSearchRes(results);
-      if (!results.length) setPinSearchMsg(`No pincode found for “${q}”.`);
-    } catch {
-      setPinSearchRes([]);
-      setPinSearchMsg('Pincode lookup failed — you can still type the pincode.');
-    } finally {
-      setPinSearchBusy(false);
-    }
-  };
-
-  const selectPincode = (pin, details) => {
+  const selectPincode = (pin) => {
+    // Selecting the value that is already there does not re-run the lookup
+    // effect, so trigger it here to keep the details on screen.
+    const unchanged = String(shipping.pincode || '') === pin;
     setShipping((prev) => ({ ...prev, pincode: pin }));
     setShowPinList(false);
-    setPinSearch('');
-    setPinSearchRes([]);
-    setPinSearchMsg('');
-    if (details) {
-      // A search result already carries the district/state — show it at once
-      // instead of waiting for the follow-up lookup.
-      const normalized = pinLookupDetails(details, pin);
-      setPinLookup(normalized);
-      fillFromPinDetails(normalized);
-    }
+    if (unchanged) lookupPinDetails(pin);
   };
 
-  const closePinDropdown = () => {
-    setShowPinList(false);
-    setPinSearch('');
-    setPinSearchRes([]);
-    setPinSearchMsg('');
-  };
+  const closePinDropdown = () => setShowPinList(false);
 
   const applyCoupon = () => {
     setCouponMsg('');
@@ -631,54 +593,7 @@ export default function Checkout() {
               />
               {showPinList && (
                 <div className="pin-dropdown">
-                  <div className="pin-search">
-                    <input
-                      type="search"
-                      value={pinSearch}
-                      onChange={(e) => setPinSearch(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          searchPinAreas(pinSearch);
-                        }
-                      }}
-                      placeholder="Search by area or city (e.g. Rohtak)"
-                      aria-label="Search pincode by area or city name"
-                    />
-                    <button
-                      type="button"
-                      className="pin-search-btn"
-                      onClick={() => searchPinAreas(pinSearch)}
-                      disabled={pinSearchBusy}
-                    >
-                      {pinSearchBusy ? '…' : '🔍'}
-                    </button>
-                  </div>
-
-                  {pinSearchMsg && <p className="pin-search-msg">{pinSearchMsg}</p>}
-
-                  {pinSearchRes.length > 0 && (
-                    <ul className="pin-list">
-                      {pinSearchRes.map((r) => (
-                        <li
-                          key={`area-${r.pincode}-${r.area}`}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectPincode(r.pincode, r);
-                          }}
-                        >
-                          <strong>{r.pincode}</strong>
-                          <span className="pin-area">
-                            {r.area ? ` ${r.area}` : ''}
-                            {r.district ? ` · ${r.district}` : ''}
-                            {r.state ? `, ${r.state}` : ''}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {pinSearchRes.length === 0 && filteredPins.length > 0 && (
+                  {filteredPins.length > 0 ? (
                     <ul className="pin-list">
                       {filteredPins.map((pin) => (
                         <li
@@ -693,13 +608,11 @@ export default function Checkout() {
                         </li>
                       ))}
                     </ul>
-                  )}
-
-                  {pinSearchRes.length === 0 && filteredPins.length === 0 && (
-                    <p className="pin-search-msg">
+                  ) : (
+                    <p className="pin-empty">
                       {Array.isArray(settings.serviceablePincodes) && settings.serviceablePincodes.length
-                        ? 'No listed pincode matches — search by area name above.'
-                        : 'Search by area or city name above, or type the 6-digit pincode.'}
+                        ? 'No listed pincode matches — type the full 6-digit pincode.'
+                        : 'Type the 6-digit pincode.'}
                     </p>
                   )}
                 </div>

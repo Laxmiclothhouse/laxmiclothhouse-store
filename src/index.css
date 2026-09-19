@@ -1280,37 +1280,10 @@ p { margin: 0 0 .8em; }
 .pin-field > label { margin-bottom: 0; font-size: .92rem; }
 .pin-input-wrap { position: relative; }
 .pin-input-wrap input { width: 100%; }
-.pin-search {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 8px 8px 6px;
-  border-bottom: 1px solid #f0e7d8;
-  background: #fdfaf6;
-}
-.pin-search input {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 10px;
-  margin-top: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: .82rem;
-  background: #fff;
-}
-.pin-search-btn {
-  flex: 0 0 auto;
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: .85rem;
-  line-height: 1;
-}
-.pin-search-msg {
+.pin-empty {
   margin: 0;
-  padding: 8px 12px;
-  font-size: .75rem;
+  padding: 10px 12px;
+  font-size: .78rem;
   color: var(--muted);
 }
 .pin-list {
@@ -1332,8 +1305,6 @@ p { margin: 0 0 .8em; }
 .pin-list li:last-child { border-bottom: 0; }
 .pin-list li:hover { background: #f7efe2; }
 .pin-list li.selected { background: #9b1c3d; color: #fff; }
-.pin-list .pin-area { font-size: .78rem; color: var(--muted); }
-.pin-list li.selected .pin-area { color: #f6dfe6; }
 .pin-areas { color: var(--muted); font-weight: 400; }
 /* Admin → Settings → pincode finder */
 .pin-find { margin: 6px 0 14px; }
