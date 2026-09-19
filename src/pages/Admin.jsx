@@ -231,6 +231,11 @@ export default function Admin() {
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
+  // Find pincodes by area / city name (free India Post lookup via /api/pincode)
+  const [pinFind, setPinFind] = useState('');
+  const [pinFindRes, setPinFindRes] = useState([]);
+  const [pinFindBusy, setPinFindBusy] = useState(false);
+  const [pinFindMsg, setPinFindMsg] = useState('');
   const [params] = useSearchParams();
   const orderParam = params.get('order');
 
@@ -251,6 +256,38 @@ export default function Admin() {
   }
 
     const setSField = (k) => (e) => setS({ ...s, [k]: e.target.value });
+
+  // ── Pincode finder (Settings → Delivery & pincodes) ──────────
+  // /api/pincode serves the free Department of Posts list, so the admin can
+  // search "Rohtak" instead of having to know every 6-digit code by heart.
+  const findPincodesByArea = async () => {
+    const q = pinFind.trim();
+    if (q.length < 3) {
+      setPinFindRes([]);
+      setPinFindMsg('Type at least 3 letters of the area or city name.');
+      return;
+    }
+    setPinFindBusy(true);
+    setPinFindMsg('');
+    try {
+      const res = await fetch(`/api/pincode?q=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => null);
+      const results = data && data.ok === true && Array.isArray(data.results) ? data.results : [];
+      setPinFindRes(results);
+      if (!results.length) setPinFindMsg(`No pincode found for “${q}”.`);
+    } catch {
+      setPinFindRes([]);
+      setPinFindMsg('Lookup failed — you can still add pincodes by hand.');
+    } finally {
+      setPinFindBusy(false);
+    }
+  };
+
+  const addFoundPincode = (pin) => {
+    const list = Array.isArray(s.serviceablePincodes) ? s.serviceablePincodes : [];
+    if (list.includes(pin)) return;
+    setS({ ...s, serviceablePincodes: [...list, pin] });
+  };
 
   const readAsDataURL = async (file) => {
     const buf = await file.arrayBuffer();
@@ -971,6 +1008,63 @@ export default function Admin() {
                 />
                 <span className="muted tiny">Checkout blocks pincodes not listed here. Empty = deliver everywhere in India.</span>
               </label>
+
+              <div className="pin-find">
+                <label>Find pincodes by area or city name
+                  <span className="pin-find-row">
+                    <input
+                      value={pinFind}
+                      onChange={(e) => setPinFind(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          findPincodesByArea();
+                        }
+                      }}
+                      placeholder="e.g. Rohtak, Bahadurgarh, Karol Bagh"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-gold"
+                      onClick={findPincodesByArea}
+                      disabled={pinFindBusy}
+                    >
+                      {pinFindBusy ? 'Searching…' : 'Search'}
+                    </button>
+                  </span>
+                </label>
+                {pinFindMsg && <p className="muted tiny">{pinFindMsg}</p>}
+                {pinFindRes.length > 0 && (
+                  <ul className="pin-find-results">
+                    {pinFindRes.map((r) => {
+                      const added = (s.serviceablePincodes || []).includes(r.pincode);
+                      return (
+                        <li key={r.pincode}>
+                          <span>
+                            <strong>{r.pincode}</strong>
+                            {r.area ? ` ${r.area}` : ''}
+                            {r.district && r.district !== r.area ? ` · ${r.district}` : ''}
+                            {r.state ? `, ${r.state}` : ''}
+                          </span>
+                          <button
+                            type="button"
+                            className={`chip${added ? ' active' : ''}`}
+                            onClick={() => addFoundPincode(r.pincode)}
+                            disabled={added}
+                            title={added ? 'Already in the serviceable list' : 'Add to the serviceable list'}
+                          >
+                            {added ? '✓ Added' : '+ Add'}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <p className="muted tiny">
+                  Click <strong>+ Add</strong> to append a pincode to the list above, then press
+                  <strong> Save settings</strong> to make it live at checkout.
+                </p>
+              </div>
               <div className="grid2">
                 <label>Earliest delivery (days from today)
                   <input type="number" min="1" value={s.deliveryMinDays || 4} onChange={setSField('deliveryMinDays')} />

@@ -1258,25 +1258,107 @@ p { margin: 0 0 .8em; }
   top: 100%;
   left: 0;
   right: 0;
-  max-height: 220px;
-  overflow-y: auto;
   margin: 4px 0 0;
-  padding: 4px 0;
-  list-style: none;
   background: #fff;
   border: 1px solid #d8c7ad;
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(60,30,5,.12);
+  overflow: hidden;
 }
-.pin-dropdown li {
+/* The pincode field replaces a .card-box label, so it carries the same
+   label styling (the <label> inside only holds the caption text). */
+.pin-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-weight: 500;
+  font-size: .92rem;
+  min-width: 0;
+}
+.pin-field > label { margin-bottom: 0; font-size: .92rem; }
+.pin-input-wrap { position: relative; }
+.pin-input-wrap input { width: 100%; }
+.pin-search {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid #f0e7d8;
+  background: #fdfaf6;
+}
+.pin-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  margin-top: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: .82rem;
+  background: #fff;
+}
+.pin-search-btn {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: .85rem;
+  line-height: 1;
+}
+.pin-search-msg {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: .75rem;
+  color: var(--muted);
+}
+.pin-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.pin-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   padding: 8px 12px;
   font-size: .9rem;
   cursor: pointer;
   border-bottom: 1px solid #f0e7d8;
 }
-.pin-dropdown li:last-child { border-bottom: 0; }
-.pin-dropdown li:hover { background: #f7efe2; }
-.pin-dropdown li.selected { background: #9b1c3d; color: #fff; }
+.pin-list li:last-child { border-bottom: 0; }
+.pin-list li:hover { background: #f7efe2; }
+.pin-list li.selected { background: #9b1c3d; color: #fff; }
+.pin-list .pin-area { font-size: .78rem; color: var(--muted); }
+.pin-list li.selected .pin-area { color: #f6dfe6; }
+.pin-areas { color: var(--muted); font-weight: 400; }
+/* Admin → Settings → pincode finder */
+.pin-find { margin: 6px 0 14px; }
+.pin-find-row { display: flex; gap: 8px; align-items: center; }
+.pin-find-row input { flex: 1; min-width: 0; }
+.pin-find-results {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.pin-find-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  font-size: .88rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #fff;
+}
+.pin-find-results li span { min-width: 0; }
 .pin-promise {
   border: 1px solid #b6e4c7;
   background: #f2fff5;

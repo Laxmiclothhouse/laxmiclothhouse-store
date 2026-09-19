@@ -46,6 +46,16 @@ export default function Checkout() {
   const [liveShipping, setLiveShipping] = useState(null);
   const [liveShippingLoading, setLiveShippingLoading] = useState(false);
   const [liveShippingError, setLiveShippingError] = useState(null);
+  // Pincode → city / district / state details (/api/pincode, free India Post data)
+  const [pinLookup, setPinLookup] = useState({ status: 'idle' });
+  const [pinSearch, setPinSearch] = useState(''); // area / city name search
+  const [pinSearchRes, setPinSearchRes] = useState([]);
+  const [pinSearchBusy, setPinSearchBusy] = useState(false);
+  const [pinSearchMsg, setPinSearchMsg] = useState('');
+  // City/state filled by a lookup may be refreshed by a later lookup; as
+  // soon as the customer types in those fields by hand, we stop touching them.
+  const autoCity = React.useRef(false);
+  const autoState = React.useRef(false);
 
 
   const shippingSource = settings.shippingSource || 'product';
@@ -165,6 +175,117 @@ export default function Checkout() {
     subtotal,
     rateCardKey,
   ]);
+
+  // ── Pincode → city / district / state ───────────────────────
+  // /api/pincode wraps the free Department of Posts lookup. It fills the
+  // city + state the customer has not typed yet and shows which areas the
+  // pincode covers. Every failure stays silent — typing the address by
+  // hand must always keep working.
+  const pinLookupDetails = (details, pin) => {
+    const areas = (Array.isArray(details.areas) ? details.areas : []).filter(Boolean);
+    const head = details.headArea || details.area || '';
+    return {
+      status: 'ok',
+      pincode: pin,
+      city: details.city || details.district || '',
+      district: details.district || details.city || '',
+      state: details.state || '',
+      areas: head ? [head, ...areas.filter((a) => a !== head)] : areas,
+      officeCount: Number(details.officeCount) || 0,
+    };
+  };
+
+  const fillFromPinDetails = (details) => {
+    if (!details || details.status !== 'ok') return;
+    const fillCity = Boolean(details.city) && (autoCity.current || !shipping.city.trim());
+    const fillState = Boolean(details.state) && (autoState.current || !shipping.state.trim());
+    if (!fillCity && !fillState) return;
+    if (fillCity) autoCity.current = true;
+    if (fillState) autoState.current = true;
+    setShipping((prev) => ({
+      ...prev,
+      city: fillCity ? details.city : prev.city,
+      state: fillState ? details.state : prev.state,
+    }));
+  };
+
+  const lookupPinDetails = async (pin) => {
+    setPinLookup({ status: 'loading', pincode: pin });
+    try {
+      const res = await fetch(`/api/pincode?pin=${encodeURIComponent(pin)}`);
+      const data = await res.json().catch(() => null);
+      if (!data || data.ok !== true) {
+        setPinLookup({ status: 'error', pincode: pin });
+        return;
+      }
+      if (!data.found) {
+        setPinLookup({ status: 'none', pincode: pin });
+        return;
+      }
+      const details = pinLookupDetails(data, pin);
+      setPinLookup(details);
+      fillFromPinDetails(details);
+    } catch {
+      setPinLookup({ status: 'error', pincode: pin });
+    }
+  };
+
+  // Look the pincode up shortly after the customer finishes typing it.
+  React.useEffect(() => {
+    const pin = String(shipping.pincode || '').trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setPinLookup((prev) => (prev.status === 'idle' ? prev : { status: 'idle' }));
+      return undefined;
+    }
+    const timer = setTimeout(() => { lookupPinDetails(pin); }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shipping.pincode]);
+
+  const searchPinAreas = async (text) => {
+    const q = String(text || '').trim();
+    if (q.length < 3) {
+      setPinSearchRes([]);
+      setPinSearchMsg('Type at least 3 letters of the area or city name.');
+      return;
+    }
+    setPinSearchBusy(true);
+    setPinSearchMsg('');
+    try {
+      const res = await fetch(`/api/pincode?q=${encodeURIComponent(q)}`);
+      const data = await res.json().catch(() => null);
+      const results = data && data.ok === true && Array.isArray(data.results) ? data.results : [];
+      setPinSearchRes(results);
+      if (!results.length) setPinSearchMsg(`No pincode found for “${q}”.`);
+    } catch {
+      setPinSearchRes([]);
+      setPinSearchMsg('Pincode lookup failed — you can still type the pincode.');
+    } finally {
+      setPinSearchBusy(false);
+    }
+  };
+
+  const selectPincode = (pin, details) => {
+    setShipping((prev) => ({ ...prev, pincode: pin }));
+    setShowPinList(false);
+    setPinSearch('');
+    setPinSearchRes([]);
+    setPinSearchMsg('');
+    if (details) {
+      // A search result already carries the district/state — show it at once
+      // instead of waiting for the follow-up lookup.
+      const normalized = pinLookupDetails(details, pin);
+      setPinLookup(normalized);
+      fillFromPinDetails(normalized);
+    }
+  };
+
+  const closePinDropdown = () => {
+    setShowPinList(false);
+    setPinSearch('');
+    setPinSearchRes([]);
+    setPinSearchMsg('');
+  };
 
   const applyCoupon = () => {
     setCouponMsg('');
@@ -438,11 +559,34 @@ export default function Checkout() {
           </label>
           <label>Address<input value={shipping.address} onChange={setShip('address')} placeholder="House no, street, area" /></label>
           <div className="grid3">
-            <label>City<input value={shipping.city} onChange={setShip('city')} /></label>
-            <label>State<input value={shipping.state} onChange={setShip('state')} /></label>
-            <label>Pincode
+            <label>City
               <input
+                value={shipping.city}
+                onChange={(e) => { autoCity.current = false; setShip('city')(e); }}
+              />
+            </label>
+            <label>State
+              <input
+                value={shipping.state}
+                onChange={(e) => { autoState.current = false; setShip('state')(e); }}
+              />
+            </label>
+            <div className="pin-field">
+            <label htmlFor="co-pincode">Pincode</label>
+            <div
+              className="pin-input-wrap"
+              onBlur={(e) => {
+                // Keep the dropdown usable while focus stays inside it (the
+                // area search lives there); close only on a real focus-out.
+                if (e.currentTarget.contains(e.relatedTarget)) return;
+                setTimeout(closePinDropdown, 150);
+              }}
+            >
+              <input
+                id="co-pincode"
                 value={shipping.pincode}
+                inputMode="numeric"
+                autoComplete="postal-code"
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                   setShip('pincode')({ target: { value: val } });
@@ -475,33 +619,90 @@ export default function Checkout() {
                         : p
                   );
                 }}
-                onBlur={() => setTimeout(() => setShowPinList(false), 180)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && filteredPins.length === 1) {
-                    setShip('pincode')({ target: { value: filteredPins[0] } });
-                    setShowPinList(false);
+                    e.preventDefault();
+                    selectPincode(filteredPins[0]);
                   }
                 }}
                 maxLength={6}
                 placeholder="Type or select pincode"
                 aria-label="Pincode"
               />
-              {showPinList && filteredPins.length > 0 && (
-                <ul className="pin-dropdown">
-                  {filteredPins.map((pin) => (
-                    <li
-                      key={pin}
-                      className={shipping.pincode === pin ? 'selected' : ''}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setShip('pincode')({ target: { value: pin } });
-                        setShowPinList(false);
+              {showPinList && (
+                <div className="pin-dropdown">
+                  <div className="pin-search">
+                    <input
+                      type="search"
+                      value={pinSearch}
+                      onChange={(e) => setPinSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          searchPinAreas(pinSearch);
+                        }
                       }}
+                      placeholder="Search by area or city (e.g. Rohtak)"
+                      aria-label="Search pincode by area or city name"
+                    />
+                    <button
+                      type="button"
+                      className="pin-search-btn"
+                      onClick={() => searchPinAreas(pinSearch)}
+                      disabled={pinSearchBusy}
                     >
-                      {pin}
-                    </li>
-                  ))}
-                </ul>
+                      {pinSearchBusy ? '…' : '🔍'}
+                    </button>
+                  </div>
+
+                  {pinSearchMsg && <p className="pin-search-msg">{pinSearchMsg}</p>}
+
+                  {pinSearchRes.length > 0 && (
+                    <ul className="pin-list">
+                      {pinSearchRes.map((r) => (
+                        <li
+                          key={`area-${r.pincode}-${r.area}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectPincode(r.pincode, r);
+                          }}
+                        >
+                          <strong>{r.pincode}</strong>
+                          <span className="pin-area">
+                            {r.area ? ` ${r.area}` : ''}
+                            {r.district ? ` · ${r.district}` : ''}
+                            {r.state ? `, ${r.state}` : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {pinSearchRes.length === 0 && filteredPins.length > 0 && (
+                    <ul className="pin-list">
+                      {filteredPins.map((pin) => (
+                        <li
+                          key={pin}
+                          className={shipping.pincode === pin ? 'selected' : ''}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectPincode(pin);
+                          }}
+                        >
+                          {pin}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {pinSearchRes.length === 0 && filteredPins.length === 0 && (
+                    <p className="pin-search-msg">
+                      {Array.isArray(settings.serviceablePincodes) && settings.serviceablePincodes.length
+                        ? 'No listed pincode matches — search by area name above.'
+                        : 'Search by area or city name above, or type the 6-digit pincode.'}
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* ── Live shipping info ─────────────────────────── */}
@@ -525,8 +726,30 @@ export default function Checkout() {
               )}
 
               {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
+              {pinLookup.status === 'loading' && <span className="pin-msg muted">Looking up pincode…</span>}
+              {pinLookup.status === 'ok' && (
+                <span className="pin-msg ok">
+                  ✓ {pinLookup.district || pinLookup.city}
+                  {pinLookup.state ? `, ${pinLookup.state}` : ''}
+                  {pinLookup.areas.length > 0 && (
+                    <span className="pin-areas">
+                      {' '}· areas: {pinLookup.areas.slice(0, 3).join(', ')}
+                      {pinLookup.areas.length > 3 ? ` +${pinLookup.areas.length - 3}` : ''}
+                    </span>
+                  )}
+                </span>
+              )}
+              {pinLookup.status === 'none' && (
+                <span className="pin-msg error">✕ Pincode {pinLookup.pincode} was not found — please check it.</span>
+              )}
+              {pinLookup.status === 'error' && (
+                <span className="pin-msg muted">City/state could not be fetched — you can type them by hand.</span>
+              )}
+
+              {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
               {pinInfo.state === 'no' && <span className="pin-msg error">✕ {pinInfo.label}</span>}
-            </label>
+            </div>
+            </div>
           </div>
 
           <label className="whatsapp-opt">
