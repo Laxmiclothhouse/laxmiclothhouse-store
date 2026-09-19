@@ -30,6 +30,9 @@ body {
   background: var(--cream);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* stops any stray wide element from creating a horizontal page scroll.
+     "clip" (not "hidden") so the sticky navbar keeps working. */
+  overflow-x: clip;
 }
 h1, h2, h3, h4 { font-family: var(--serif); margin: 0 0 .4em; line-height: 1.15; }
 h1 { font-size: 2.6rem; }
@@ -207,7 +210,7 @@ p { margin: 0 0 .8em; }
 .product-card:hover { transform: translateY(-6px); box-shadow: var(--shadow); }
 .pc-imgwrap { position: relative; aspect-ratio: 4/5; display: block; overflow: hidden; background: #f0e6ea; }
 .pc-imglink { display: block; position: relative; height: 100%; }
-.pc-imglink img { display: block; width: 100%; height: 100%; object-fit: cover; transition: .5s; }
+.pc-imglink img { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; transition: .5s; }
 .product-card:hover .pc-imglink img { transform: scale(1.06); }
 .ribbon {
   position: absolute; top: 12px; left: 12px; background: var(--ink); color: #fff;
@@ -352,7 +355,7 @@ p { margin: 0 0 .8em; }
   z-index: 3;
   pointer-events: none;
 }
-.detail-img img { width: 100%; height: 100%; object-fit: cover; min-height: 320px; max-height: 400px; }
+.detail-img img { width: 100%; height: 100%; object-fit: contain; background: #fff; min-height: 320px; max-height: 400px; }
 .cat-line { letter-spacing: 2px; text-transform: uppercase; font-size: .78rem; color: var(--brand); margin-bottom: 4px; }
 .stock-line { font-weight: 500; color: var(--ok); }
 .stock-line.out { color: var(--err); }
@@ -478,7 +481,8 @@ p { margin: 0 0 .8em; }
 .image-preview-thumb {
   width: 56px;
   height: 56px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #fff;
   border-radius: 8px;
   border: 1px solid var(--line);
 }
@@ -500,7 +504,7 @@ p { margin: 0 0 .8em; }
 .drawer-empty { padding: 60px 20px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; }
 .drawer-items { list-style: none; margin: 0; padding: 14px 20px; overflow-y: auto; flex: 1; }
 .drawer-item { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--line); }
-.drawer-item img { width: 60px; height: 72px; object-fit: cover; border-radius: 8px; }
+.drawer-item img { width: 60px; height: 72px; object-fit: contain; background: #fff; border-radius: 8px; }
 .di-info { flex: 1; }
 .di-name { font-weight: 500; margin: 0 0 6px; font-size: .92rem; }
 .di-qty { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 20px; }
@@ -788,11 +792,31 @@ p { margin: 0 0 .8em; }
   .page { padding: 26px 16px 50px; }
   .page-head { margin-bottom: 22px; }
   .page-head h1 { font-size: 1.9rem; }
-  .toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  /* NOTE: flex-wrap must be nowrap here — a *wrapping* column flex container
+     sizes its flex line to the widest child, so the single-line chips row
+     would stretch the toolbar (and the whole page) wider than the phone
+     screen. nowrap keeps the chips row inside the page and lets it scroll. */
+  .toolbar { flex-direction: column; align-items: stretch; gap: 12px; flex-wrap: nowrap; min-width: 0; max-width: 100%; }
   .toolbar-right { width: 100%; }
   .search-input { width: 100%; }
-  .chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
-  .chip { padding: 6px 13px; font-size: .82rem; white-space: nowrap; }
+  .chips {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 6px;
+  }
+  .chips::-webkit-scrollbar { height: 6px; }
+  .chips::-webkit-scrollbar-thumb { background: rgba(155, 28, 61, .35); border-radius: 10px; }
+  .chips::-webkit-scrollbar-track { background: transparent; }
+  .chip { padding: 6px 13px; font-size: .82rem; white-space: nowrap; flex: 0 0 auto; }
+
+  /* safety net — chip rows must never widen the page on phones */
+  .admin-tabs, .filter-chips, .size-edit-chips, .ord-actions { min-width: 0; max-width: 100%; }
 
   .bank-layout { grid-template-columns: 1fr; }
   .detail { grid-template-columns: 1fr; gap: 22px; }
@@ -820,7 +844,8 @@ p { margin: 0 0 .8em; }
   width: 100%;
   height: auto;
   min-height: 400px;
-  object-fit: cover;
+  object-fit: contain;
+  background: #fff;
   border-radius: var(--radius);
   display: block;
 }
@@ -842,7 +867,7 @@ p { margin: 0 0 .8em; }
   border: 1px solid var(--line);
   background: #fff;
 }
-.img-preview-item img { width: 100%; height: 100%; object-fit: cover; }
+.img-preview-item img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .img-badge {
   position: absolute;
   top: 4px;
@@ -1382,7 +1407,7 @@ p { margin: 0 0 .8em; }
 .sale-card { background: #fff; border: 2px solid var(--ok); border-radius: 12px; overflow: hidden; transition: .3s; position: relative; }
 .sale-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
 .sale-card-img { aspect-ratio: 4/5; overflow: hidden; }
-.sale-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.sale-card-img img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .sale-card-body { padding: 12px; }
 .sale-card-body h4 { font-size: 14px; margin: 0 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sale-card-price { display: flex; align-items: center; gap: 6px; }
