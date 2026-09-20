@@ -192,8 +192,10 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
               placeholder="…or paste an image link (https://…)"
             />
             <span className="muted tiny">
-              Shown as a clickable banner on the home page that opens this sale's products.
-              Leave it empty and no banner appears anywhere.
+              Shown as a clickable banner on the home page, roughly 1240 × 400. Any image is
+              stretched to fill that whole box, so a wide image looks sharpest (tall posters get
+              centre-cropped). Clicking it opens this sale's products. Leave it empty and no
+              banner appears anywhere.
             </span>
           </label>
           {imageMsg && <p className="muted tiny">{imageMsg}</p>}
