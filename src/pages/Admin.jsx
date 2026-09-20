@@ -986,6 +986,7 @@ export default function Admin() {
                   placeholder="e.g. TEEJ SALE — flat 20% off everything!"
                   maxLength={120}
                 />
+                <span className="muted tiny">Required — the banner appears only when this message has text (and a future end time), so a switched-on-but-empty promotion never shows up on the site.</span>
               </label>
               <label>Sale ends at
                 <input

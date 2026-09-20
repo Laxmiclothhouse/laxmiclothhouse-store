@@ -2,28 +2,46 @@ import React, { useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
+import { formatINR } from '../utils/format.js';
 
 export default function Catalog() {
-  const { products, getSalePrice } = useData();
-  const [params] = useSearchParams();
+  const { products, sales, getSalePrice } = useData();
+  const [params, setParams] = useSearchParams();
   const initialCat = params.get('cat') || '';
 
   const [category, setCategory] = useState(initialCat);
+  // Sale filter — deep-linkable as ?sale=all or ?sale=<saleId>, which is how
+  // the home-page sale banner lands on exactly that sale's products.
+  const [saleFilter, setSaleFilter] = useState(params.get('sale') || '');
   const [sort, setSort] = useState('featured');
   const [q, setQ] = useState('');
-  const [showSaleOnly, setShowSaleOnly] = useState(false);
+
+  // Keep the filter in sync with the URL (banner clicks, back/forward).
+  React.useEffect(() => {
+    setSaleFilter(params.get('sale') || '');
+  }, [params]);
 
   const cats = ['', ...Array.from(new Set(products.map((p) => p.category)))];
 
-  const saleProducts = useMemo(() => {
-    return products.filter((p) => {
-      const sale = getSalePrice(p);
-      return sale.price < (sale.originalPrice || p.price);
-    });
-  }, [products, getSalePrice]);
+  // Only admin-created sales qualify — an MRP above the selling price is
+  // ordinary shop pricing, so it never populates the Sale chip.
+  const saleProducts = useMemo(
+    () => products.filter((p) => getSalePrice(p).hasSale),
+    [products, getSalePrice]
+  );
+
+  const activeSale =
+    saleFilter && saleFilter !== 'all' ? sales.find((s) => s.id === saleFilter) || null : null;
 
   const list = useMemo(() => {
-    let res = showSaleOnly ? saleProducts : products;
+    let res = [...products];
+    if (saleFilter) {
+      res = res.filter((p) => {
+        const sale = getSalePrice(p);
+        if (!sale.hasSale) return false;
+        return saleFilter === 'all' ? true : sale.saleId === saleFilter;
+      });
+    }
     if (category) res = res.filter((p) => p.category === category);
     if (q.trim()) {
       const s = q.trim().toLowerCase();
@@ -40,7 +58,37 @@ export default function Catalog() {
       default: break;
     }
     return res;
-  }, [products, saleProducts, category, q, sort, showSaleOnly]);
+  }, [products, getSalePrice, saleFilter, category, q, sort]);
+
+  // Mirror the sale filter into the URL so it can be refreshed/shared.
+  const setSaleParam = (value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set('sale', value);
+    else next.delete('sale');
+    setParams(next, { replace: true });
+  };
+
+  const pickSale = () => {
+    const value = saleFilter ? '' : 'all';
+    setSaleFilter(value);
+    setSaleParam(value);
+    if (value) setCategory('');
+  };
+
+  const pickCategory = (c) => {
+    setCategory(c);
+    if (saleFilter) {
+      setSaleFilter('');
+      setSaleParam('');
+    }
+  };
+
+  const clearAll = () => {
+    setQ('');
+    setCategory('');
+    setSaleFilter('');
+    setSaleParam('');
+  };
 
   return (
     <main className="page">
@@ -53,8 +101,8 @@ export default function Catalog() {
         <div className="chips">
           {saleProducts.length > 0 && (
             <button
-              className={`chip sale-chip ${showSaleOnly ? 'active' : ''}`}
-              onClick={() => setShowSaleOnly(!showSaleOnly)}
+              className={`chip sale-chip ${saleFilter ? 'active' : ''}`}
+              onClick={pickSale}
             >
               🔥 Sale ({saleProducts.length})
             </button>
@@ -62,8 +110,8 @@ export default function Catalog() {
           {cats.map((c) => (
             <button
               key={c || 'all'}
-              className={`chip ${category === c && !showSaleOnly ? 'active' : ''}`}
-              onClick={() => setCategory(c)}
+              className={`chip ${category === c && !saleFilter ? 'active' : ''}`}
+              onClick={() => pickCategory(c)}
             >
               {c || 'All'}
             </button>
@@ -86,10 +134,19 @@ export default function Catalog() {
         </div>
       </div>
 
+      {activeSale && (
+        <p className="sale-filter-note">
+          Showing <strong>{activeSale.name || 'this sale'}</strong>
+          {activeSale.discountType === 'percent'
+            ? ` — ${activeSale.value}% off`
+            : ` — ${formatINR(activeSale.value)} off`}
+        </p>
+      )}
+
       {list.length === 0 ? (
         <div className="center empty">
           <p>No products found.</p>
-          <button className="linklike" onClick={() => { setQ(''); setCategory(''); }}>
+          <button className="linklike" onClick={clearAll}>
             Clear filters
           </button>
         </div>

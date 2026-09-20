@@ -24,6 +24,11 @@ export default function FlashBanner({ flashSale }) {
   }, [fs.active]);
 
   if (!fs.active) return null;
+  // A promotion must actually be written down: an "active" flag left on with
+  // no message (or a stale one in the database) must never show a sale
+  // banner that the admin did not create.
+  const message = String(fs.message || '').trim();
+  if (!message) return null;
   const ends = fs.endsAt ? new Date(fs.endsAt).getTime() : 0;
   if (!ends || ends <= now) return null; // expired — gone on every screen
 
@@ -32,7 +37,7 @@ export default function FlashBanner({ flashSale }) {
 
   return (
     <div className="flash-banner" role="status">
-      <span className="flash-msg">🔥 {fs.message || 'FLASH SALE — limited time only!'}</span>
+      <span className="flash-msg">🔥 {message}</span>
       <span className="flash-timer" aria-label="Time remaining">
         {left.d > 0 && `${left.d}d `}
         {pad(left.h)}:{pad(left.m)}:{pad(left.s)}

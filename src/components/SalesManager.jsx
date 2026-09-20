@@ -3,6 +3,57 @@ import { formatINR } from '../utils/format.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
 
+// ── Sale banner image (optional) ─────────────────────────────
+// The picked file is turned into a data URL, exactly like product images.
+// Anything wider than MAX_IMAGE_WIDTH (or heftier than ~400 KB) is redrawn
+// on a canvas first, because the whole sales list lives in one Firestore
+// document and a multi-megabyte banner would blow its size limit.
+const MAX_IMAGE_WIDTH = 1600;
+const MAX_STORED_BYTES = 400 * 1024;
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+function imageFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !String(file.type || '').startsWith('image/')) {
+      reject(new Error('Please choose an image file (JPG, PNG or WebP).'));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      reject(new Error('That image is larger than 8 MB — please pick a smaller one.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const img = new Image();
+      img.onerror = () => resolve(dataUrl); // keep the original if it will not decode
+      img.onload = () => {
+        const smallEnough = img.width <= MAX_IMAGE_WIDTH && dataUrl.length <= MAX_STORED_BYTES * 1.4;
+        if (smallEnough) {
+          resolve(dataUrl);
+          return;
+        }
+        try {
+          const scale = Math.min(1, MAX_IMAGE_WIDTH / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff'; // flatten any transparency onto white
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } catch {
+          resolve(dataUrl);
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
   const product = sale.productId ? products.find((p) => p.id === sale.productId) : null;
   const scope = sale.type === 'product'
@@ -15,6 +66,7 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
   return (
     <div className={'sale-row ' + (sale.active === false ? 'inactive' : '')}>
       <div className="sale-row-main">
+        {sale.imageUrl && <img className="sale-thumb" src={sale.imageUrl} alt="" />}
         <span className="sale-badge">{sale.type}</span>
         <div>
           <strong>{sale.name || 'Unnamed sale'}</strong>
@@ -38,19 +90,35 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
 export default function SalesManager({ sales, products, addSale, updateSale, deleteSale, toggleSale }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true });
+  const [form, setForm] = useState({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true, imageUrl: '' });
+  const [imageMsg, setImageMsg] = useState('');
 
-  const resetForm = () => { setForm({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true }); setEditing(null); setShowForm(false); };
-  const openEdit = (sale) => { setEditing(sale.id); setForm({ type: sale.type, name: sale.name || '', discountType: sale.discountType || 'percent', value: sale.value || '', productId: sale.productId || '', category: sale.category || 'Suits', startsAt: sale.startsAt ? sale.startsAt.slice(0,16) : '', endsAt: sale.endsAt ? sale.endsAt.slice(0,16) : '', active: sale.active !== false }); setShowForm(true); };
+  const resetForm = () => { setForm({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true, imageUrl: '' }); setEditing(null); setShowForm(false); setImageMsg(''); };
+  const openEdit = (sale) => { setEditing(sale.id); setForm({ type: sale.type, name: sale.name || '', discountType: sale.discountType || 'percent', value: sale.value || '', productId: sale.productId || '', category: sale.category || 'Suits', startsAt: sale.startsAt ? sale.startsAt.slice(0,16) : '', endsAt: sale.endsAt ? sale.endsAt.slice(0,16) : '', active: sale.active !== false, imageUrl: sale.imageUrl || '' }); setImageMsg(''); setShowForm(true); };
 
   const setF = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  // Optional banner artwork. Failure is non-fatal: the sale is still saved.
+  const onPickImage = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // so the same file can be re-picked later
+    if (!file) return;
+    setImageMsg('Preparing image…');
+    try {
+      const dataUrl = await imageFileToDataUrl(file);
+      setForm((prev) => ({ ...prev, imageUrl: dataUrl }));
+      setImageMsg('');
+    } catch (err) {
+      setImageMsg(err.message || 'Could not read that image.');
+    }
+  };
   const submit = (e) => {
     e.preventDefault();
     const v = Number(form.value);
     if (!v || v <= 0) return;
     if (form.discountType === 'percent' && v > 100) return;
     if (form.type === 'product' && !form.productId) return;
-    const data = { type: form.type, name: form.name.trim() || null, discountType: form.discountType, value: v, productId: form.type === 'product' ? form.productId : undefined, category: form.type === 'category' ? form.category : undefined, startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null, endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null, active: form.active };
+    const data = { type: form.type, name: form.name.trim() || null, discountType: form.discountType, value: v, productId: form.type === 'product' ? form.productId : undefined, category: form.type === 'category' ? form.category : undefined, startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null, endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null, imageUrl: form.imageUrl || null, active: form.active };
     if (editing) updateSale(editing, data); else addSale(data);
     resetForm();
   };
@@ -115,6 +183,32 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
               <input type="datetime-local" value={form.endsAt} onChange={setF('endsAt')} />
             </label>
           </div>
+          <label>Sale banner image (optional)
+            <input type="file" accept="image/*" onChange={onPickImage} />
+            <input
+              type="text"
+              value={form.imageUrl && !form.imageUrl.startsWith('data:') ? form.imageUrl : ''}
+              onChange={setF('imageUrl')}
+              placeholder="…or paste an image link (https://…)"
+            />
+            <span className="muted tiny">
+              Shown as a clickable banner on the home page that opens this sale's products.
+              Leave it empty and no banner appears anywhere.
+            </span>
+          </label>
+          {imageMsg && <p className="muted tiny">{imageMsg}</p>}
+          {form.imageUrl && (
+            <div className="sale-image-preview">
+              <img src={form.imageUrl} alt="Sale banner preview" />
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                onClick={() => setForm({ ...form, imageUrl: '' })}
+              >
+                Remove image
+              </button>
+            </div>
+          )}
           <label className="check-row">
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
             Active (visible to customers)

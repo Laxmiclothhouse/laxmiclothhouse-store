@@ -11,12 +11,12 @@ const CATS = [
 ];
 
 export default function Home() {
-  const { products, settings, getSalePrice } = useData();
+  const { products, settings, sales, getSalePrice } = useData();
   const featured = products.filter((p) => p.featured);
 
   const saleProducts = products
     .map((p) => ({ product: p, sale: getSalePrice(p) }))
-    .filter(({ product, sale }) => sale.price < (sale.originalPrice || product.price))
+    .filter(({ sale }) => sale.hasSale)
     .sort((a, b) => {
       const aPct = a.sale.originalPrice ? ((a.sale.originalPrice - a.sale.price) / a.sale.originalPrice) : 0;
       const bPct = b.sale.originalPrice ? ((b.sale.originalPrice - b.sale.price) / b.sale.originalPrice) : 0;
@@ -24,6 +24,21 @@ export default function Home() {
     })
     .slice(0, 8)
     .map(({ product, sale }) => ({ product, sale }));
+
+  // Optional artwork for a running sale: shown on the home page as a
+  // clickable banner that leads to that sale's products. No image on the
+  // sale → nothing is rendered (the feature is entirely optional).
+  const bannerSale = React.useMemo(() => {
+    const now = Date.now();
+    const usable = sales.filter(
+      (s) =>
+        s.active !== false &&
+        s.imageUrl &&
+        (!s.startsAt || new Date(s.startsAt).getTime() <= now) &&
+        (!s.endsAt || new Date(s.endsAt).getTime() > now)
+    );
+    return usable.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
+  }, [sales]);
 
   return (
     <main>
@@ -43,6 +58,21 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* optional sale banner — rendered only when the admin attached an
+          image to a running sale; clicking it opens that sale's products */}
+      {bannerSale && (
+        <section className="sale-banner-wrap">
+          <Link
+            to={`/catalog?sale=${encodeURIComponent(bannerSale.id)}`}
+            className="sale-banner"
+            title={bannerSale.name ? `Shop ${bannerSale.name}` : 'Shop the sale'}
+          >
+            <img src={bannerSale.imageUrl} alt={bannerSale.name || 'Sale'} />
+            {bannerSale.name && <span className="sale-banner-pill">{bannerSale.name} →</span>}
+          </Link>
+        </section>
+      )}
 
       {/* categories */}
       <section className="section">

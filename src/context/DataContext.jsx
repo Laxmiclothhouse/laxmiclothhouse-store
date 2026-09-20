@@ -479,8 +479,13 @@ export function DataProvider({ children }) {
 
   // Calculate the best sale price for a product.
   // Priority: product sale > category sale > storewide sale > flash sale > original price.
+  // `hasSale` is true ONLY when one of those admin-created sales lowers the
+  // price. A product whose MRP sits above its selling price is ordinary shop
+  // pricing, NOT a running sale — the UI uses hasSale to decide whether to
+  // show sale badges/sections, so nothing looks "on sale" until the admin
+  // actually creates one.
   const getSalePrice = (product) => {
-    if (!product) return { price: 0, originalPrice: 0, saleLabel: null, saleId: null };
+    if (!product) return { price: 0, originalPrice: 0, saleLabel: null, saleId: null, hasSale: false };
     const now = Date.now();
     const activeSales = sales.filter((s) => {
       if (s.active === false) return false;
@@ -554,7 +559,7 @@ export function DataProvider({ children }) {
       }
     }
 
-    return { price: bestPrice, originalPrice, saleLabel, saleId };
+    return { price: bestPrice, originalPrice, saleLabel, saleId, hasSale: Boolean(saleId) };
   };
 
   const canCancel = (order) => {

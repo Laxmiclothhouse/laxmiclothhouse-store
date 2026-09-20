@@ -29,8 +29,10 @@ export default function ProductDetail() {
   const [shareMsg, setShareMsg] = useState('');
 
   const product = products.find((p) => p.id === id);
-  const sale = product ? getSalePrice(product) : { price: 0, originalPrice: 0, saleLabel: null };
-  const onSale = product && sale.price < (sale.originalPrice || product.price);
+  const sale = product ? getSalePrice(product) : { price: 0, originalPrice: 0, saleLabel: null, hasSale: false };
+  // Only an admin-created sale counts as "on sale" — a struck-through MRP
+  // above the selling price is ordinary shop pricing, not a running sale.
+  const onSale = Boolean(product && sale.hasSale);
 
   // All images for this product; older products only have "image" (single).
   const images =

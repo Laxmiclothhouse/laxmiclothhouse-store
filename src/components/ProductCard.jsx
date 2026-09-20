@@ -15,7 +15,9 @@ export default function ProductCard({ product }) {
   const saved = isWishlisted(product.id);
   const rating = ratingFor(product.id);
   const sale = getSalePrice(product);
-  const onSale = sale.price < (sale.originalPrice || product.price);
+  // Only an admin-created sale counts as "on sale" — a struck-through MRP
+  // above the selling price is ordinary shop pricing, not a running sale.
+  const onSale = sale.hasSale;
 
   const onWish = () => {
     if (!user) {
