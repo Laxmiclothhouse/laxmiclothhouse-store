@@ -10,37 +10,66 @@ const auth = getAuth(app);
 const firestore = getFirestore(app);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  // Start from the cached session so a refresh paints instantly, then let
+  // Firebase confirm it in the effect below (the listener always wins).
+  const [user, setUser] = useState(() => {
+    const cached = db.getSession();
+    return cached && cached.id ? cached : null;
+  });
   const [loading, setLoading] = useState(true);
 
   // Listen to Firebase Auth state changes
   useEffect(() => {
+    let alive = true;
+    // Safety net: if Firebase never answers (offline, blocked, misconfigured)
+    // the app must not sit on the "checking session" screen forever.
+    const failsafe = setTimeout(() => {
+      if (alive) setLoading(false);
+    }, 10000);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Get additional user data from Firestore
-        const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
-        const userData = userDoc.data() || {};
+        // The profile lives in Firestore. That read may fail (offline, rules,
+        // a transient error) and must never leave the app stuck on the
+        // "checking session" screen — fall back to the cached session.
+        const cachedSession = db.getSession();
+        const cachedRole =
+          cachedSession && cachedSession.id === firebaseUser.uid ? cachedSession.role : '';
+        let userData = {};
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
+          userData = userDoc.data() || {};
+        } catch (error) {
+          console.warn('[auth] user profile unavailable — using the cached session:', error?.message || error);
+        }
+        if (!alive) return;
         
                 const session = {
           id: firebaseUser.uid,
-          name: firebaseUser.displayName || userData.name || '',
+          name: firebaseUser.displayName || userData.name || cachedSession?.name || '',
           email: firebaseUser.email,
-          phone: userData.phone || '',
-          address: userData.address || '',
-          role: userData.role || 'customer',
-          specialDate: userData.specialDate || '',
-          specialDateType: userData.specialDateType || 'Birthday',
+          phone: userData.phone || cachedSession?.phone || '',
+          address: userData.address || cachedSession?.address || '',
+          role: userData.role || cachedRole || 'customer',
+          specialDate: userData.specialDate || cachedSession?.specialDate || '',
+          specialDateType: userData.specialDateType || cachedSession?.specialDateType || 'Birthday',
         };
         setUser(session);
         db.saveSession(session);
       } else {
+        if (!alive) return;
         setUser(null);
         db.clearSession();
       }
+      if (!alive) return;
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      alive = false;
+      clearTimeout(failsafe);
+      unsubscribe();
+    };
   }, []);
 
   const signup = async ({ name, email, password, phone, specialDate, specialDateType }) => {

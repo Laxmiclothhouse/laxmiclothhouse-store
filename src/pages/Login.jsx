@@ -1,9 +1,9 @@
-﻿import React, { useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function Login() {
-  const { login, sendPasswordReset } = useAuth();
+  const { login, sendPasswordReset, user, loading } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -14,6 +14,14 @@ export default function Login() {
 
   const from = loc.state?.from || "/";
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  // Already signed in? A refresh on a guarded page used to drop the visitor
+  // here while Firebase was still restoring the session — send them straight
+  // on to where they were headed instead of showing the login form again.
+  useEffect(() => {
+    if (loading || !user) return;
+    nav(from && from !== "/login" ? from : "/", { replace: true });
+  }, [loading, user, from, nav]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
