@@ -1,0 +1,70 @@
+// Firestore security rules for this store (Firebase console → Firestore Database → Rules).
+// Copy-paste this file's contents into the console, then Publish.
+//
+// What it does:
+// - Anyone signed in can read the shop data (products/orders/settings/etc.).
+// - A user can always read + update their OWN users/{uid} profile doc
+//   (name/phone/address — never role).
+// - An ADMIN (a user whose own users/{uid} doc has role == "admin") can additionally:
+//     • list the users collection (needed for Admin → Staff UID search),
+//     • read any users/{uid} doc (needed for the "Check UID" preview),
+//     • change ONLY the `role` field on any users/{uid} doc (needed for
+//       Admin → Staff → Save role). All other fields stay protected.
+// - Everyone else is denied.
+//
+// IMPORTANT — first admin bootstrap: rules read the admin flag from YOUR OWN
+// users/{uid} doc, so that doc must already say role: "admin". Set it once by
+// hand: Firebase console → Firestore → Data → users → {your UID} → role = "admin".
+// After that, use Admin → Staff on the site for every other promotion.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myUserDoc().role == 'admin';
+    }
+
+    // ── Shop data: readable by any signed-in user; writes stay locked down
+    //    except where the app already writes via its own paths. Tighten the
+    //    write side further once you confirm which collections the site edits.
+    match /store/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── User profiles (doc id = Firebase Auth UID) ──
+    match /users/{uid} {
+      // Own profile, or any profile for an admin (search + preview).
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // Admin UID search needs the list query.
+      allow list: if isAdmin();
+      // Users may create/update their own doc, but can never grant themselves
+      // a role: `role` may only change via an admin write (rule below), and a
+      // non-admin may not write the field at all.
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!('role' in request.resource.data) || request.resource.data.role == 'customer');
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+      // Admin promoting/demoting: ONLY the `role` field may change, and only
+      // to a known value. Everything else in the doc is untouched.
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+        && request.resource.data.role in ['admin', 'manager', 'packer', 'shipper', 'support', 'customer'];
+    }
+
+    // ── Phone-OTP accounts live here (same idea: owner + admin only) ──
+    match /phoneUsers/{docId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

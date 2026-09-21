@@ -342,6 +342,14 @@ export function AuthProvider({ children }) {
       await setDoc(doc(firestore, 'users', String(uid).trim()), { role }, { merge: true });
       return { ok: true };
     } catch (error) {
+      if (error?.code === 'permission-denied' || /missing or insufficient permissions/i.test(error?.message || '')) {
+        throw new Error(
+          'Missing or insufficient permissions: your Firestore rules block this write. ' +
+          'In Firebase console → Firestore → Rules, allow an admin to update the "role" field on users/{uid} ' +
+          '(e.g. get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"), ' +
+          'then Publish. Also confirm you are logged in as the admin account (the one whose users/{uid} doc has role "admin").'
+        );
+      }
       throw new Error(error.message || 'Failed to update role.');
     }
   };
