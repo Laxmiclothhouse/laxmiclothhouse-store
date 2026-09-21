@@ -196,9 +196,11 @@ export function AuthProvider({ children }) {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) throw new Error('No authenticated user.');
 
-      // Email (and identity/role) can never be changed from the profile page.
-      // Strip them so even a crafted call cannot overwrite the login email.
-      const { email, id, role, ...safeData } = data || {};
+      // Identity fields (login email, UID/role) can never be changed from the
+      // profile page. Phone is also identity-bound: it is set at signup /
+      // OTP login and can never be edited afterwards, so strip it too — even
+      // a crafted call cannot overwrite the account phone number.
+      const { email, id, role, phone, ...safeData } = data || {};
       await setDoc(doc(firestore, 'users', firebaseUser.uid), safeData, { merge: true });
 
       const updated = { ...user, ...safeData };

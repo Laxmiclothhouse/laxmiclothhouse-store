@@ -37,6 +37,14 @@ export default function Profile() {
   const saveProfile = async (e) => {
     e.preventDefault();
     // Email is never sent — it cannot be changed in any case.
+    // Phone is identity-bound: it is set once (signup / OTP login) and can
+    // never be edited afterwards — even with no orders in process.
+    if (phone.trim() !== String(user?.phone || '').trim()) {
+      setPhone(user?.phone || '');
+      flash('Phone number cannot be changed. It is fixed to the number on your account.');
+      return;
+    }
+    // When an order is processing, name + address are frozen (phone is always frozen).
     // When an order is processing, name + phone + address are all frozen.
     if (profileLocked) {
       // Revert any typed values back to the saved ones; nothing is saved.
@@ -50,7 +58,7 @@ export default function Profile() {
     try {
       await updateUserProfile({
         name: name.trim(),
-        phone: phone.trim(),
+        // NOTE: phone is deliberately NOT sent — it is immutable.
         address: address.trim(),
         specialDate: specialDate || '',
         specialDateType: specialDateType || 'Birthday',
@@ -103,7 +111,8 @@ export default function Profile() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' required disabled={profileLocked} title={profileLocked ? 'Locked while an order is processing' : undefined} />
           </label>
           <label>Phone
-            <input type='tel' value={phone} onChange={(e) => setPhone(e.target.value)} placeholder='+1 555 000 0000' disabled={profileLocked} title={profileLocked ? 'Locked while an order is processing' : undefined} />
+            <input type='tel' value={phone} readOnly disabled placeholder='+91 98765 43210' title='Phone number is fixed to your account and cannot be changed' />
+            <span className='muted tiny'>Phone number is fixed to your account and cannot be changed.</span>
           </label>
           <label>Address
             <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder='Street, city, postcode...' disabled={profileLocked} title={profileLocked ? 'Locked while an order is processing' : undefined} />

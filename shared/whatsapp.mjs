@@ -26,7 +26,7 @@ const TWILIO_SID      = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_TOKEN    = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_FROM     = process.env.TWILIO_WHATSAPP_FROM || '';
 
-const money = (n) => 'â‚¹' + Number(n || 0).toLocaleString('en-IN');
+const money = (n) => 'Rs. ' + Number(n || 0).toLocaleString('en-IN');
 
 export function buildWhatsAppLink(text, phone = '') {
   const msg = encodeURIComponent(String(text || ''));

@@ -1,7 +1,7 @@
 ﻿import jsPDF from "jspdf";
 import * as qrcode from "qrcode";
 
-const MONEY = (n) => "â‚¹" + Number(n || 0).toLocaleString("en-IN");
+const MONEY = (n) => "Rs. " + Number(n || 0).toLocaleString("en-IN");
 const fmtDt = (d) => {
   if (!d) return "";
   const x = new Date(d);

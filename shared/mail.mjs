@@ -16,7 +16,10 @@ const MERCHANT_EMAIL = process.env.MERCHANT_EMAIL || '';
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.vercel.app';
 const STORE_NAME = process.env.STORE_NAME || 'Laxmiclothhouse Suit Collection';
 
-const money = (n) => "â‚¹" + Number(n || 0).toLocaleString("en-IN");
+// Always use ASCII "Rs. " (never the ₹ glyph): several mail clients and
+// log pipelines in this repo are not UTF-8 clean, so the raw rupee sign
+// arrives as mojibake (e.g. "â‚¹"). "Rs. 1,499" renders everywhere.
+const money = (n) => "Rs. " + Number(n || 0).toLocaleString("en-IN");
 
 function esc(s) {
   return String(s || '')
