@@ -14,6 +14,7 @@ export function DataProvider({ children }) {
   const [payments, setPayments] = useState(db.getPayments());
   const [returns, setReturns] = useState(db.getReturns());
   const [sales, setSales] = useState(db.getSales());
+  const [users, setUsers] = useState(db.getUsers());
 
   const updateSettings = (patch) => {
     const next = { ...settings, ...patch };
@@ -34,6 +35,7 @@ export function DataProvider({ children }) {
       else if (e.key === 'houselaxmicloth_payments') setPayments(db.getPayments());
       else if (e.key === 'houselaxmicloth_returns') setReturns(db.getReturns());
       else if (e.key === 'houselaxmicloth_sales') setSales(db.getSales());
+      else if (e.key === 'houselaxmicloth_users') setUsers(db.getUsers());
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -50,6 +52,7 @@ export function DataProvider({ children }) {
     const unsubPayments = listenFromFirestore('houselaxmicloth_payments', setPayments);
     const unsubReturns = listenFromFirestore('houselaxmicloth_returns', setReturns);
     const unsubSales = listenFromFirestore('houselaxmicloth_sales', setSales);
+    const unsubUsers = listenFromFirestore('houselaxmicloth_users', setUsers);
 
     return () => {
       unsubProducts();
@@ -61,6 +64,7 @@ export function DataProvider({ children }) {
       unsubPayments();
       unsubReturns();
       unsubSales();
+      unsubUsers();
     };
   }, []);
 
@@ -133,6 +137,7 @@ export function DataProvider({ children }) {
       return true;
     });
     db.saveUsers(nextUsers);
+    setUsers(nextUsers);
 
     // 2) their reviews
     const nextReviews = reviews.filter((r) => {
