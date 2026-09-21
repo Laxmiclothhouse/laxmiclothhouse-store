@@ -1,13 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../db.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, limit } from 'firebase/firestore';
 import { app } from '../firebase.js';
 import { STAFF_ROLES, ROLE_LABELS, isStaffRole } from '../orderFlow.js';
 
 const AuthContext = createContext(null);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
+
+// ── Firestore `users` directory cache (module scope so it survives re-renders) ──
+// Doc id = Firebase UID. Refreshed at most once per minute.
+let _usersDirCache = null;
+let _usersDirAt = 0;
+const USERS_DIR_TTL = 60 * 1000;
 
 export function AuthProvider({ children }) {
   // Start from the cached session so a refresh paints instantly, then let
@@ -223,6 +229,106 @@ export function AuthProvider({ children }) {
 
   // Admin-only: promote a Firebase user to a staff role by their UID.
   // (UID visible in Firebase console → Authentication → Users.)
+  // ── Find a user's UID from Firestore by name / email / phone ──
+  // Client-side lookup over the `users` collection (doc id = UID).
+  // We keep a small in-memory cache so repeated admin searches don't
+  // re-download the directory every keystroke. The collection is read
+  // in small pages (never the whole DB) and matched locally so a
+  // partial name / email / phone finds the account.
+  // Returns: [{ uid, name, email, phone, role }]
+  const readUsersDirectory = async () => {
+    const now = Date.now();
+    if (_usersDirCache && now - _usersDirAt < USERS_DIR_TTL) return _usersDirCache;
+    try {
+      const q = query(collection(firestore, 'users'), limit(500));
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach((d) => {
+        const v = d.data() || {};
+        list.push({
+          uid: d.id,
+          name: v.name || '',
+          email: v.email || '',
+          phone: v.phone || '',
+          role: v.role || 'customer',
+        });
+      });
+      _usersDirCache = list;
+      _usersDirAt = now;
+      return list;
+    } catch (error) {
+      // Firestore rules often block list for non-admins — surface a clear error
+      // so the Admin UI can explain it (and fall back to orders below).
+      throw new Error(error.message || 'Failed to read users directory.');
+    }
+  };
+
+  // Search users by name / email / phone and return matching UIDs.
+  // Used in Admin → Staff so the admin never has to open the Firebase
+  // console: type a name, email or phone → pick the account → UID fills in.
+  const searchUsers = async (text) => {
+    const raw = String(text || '').trim();
+    if (raw.length < 2) return [];
+    const q = raw.toLowerCase();
+    const digits = raw.replace(/\D/g, '');
+    // 1) try the Firestore `users` directory first (real UID source)
+    try {
+      const dir = await readUsersDirectory();
+      const hits = dir.filter((u) => {
+        const name = String(u.name || '').toLowerCase();
+        const email = String(u.email || '').toLowerCase();
+        const phone = String(u.phone || '').replace(/\D/g, '');
+        return (
+          (name && name.includes(q)) ||
+          (email && email.includes(q)) ||
+          (u.uid && u.uid.toLowerCase() === q) ||
+          (digits && phone && phone.includes(digits))
+        );
+      });
+      if (hits.length) return hits.slice(0, 20);
+    } catch {
+      // fall through to the orders fallback below
+    }
+    // 2) fallback: match against recent orders (works even when `users`
+    //    list is locked by security rules). Order rows carry userId (= UID)
+    //    plus the name/email/phone typed at checkout.
+    try {
+      const orders = db.getOrders() || [];
+      const seen = new Map();
+      for (const o of orders) {
+        const name = String(o.customer?.name || '');
+        const email = String(o.customerEmail || o.customer?.email || '');
+        const phone = String(o.phone || o.customer?.phone || '');
+        const uid = o.userId || null;
+        if (!uid) continue;
+        const ok =
+          (name && name.toLowerCase().includes(q)) ||
+          (email && email.toLowerCase().includes(q)) ||
+          (digits && phone.replace(/\D/g, '').includes(digits)) ||
+          (uid && String(uid).toLowerCase() === q);
+        if (ok && !seen.has(uid)) {
+          seen.set(uid, { uid, name, email, phone, role: '', fromOrders: true });
+        }
+        if (seen.size >= 20) break;
+      }
+      return [...seen.values()];
+    } catch {
+      return [];
+    }
+  };
+
+  // Fetch one user's profile doc by UID (for the Staff UID preview card).
+  const fetchUserByUid = async (uid) => {
+    const id = String(uid || '').trim();
+    if (!id) throw new Error('Enter a UID.');
+    try {
+      const snap = await getDoc(doc(firestore, 'users', id));
+      if (!snap.exists()) throw new Error('No profile found for this UID yet (they must log in on the site once).');
+      return { uid: id, ...(snap.data() || {}) };
+    } catch (error) {
+      throw new Error(error.message || 'Failed to read that user.');
+    }
+  };
   const setUserRole = async (uid, role) => {
     try {
       const firebaseUser = auth.currentUser;
@@ -247,6 +353,8 @@ export function AuthProvider({ children }) {
         isAdmin,
         isStaff,
         setUserRole,
+        searchUsers,
+        fetchUserByUid,
         STAFF_ROLES,
         ROLE_LABELS,
         signup,

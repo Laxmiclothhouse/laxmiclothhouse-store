@@ -169,11 +169,78 @@ function CouponForm({ addCoupon }) {
   );
 }
 
-function StaffRoleForm({ setUserRole }) {
+function StaffRoleForm({ setUserRole, searchUsers, fetchUserByUid }) {
   const [uid, setUid] = useState('');
   const [role, setRole] = useState('packer');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  // ── Find UID by name / email / phone ──
+  const [finder, setFinder] = useState('');
+  const [hits, setHits] = useState([]);
+  const [finding, setFinding] = useState(false);
+  const [finderMsg, setFinderMsg] = useState('');
+  const [preview, setPreview] = useState(null);
+
+  const runFinder = async (text) => {
+    const v = typeof text === 'string' ? text : finder;
+    setFinderMsg('');
+    setPreview(null);
+    if (!searchUsers) {
+      setFinderMsg('User search is not available in this build.');
+      return;
+    }
+    if (String(v || '').trim().length < 2) {
+      setHits([]);
+      return;
+    }
+    setFinding(true);
+    try {
+      const res = await searchUsers(v);
+      setHits(res || []);
+      if (!res || !res.length) {
+        setFinderMsg('No user found for that name / email / phone. They must log in on the site at least once first.');
+      }
+    } catch (ex) {
+      setHits([]);
+      setFinderMsg(ex.message || 'Search failed. You can still paste the UID by hand.');
+    } finally {
+      setFinding(false);
+    }
+  };
+
+  const pickUser = (u) => {
+    setUid(u.uid);
+    setMsg('');
+    setErr('');
+    setFinderMsg(`Selected ${u.name || u.email || u.uid} — UID filled below.`);
+    setHits([]);
+  };
+
+  const lookupUid = async () => {
+    setErr('');
+    setMsg('');
+    setPreview(null);
+    if (!fetchUserByUid) return;
+    if (!uid.trim()) {
+      setErr('Enter or pick a UID first.');
+      return;
+    }
+    try {
+      const p = await fetchUserByUid(uid.trim());
+      setPreview(p);
+    } catch (ex) {
+      setErr(ex.message || 'Could not read that user.');
+    }
+  };
+
+  const copyUid = async () => {
+    try {
+      await navigator.clipboard.writeText(uid.trim());
+      setFinderMsg('UID copied to clipboard.');
+    } catch {
+      setFinderMsg('Copy failed — select the UID text and copy it by hand.');
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -183,43 +250,98 @@ function StaffRoleForm({ setUserRole }) {
       await setUserRole(uid.trim(), role);
       setMsg('Role saved: ' + uid.trim() + ' is now "' + role + '". Applies on their next login/reload.');
       setUid('');
+      setPreview(null);
     } catch (ex) {
       setErr(ex.message || 'Failed to update role.');
     }
   };
 
   return (
-    <form onSubmit={submit} className="form">
-      <div className="grid2">
+    <>
+      <div className="form" style={{ marginBottom: 12, border: '1px dashed var(--line)', borderRadius: 8, padding: 12 }}>
         <label>
-          Firebase UID
-          <input
-            value={uid}
-            onChange={(e) => setUid(e.target.value)}
-            required
-            placeholder="e.g. 3XkQ9Z... (Firebase console > Authentication)"
-          />
+          Find UID by name / email / phone
+          <div className="row-gap">
+            <input
+              value={finder}
+              onChange={(e) => { setFinder(e.target.value); runFinder(e.target.value); }}
+              placeholder="e.g. Rahul, rahul@gmail.com or 98765…"
+              style={{ flex: 1 }}
+            />
+            <button type="button" className="btn btn-sm" disabled={finding} onClick={() => runFinder()}>
+              {finding ? 'Searching…' : 'Search'}
+            </button>
+          </div>
         </label>
-        <label>
-          Role
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            {STAFF_ROLE_CHOICES.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </label>
+        {finderMsg && <p className="muted small" style={{ margin: '6px 0 0' }}>{finderMsg}</p>}
+        {hits.length > 0 && (
+          <div className="table-scroll" style={{ marginTop: 8 }}>
+            <table className="table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>UID</th><th></th></tr>
+              </thead>
+              <tbody>
+                {hits.map((h) => (
+                  <tr key={h.uid}>
+                    <td>{h.name || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{h.email || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{h.phone || '—'}</td>
+                    <td style={{ fontSize: 11, wordBreak: 'break-all' }}>
+                      {h.uid}
+                      {h.fromOrders && <span className="muted tiny" style={{ display: 'block' }}>from orders</span>}
+                    </td>
+                    <td><button type="button" className="btn btn-sm" onClick={() => pickUser(h)}>Use</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <div className="row-gap">
-        <button className="btn btn-gold" type="submit">Save role</button>
-      </div>
-      {msg && <p className="ok">{msg}</p>}
-      {err && <p className="error">{err}</p>}
-    </form>
+      <form onSubmit={submit} className="form">
+        <div className="grid2">
+          <label>
+            Firebase UID
+            <div className="row-gap">
+              <input
+                value={uid}
+                onChange={(e) => setUid(e.target.value)}
+                required
+                placeholder="e.g. 3XkQ9Z... (pick above or paste)"
+                style={{ flex: 1 }}
+              />
+            </div>
+            <div className="row-gap" style={{ marginTop: 6 }}>
+              <button type="button" className="btn btn-sm btn-ghost" disabled={!uid.trim()} onClick={lookupUid}>Check UID</button>
+              <button type="button" className="btn btn-sm btn-ghost" disabled={!uid.trim()} onClick={copyUid}>Copy UID</button>
+            </div>
+            {preview && (
+              <p className="muted small" style={{ margin: '6px 0 0' }}>
+                Found: <strong>{preview.name || '—'}</strong> · {preview.email || 'no email'} · {preview.phone || 'no phone'} · role: {preview.role || 'customer'}
+              </p>
+            )}
+          </label>
+          <label>
+            Role
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              {STAFF_ROLE_CHOICES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="row-gap">
+          <button className="btn btn-gold" type="submit">Save role</button>
+        </div>
+        {msg && <p className="ok">{msg}</p>}
+        {err && <p className="error">{err}</p>}
+      </form>
+    </>
   );
 }
 
 export default function Admin() {
-  const { user, isAdmin, isStaff, setUserRole } = useAuth();
+  const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
   const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
   const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
@@ -730,11 +852,12 @@ export default function Admin() {
         <section className="card-box">
           <h2>Staff roles</h2>
           <p className="muted small">
-            Promote a registered user to a staff role. The UID is visible in the Firebase console
-            (Authentication &gt; Users) after the person logs in on the site once. The new role
+            Promote a registered user to a staff role. Search the user by name,
+            email or phone below to find their UID — or paste the UID directly
+            (Firebase console &gt; Authentication &gt; Users). The new role
             applies on their next login or page reload.
           </p>
-          <StaffRoleForm setUserRole={setUserRole} />
+          <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} fetchUserByUid={fetchUserByUid} />
         </section>
       )}
 
