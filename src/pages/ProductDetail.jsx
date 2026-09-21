@@ -141,6 +141,7 @@ export default function ProductDetail() {
       productId: product.id,
       userId: user.id,
       userName: user.name,
+      userEmail: user.email,
       rating,
       comment: comment.trim(),
     });

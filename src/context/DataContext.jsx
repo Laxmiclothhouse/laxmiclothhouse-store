@@ -65,7 +65,7 @@ export function DataProvider({ children }) {
   }, []);
 
   // ----- reviews -----
-  const addReview = ({ productId, userId, userName, rating, comment }) => {
+  const addReview = ({ productId, userId, userName, rating, comment, userEmail }) => {
     const rev = {
       id: db.uid('R-'),
       productId,
@@ -73,6 +73,7 @@ export function DataProvider({ children }) {
       userName,
       rating: Math.min(5, Math.max(1, Number(rating))),
       comment,
+      userEmail,
       date: new Date().toISOString(),
     };
     const idx = reviews.findIndex(
@@ -84,6 +85,21 @@ export function DataProvider({ children }) {
     } else {
       next = [rev, ...reviews];
     }
+    setReviews(next);
+    db.saveReviews(next);
+  };
+
+
+  // Admin-only: update a review by id (moderation).
+  const updateReview = (reviewId, updates) => {
+    const idx = reviews.findIndex((r) => r.id === reviewId);
+    if (idx < 0) return;
+    const updated = {
+      ...reviews[idx],
+      ...updates,
+      date: new Date().toISOString(),
+    };
+    const next = reviews.map((r, i) => (i === idx ? updated : r));
     setReviews(next);
     db.saveReviews(next);
   };
@@ -768,6 +784,7 @@ export function DataProvider({ children }) {
       updateSettings,
       reviews,
       addReview,
+      updateReview,
       deleteReview,
       reviewsFor,
       ratingFor,
@@ -804,8 +821,9 @@ export function DataProvider({ children }) {
       deleteSale,
       toggleSale,
       getSalePrice,
+      users,
     }),
-    [products, orders, settings, reviews, messages, coupons, payments, returns, sales]
+    [products, orders, settings, reviews, messages, coupons, payments, returns, sales, users]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

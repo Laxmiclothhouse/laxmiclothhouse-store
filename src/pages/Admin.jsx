@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -1368,34 +1368,61 @@ function OrdersReport({ orders, settings }) {
   );
 }
 
-// ── Review moderation: delete a specific review for a product ──
+// ── Review moderation: search + edit + delete reviews ──
 function ReviewsAdmin() {
-  const { products, reviews, deleteReview } = useData();
-  const [productId, setProductId] = useState('');
-  const list = productId ? reviews.filter((r) => r.productId === productId) : reviews;
-  const sorted = [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const { products, reviews, updateReview, deleteReview } = useData();
+  const [query, setQuery] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({});
+
   const nameFor = (pid) => products.find((p) => p.id === pid)?.name || pid;
+
+  // search: customer name / email / product name / product name + customer name
+  const q = (query || '').trim().toLowerCase();
+  const list = q === ''
+    ? reviews
+    : reviews.filter((r) => {
+        const reviewer = `${r.userName || ''} ${r.email || ''}`.toLowerCase();
+        const product = `${nameFor(r.productId)} ${r.productName || ''}`.toLowerCase();
+        return reviewer.includes(q) || product.includes(q);
+      });
+  const sorted = [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  const startEdit = (r) => {
+    setEditingId(r.id);
+    setDraft({ rating: r.rating || 0, comment: r.comment || '' });
+  };
+  const saveEdit = (r) => {
+    if (draft.rating < 1 || draft.rating > 5) {
+      alert('Rating must be between 1 and 5.');
+      return;
+    }
+    updateReview(r.id, { rating: draft.rating, comment: draft.comment.trim() });
+    setEditingId(null);
+  };
 
   return (
     <>
       <section className="card-box">
         <h2>Review moderation</h2>
         <p className="muted small">
-          Delete a single review for any product. The change is permanent and syncs to every device.
+          Search across customer name, email or product name. Edit a review in place, or delete it. Changes are permanent and sync to every device.
         </p>
-        <label style={{ fontSize: 13 }}>
-          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Filter by product</span>
-          <select className="input" value={productId} onChange={(e) => setProductId(e.target.value)} style={{ minWidth: 260 }}>
-            <option value="">All products ({reviews.length} reviews)</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </label>
+        <input
+          className="input"
+          style={{ maxWidth: 360 }}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search: try a customer name, email, or product…"
+        />
+        <p className="muted small" style={{ marginTop: 6 }}>
+          Showing <strong>{sorted.length}</strong> review{sorted.length === 1 ? '' : 's'}.
+        </p>
       </section>
+
       <section className="card-box">
         {sorted.length === 0 ? (
-          <p className="muted">{productId ? 'No reviews for this product.' : 'No reviews yet.'}</p>
+          <p className="muted">{q ? 'No reviews match the search.' : 'No reviews yet.'}</p>
         ) : (
           <div className="table-scroll">
             <table className="table">
@@ -1406,15 +1433,49 @@ function ReviewsAdmin() {
                 {sorted.map((r) => (
                   <tr key={r.id}>
                     <td>{nameFor(r.productId)}</td>
-                    <td>{r.userName || '—'}</td>
+                    <td>
+                      {r.userName || '—'}
+                      {r.email && <span className="muted small" style={{ display: 'block' }}>{r.email}</span>}
+                    </td>
                     <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
                       {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
                     </td>
-                    <td style={{ maxWidth: 280 }}>{r.comment || '—'}</td>
-                    <td>{formatDateTime(r.date)}</td>
+                    <td style={{ maxWidth: 280 }}>
+                      {editingId === r.id ? (
+                        <textarea
+                          className="input"
+                          rows={3}
+                          value={draft.comment}
+                          onChange={(e) => setDraft({ ...draft, comment: e.target.value })}
+                        />
+                      ) : (
+                        r.comment || '—'
+                      )}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
                     <td>
+                      {editingId === r.id ? (
+                        <>
+                          <input
+                            type="number"
+                            min={1}
+                            max={5}
+                            className="input"
+                            style={{ width: 64, marginBottom: 6 }}
+                            value={draft.rating}
+                            onChange={(e) => setDraft({ ...draft, rating: Number(e.target.value) })}
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-sm" onClick={() => saveEdit(r)}>Save</button>
+                            <button className="btn btn-sm" onClick={() => setEditingId(null)}>✕</button>
+                          </div>
+                        </>
+                      ) : (
+                        <button className="btn btn-sm" onClick={() => startEdit(r)}>Edit</button>
+                      )}
                       <button
                         className="btn btn-sm danger"
+                        style={{ marginLeft: 8 }}
                         onClick={() => {
                           if (window.confirm(`Delete this review by ${r.userName || 'this customer'}?\n\nThis cannot be undone.`)) {
                             deleteReview(r.id);
