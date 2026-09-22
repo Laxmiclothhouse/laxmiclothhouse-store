@@ -456,20 +456,6 @@ export function DataProvider({ children }) {
         },
       });
     }
-    // SMS notification (fire-and-forget; skips when no SMS API configured).
-    if (order.smsOptIn && (order.phone || order.customer?.phone)) {
-      postApi('/api/send-sms', {
-        type: 'placed',
-        to: order.phone || order.customer?.phone,
-        order: {
-          id: order.id,
-          customerPhone: order.phone || order.customer?.phone,
-          customerName: order.customer?.name,
-          total: order.total,
-          paymentMode: order.payment?.mode,
-        },
-      });
-    }
     return order;
   };
 
@@ -697,23 +683,6 @@ export function DataProvider({ children }) {
       const whatsappTypes = ['packed', 'shipped', 'delivered', 'cancelled', 'returned'];
       if (changed.whatsappOptIn && whatsappTypes.includes(status) && (changed.phone || changed.customer?.phone)) {
         postApi('/api/send-whatsapp', {
-          type: status,
-          to: changed.phone || changed.customer?.phone,
-          order: {
-            id: changed.id,
-            customerPhone: changed.phone || changed.customer?.phone,
-            customerName: changed.customer?.name,
-            total: changed.total,
-            paymentMode: changed.payment?.mode,
-            trackingNo: changed.trackingNo,
-            courier: changed.courier,
-          },
-        });
-      }
-      // SMS notification for status changes (fire-and-forget).
-      const smsTypes = ['packed', 'shipped', 'delivered', 'cancelled', 'returned'];
-      if (changed.smsOptIn && smsTypes.includes(status) && (changed.phone || changed.customer?.phone)) {
-        postApi('/api/send-sms', {
           type: status,
           to: changed.phone || changed.customer?.phone,
           order: {

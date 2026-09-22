@@ -121,17 +121,32 @@ async function sendViaMeta(type, order, phone) {
 // â”€â”€ Twilio fallback (kept from the original version) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function sendViaTwilio(type, order, phone) {
-  const { default: twilio } = await import('twilio');
-  const client = twilio(TWILIO_SID, TWILIO_TOKEN);
   const message = renderWhatsApp(type, order);
   try {
-    const messageObj = await client.messages.create({
-      from: TWILIO_FROM,           // e.g. "whatsapp:+14155229999"
-      to: `whatsapp:+${phone}`,
-      body: message,
+    // Twilio REST API directly (no SDK dependency): HTTP basic auth with the
+    // account SID + auth token, form-encoded body.
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(TWILIO_SID)}/Messages.json`;
+    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
+    const payload = new URLSearchParams({
+      From: TWILIO_FROM,           // e.g. "whatsapp:+14155229999"
+      To: `whatsapp:+${phone}`,
+      Body: message,
     });
-    console.log('[whatsapp] TWILIO SUCCESS:', { sid: messageObj.sid, type });
-    return { ok: true, result: { msgId: messageObj.sid, status: messageObj.status, channel: 'twilio' } };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: payload,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[whatsapp] TWILIO ERROR:', res.status, data.message || data);
+      return { ok: false, error: 'twilio-send-failed', details: data.message || `twilio-http-${res.status}` };
+    }
+    console.log('[whatsapp] TWILIO SUCCESS:', { sid: data.sid, type });
+    return { ok: true, result: { msgId: data.sid, status: data.status, channel: 'twilio' } };
   } catch (err) {
     console.error('[whatsapp] TWILIO ERROR:', err.message);
     return { ok: false, error: 'twilio-send-failed', details: err.message || String(err) };

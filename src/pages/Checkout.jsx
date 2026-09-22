@@ -37,7 +37,6 @@ export default function Checkout() {
   const [appliedCoupon, setAppliedCoupon] = useState(null); // coupon CODE string
   const [couponMsg, setCouponMsg] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
-  const [smsOptIn, setSmsOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showPinList, setShowPinList] = useState(false);
   const [filterPin, setFilterPin] = useState('');
@@ -399,7 +398,6 @@ export default function Checkout() {
       shipping: { address: shipping.address, city: shipping.city, state: shipping.state, pincode: shipping.pincode },
       phone: shipping.phone,
       whatsappOptIn,
-      smsOptIn,
       subtotal, shippingFee,
       discount,
       couponCode: appliedCoupon?.code || null,
@@ -672,15 +670,6 @@ export default function Checkout() {
               onChange={(e) => setWhatsappOptIn(e.target.checked)}
             />
             <span>📱 Get order updates on WhatsApp</span>
-          </label>
-
-          <label className="whatsapp-opt">
-            <input
-              type="checkbox"
-              checked={smsOptIn}
-              onChange={(e) => setSmsOptIn(e.target.checked)}
-            />
-            <span>💬 Get order updates by SMS</span>
           </label>
         </section>
 

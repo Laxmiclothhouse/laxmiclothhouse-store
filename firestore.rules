@@ -48,10 +48,10 @@ service cloud.firestore {
       allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
       // Admin UID search needs the list query.
       allow list: if isAdmin();
-      // Users may create/update their own doc, but can never grant themselves
-      // a role or change their phone: `role` and `phone` may only be written
-      // via their dedicated paths (admin role write / signup-OTP), and a
-      // normal profile update touching them is rejected outright.
+      // Users may create or update their own doc, but can never grant
+      // themselves a role (`role` is admin-written only), and `phone` is
+      // fixed once set, so a normal profile update touching either field is
+      // rejected outright (admins change `role` via the rule below).
       allow create: if signedIn() && request.auth.uid == uid
         && (!('role' in request.resource.data) || request.resource.data.role == 'customer');
       allow update: if signedIn() && request.auth.uid == uid
@@ -64,9 +64,5 @@ service cloud.firestore {
         && request.resource.data.role in ['admin', 'manager', 'packer', 'shipper', 'support', 'customer'];
     }
 
-    // ── Phone-OTP accounts live here (same idea: owner + admin only) ──
-    match /phoneUsers/{docId} {
-      allow read, write: if isAdmin();
-    }
   }
 }

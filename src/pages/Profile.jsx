@@ -37,8 +37,8 @@ export default function Profile() {
   const saveProfile = async (e) => {
     e.preventDefault();
     // Email is never sent — it cannot be changed in any case.
-    // Phone is identity-bound: it is set once (signup / OTP login) and can
-    // never be edited afterwards — even with no orders in process.
+    // Phone is identity-bound: it is set once at signup and can never be
+    // edited afterwards, even with no orders in process.
     if (phone.trim() !== String(user?.phone || '').trim()) {
       setPhone(user?.phone || '');
       flash('Phone number cannot be changed. It is fixed to the number on your account.');
