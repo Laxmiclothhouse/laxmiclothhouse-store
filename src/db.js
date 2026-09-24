@@ -18,7 +18,6 @@ const KEYS = {
   messages: 'houselaxmicloth_messages',
   coupons: 'houselaxmicloth_coupons',
   payments: 'houselaxmicloth_payments',
-  returns: 'houselaxmicloth_returns',
   sales: 'houselaxmicloth_sales',
 
 };
@@ -108,15 +107,12 @@ function seedProducts() {
 
   // shippingCost: per-unit shipping fee (0 = free for that product)
   // paymentMethods: which online/COD methods this product accepts
-  // returnsAccepted / returnDays: return window for this product
   const shipCosts = [99, 99, 120, 150, 120, 99, 99, 180, 50, 130];
   const payMethods = [
     ['upi', 'card', 'cod'], ['upi', 'card', 'cod'], ['upi', 'card', 'cod'],
     ['upi', 'card'], ['upi', 'card', 'cod'], ['upi', 'card', 'cod'],
     ['upi', 'card', 'cod'], ['upi', 'card'], ['cod'], ['upi', 'card', 'cod'],
   ];
-  const retAccept = [true, true, true, false, true, true, true, false, true, true];
-  const retDays =   [7, 7, 10, 0, 7, 7, 7, 0, 10, 7];
 
   return names.map((n, i) => ({
     id: 'P' + (i + 1),
@@ -134,9 +130,7 @@ function seedProducts() {
     featured: i < 6,
     shippingCost: shipCosts[i],
     paymentMethods: payMethods[i],
-    returnsAccepted: retAccept[i],
     weightGrams: 500,
-    returnDays: retDays[i],
   }));
 }
 
@@ -314,15 +308,6 @@ export const db = {
   savePayments(p) {
     write(KEYS.payments, p);
     syncToFirestore(KEYS.payments, p);
-  },
-
-  // returns: customer return requests + reverse-pickup state
-  getReturns() {
-    return read(KEYS.returns, []);
-  },
-  saveReturns(r) {
-    write(KEYS.returns, r);
-    syncToFirestore(KEYS.returns, r);
   },
 
   // sales: promotional discounts created by admin

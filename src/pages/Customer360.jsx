@@ -6,7 +6,7 @@ import { Navigate, Link } from 'react-router-dom';
 
 export default function Customer360() {
   const { user, isStaff } = useAuth();
-  const { orders, returns } = useData();
+  const { orders } = useData();
   const [query, setQuery] = useState('');
   const [customer, setCustomer] = useState(null);
 
@@ -29,13 +29,12 @@ export default function Customer360() {
     }
     const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
     const orderCount = matches.length;
-    const returnsCount = matches.filter((o) => returns.some((r) => r.orderId === o.id)).length;
     const lastOrder = matches.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate))[0];
     setCustomer({
       name: lastOrder.customer?.name || lastOrder.customerName || 'Unknown',
       email: lastOrder.customerEmail || lastOrder.customer?.email || 'N/A',
       phone: lastOrder.phone || lastOrder.customer?.phone || 'N/A',
-      totalSpent, orderCount, returnsCount,
+      totalSpent, orderCount,
       avgOrder: orderCount > 0 ? totalSpent / orderCount : 0,
       orders: matches.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)),
     });
@@ -66,7 +65,6 @@ export default function Customer360() {
               <div className="cust-field"><span className="cust-label">Total spent</span><span className="cust-value">{formatINR(customer.totalSpent)}</span></div>
               <div className="cust-field"><span className="cust-label">Orders</span><span className="cust-value">{customer.orderCount}</span></div>
               <div className="cust-field"><span className="cust-label">Avg. order</span><span className="cust-value">{formatINR(customer.avgOrder)}</span></div>
-              <div className="cust-field"><span className="cust-label">Returns</span><span className="cust-value">{customer.returnsCount}</span></div>
             </div>
           </section>
           <section className="card-box">

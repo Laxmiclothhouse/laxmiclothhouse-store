@@ -12,7 +12,6 @@ export function DataProvider({ children }) {
   const [messages, setMessages] = useState(db.getMessages());
   const [coupons, setCoupons] = useState(db.getCoupons());
   const [payments, setPayments] = useState(db.getPayments());
-  const [returns, setReturns] = useState(db.getReturns());
   const [sales, setSales] = useState(db.getSales());
   const [users, setUsers] = useState(db.getUsers());
 
@@ -33,7 +32,6 @@ export function DataProvider({ children }) {
       else if (e.key === 'houselaxmicloth_messages') setMessages(db.getMessages());
       else if (e.key === 'houselaxmicloth_coupons') setCoupons(db.getCoupons());
       else if (e.key === 'houselaxmicloth_payments') setPayments(db.getPayments());
-      else if (e.key === 'houselaxmicloth_returns') setReturns(db.getReturns());
       else if (e.key === 'houselaxmicloth_sales') setSales(db.getSales());
       else if (e.key === 'houselaxmicloth_users') setUsers(db.getUsers());
     };
@@ -50,7 +48,6 @@ export function DataProvider({ children }) {
     const unsubMessages = listenFromFirestore('houselaxmicloth_messages', setMessages);
     const unsubCoupons = listenFromFirestore('houselaxmicloth_coupons', setCoupons);
     const unsubPayments = listenFromFirestore('houselaxmicloth_payments', setPayments);
-    const unsubReturns = listenFromFirestore('houselaxmicloth_returns', setReturns);
     const unsubSales = listenFromFirestore('houselaxmicloth_sales', setSales);
     const unsubUsers = listenFromFirestore('houselaxmicloth_users', setUsers);
 
@@ -62,7 +59,6 @@ export function DataProvider({ children }) {
       unsubMessages();
       unsubCoupons();
       unsubPayments();
-      unsubReturns();
       unsubSales();
       unsubUsers();
     };
@@ -297,67 +293,6 @@ export function DataProvider({ children }) {
     setPayments(next);
     db.savePayments(next);
     return e;
-  };
-
-  // ----- returns (reverse pickup) -----
-  const RETURN_ACTIVE = ['requested', 'approved', 'picked', 'received'];
-  const activeReturnForOrder = (orderId) =>
-    returns.find((r) => r.orderId === orderId && RETURN_ACTIVE.includes(r.status));
-
-  const addReturnRequest = ({ order, items, reason, note, user }) => {
-    if (activeReturnForOrder(order.id)) return null;
-    const ret = {
-      id: db.uid('RET-'),
-      orderId: order.id,
-      userId: user?.id || null,
-      customerName: order.customer?.name || user?.name || '',
-      email: order.customerEmail || user?.email || '',
-      phone: order.customer?.phone || user?.phone || '',
-      items,
-      reason,
-      note: String(note || '').slice(0, 300),
-      status: 'requested', // requested → approved → picked → received → refunded
-      requestDate: new Date().toISOString(),
-    };
-    const next = [ret, ...returns];
-    setReturns(next);
-    db.saveReturns(next);
-    return ret;
-  };
-
-  const updateReturnStatus = (id, status, meta = {}) => {
-    const now = new Date().toISOString();
-    let target = null;
-    const next = returns.map((r) => {
-      if (r.id !== id) return r;
-      target = { ...r, status, ...(meta || {}), updatedAt: now };
-      return target;
-    });
-    setReturns(next);
-    db.saveReturns(next);
-    if (!target) return null;
-
-    // Items are back in the warehouse → restock & mark the order "returned".
-    if (status === 'received') {
-      adjustStock(target.items || [], +1);
-      const orderNext = orders.map((o) =>
-        o.id === target.orderId && o.status !== 'returned'
-          ? {
-              ...o,
-              status: 'returned',
-              statusHistory: [
-                ...(o.statusHistory || []),
-                { status: 'returned', label: 'Return received & restocked', at: now },
-              ],
-            }
-          : o
-      );
-      if (orderNext !== orders) {
-        setOrders(orderNext);
-        db.saveOrders(orderNext);
-      }
-    }
-    return target;
   };
 
   // ----- order helpers -----
@@ -785,10 +720,6 @@ export function DataProvider({ children }) {
       validateCoupon,
       payments,
       logPayment,
-      returns,
-      addReturnRequest,
-      updateReturnStatus,
-      activeReturnForOrder,
       sales,
       addSale,
       updateSale,
@@ -797,7 +728,7 @@ export function DataProvider({ children }) {
       getSalePrice,
       users,
     }),
-    [products, orders, settings, reviews, messages, coupons, payments, returns, sales, users]
+    [products, orders, settings, reviews, messages, coupons, payments, sales, users]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

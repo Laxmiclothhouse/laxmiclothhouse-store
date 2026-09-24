@@ -268,11 +268,6 @@ export default function ProductDetail() {
               <p>✔ Pay via {['upi', 'card'].filter((m) => (product.paymentMethods || []).includes(m)).map((m) => m === 'upi' ? 'UPI' : 'Card').join(' & ')} at checkout</p>
             )}
             <p>✔ Shipping: {product.shippingCost === 0 ? 'FREE' : `₹${product.shippingCost} per unit`}</p>
-            {product.returnsAccepted ? (
-              <p>✔ {product.returnDays}-day easy returns</p>
-            ) : (
-              <p>✘ No returns on this product</p>
-            )}
           </div>
         </div>
       </div>

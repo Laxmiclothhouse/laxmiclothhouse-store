@@ -69,16 +69,11 @@ export default function ProductCard({ product }) {
             </>
           )}
         </div>
-        <div className="pc-meta-row">
-          {product.returnsAccepted ? (
-            <span className="return-badge ok">↩ {product.returnDays}d returns</span>
-          ) : (
-            <span className="return-badge no">No returns</span>
-          )}
-          {product.shippingCost === 0 && (
+        {product.shippingCost === 0 && (
+          <div className="pc-meta-row">
             <span className="ship-badge">Free ship</span>
-          )}
-        </div>
+          </div>
+        )}
         {rating.count > 0 && (
           <div className="pc-rating">
             <Stars value={rating.avg} count={rating.count} size={13} />

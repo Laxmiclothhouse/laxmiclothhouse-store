@@ -371,9 +371,6 @@ p { margin: 0 0 .8em; }
 .qty-stepper span { min-width: 36px; text-align: center; font-weight: 600; }
 .perks { border-top: 1px dashed var(--line); padding-top: 16px; color: var(--ink); }
 .perks p { margin: 2px 0; font-size: .88rem; }
-.return-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .75rem; font-weight: 500; }
-.return-badge.ok { background: #e8f5e9; color: #2e7d32; }
-.return-badge.no { background: #fce4e4; color: #c0392b; }
 .ship-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .72rem; background: #e8f0fe; color: #1a56db; margin-left: 6px; }
 
 /* ── Reviews ───────────────────────────── */
@@ -610,10 +607,6 @@ p { margin: 0 0 .8em; }
 .settings-form { max-width: 720px; }
 .pay-checks { display: flex; gap: 14px; flex-wrap: wrap; margin: 6px 0; }
 .pay-checks .check { display: flex; align-items: center; gap: 6px; font-size: .9rem; }
-.return-box { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: #faf5f7; border: 1px solid var(--line); border-radius: 10px; }
-.return-box .check { display: flex; align-items: center; gap: 6px; }
-.return-days { display: flex; align-items: center; gap: 6px; font-size: .9rem; }
-.return-days input { width: 70px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
 .pay-mode-row { margin-top: 8px; }
 .pay-mode-options { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0; }
 .pay-mode-opt { flex: 1; min-width: 140px; display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: .2s; background: #faf5f7; }
@@ -776,7 +769,6 @@ p { margin: 0 0 .8em; }
   .ribbon { font-size: .58rem; padding: 2px 6px; top: 6px; left: 6px; }
   .wish-btn { width: 26px; height: 26px; font-size: .8rem; top: 6px; right: 6px; }
   .pc-meta-row { gap: 3px; margin: 2px 0; }
-  .return-badge { font-size: .6rem; padding: 2px 5px; }
   .ship-badge { font-size: .58rem; padding: 2px 5px; margin-left: 3px; }
   .pc-rating { margin-top: 2px; }
   .pc-rating .stars { font-size: .7rem; }

@@ -69,9 +69,6 @@ export default function MyOrders() {
                   </div>
                   <div className="ord-actions">
                     <Link to={`/track?order=${o.id}`} className="btn btn-sm">Track order</Link>
-                    {String(o.status || '').toLowerCase() === 'delivered' && (
-                      <Link to={`/returns?order=${o.id}`} className="btn btn-sm btn-ghost">Return / exchange</Link>
-                    )}
                     {eligible ? (
                       <Link to={`/track?order=${o.id}`} className="btn btn-sm btn-ghost">Cancel / refund</Link>
                     ) : o.status === 'cancelled' ? null : (

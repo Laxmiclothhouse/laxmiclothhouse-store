@@ -21,7 +21,6 @@ import Signup from './pages/Signup.jsx';
 import OrderStatus from './pages/OrderStatus.jsx';
 import OrderManage from './pages/OrderManage.jsx';
 import MyOrders from './pages/MyOrders.jsx';
-import Returns from './pages/Returns.jsx';
 import Wishlist from './pages/Wishlist.jsx';
 import Admin from './pages/Admin.jsx';
 import Customer360 from './pages/Customer360.jsx';
@@ -60,7 +59,6 @@ export default function App() {
               <Route path="/track" element={<RequireAuth><OrderStatus /></RequireAuth>} />
               <Route path="/order-manage/:id" element={<RequireAuth><OrderManage /></RequireAuth>} />
               <Route path="/orders" element={<RequireAuth><MyOrders /></RequireAuth>} />
-              <Route path="/returns" element={<RequireAuth><Returns /></RequireAuth>} />
               <Route path="/wishlist" element={<RequireAuth><Wishlist /></RequireAuth>} />
                             <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
               <Route path="/customer360" element={<RequireAuth><Customer360 /></RequireAuth>} />

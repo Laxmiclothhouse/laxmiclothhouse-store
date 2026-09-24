@@ -29,8 +29,6 @@ const emptyForm = {
   color: '#9b1c3d',
   shippingCost: 99,
   paymentMethods: ['upi', 'card', 'cod'],
-  returnsAccepted: true,
-  returnDays: 7,
   sizes: [],
   customImages: [],
 };
@@ -343,7 +341,7 @@ function StaffRoleForm({ setUserRole, searchUsers, fetchUserByUid }) {
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
-  const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
+  const { payments, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
   const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -518,8 +516,6 @@ export default function Admin() {
       image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
       images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
       shippingCost: Number(form.shippingCost) || 0,
-      returnsAccepted: Boolean(form.returnsAccepted),
-      returnDays: form.returnsAccepted ? Math.max(0, Number(form.returnDays) || 0) : 0,
     };
     if (editingId) {
       updateProduct(editingId, data);
@@ -546,8 +542,6 @@ export default function Admin() {
       color: p.color,
       shippingCost: p.shippingCost ?? 99,
       paymentMethods: p.paymentMethods || ['upi', 'card', 'cod'],
-      returnsAccepted: p.returnsAccepted ?? true,
-      returnDays: p.returnDays ?? 7,
       sizes: p.sizes || [],
       customImages: p.images || (p.image ? [p.image] : []),
     });
@@ -597,11 +591,6 @@ export default function Admin() {
         {isAdmin && (
           <button className={tab === 'coupons' ? 'chip active' : 'chip'} onClick={() => setTab('coupons')}>
             Coupons {coupons.length ? `(${coupons.length})` : ''}
-          </button>
-        )}
-        {isAdmin && (
-          <button className={tab === 'returns' ? 'chip active' : 'chip'} onClick={() => setTab('returns')}>
-            Returns {returns.length ? `(${returns.length})` : ''}
           </button>
         )}
         {isAdmin && (
@@ -737,30 +726,6 @@ export default function Admin() {
                   </div>
                   <span className="muted tiny">Uncheck to disable a method for this product.</span>
                 </div>
-              </div>
-
-              {/* ── Returns ───────────────────────────────── */}
-              <div className="return-box">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={form.returnsAccepted}
-                    onChange={(e) => setForm({ ...form, returnsAccepted: e.target.checked })}
-                  />
-                  Returns accepted
-                </label>
-                {form.returnsAccepted && (
-                  <label className="return-days">
-                    Return window (days)
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.returnDays}
-                      onChange={(e) => setForm({ ...form, returnDays: e.target.value })}
-                      placeholder="7"
-                    />
-                  </label>
-                )}
               </div>
 
               {/* ── Sizes (opens the editable size guide) ─────────── */}
@@ -919,46 +884,6 @@ export default function Admin() {
         </>
       )}
 
-    {tab === 'returns' && (
-        <section className="card-box">
-          <h2>Return requests</h2>
-          {returns.length === 0 ? (
-            <p className="muted">
-              No returns yet. Customers request returns from their order page; reverse pickup is booked with Delhivery automatically.
-            </p>
-          ) : (
-            <div className="table-scroll">
-              <table className="table">
-                <thead>
-                  <tr><th>Return</th><th>Order</th><th>Customer</th><th>Items</th><th>Reason</th><th>Status / AWB</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {returns.map((r) => (
-                    <tr key={r.id}>
-                      <td><strong>{r.id}</strong><br /><span className="muted tiny">{formatDateTime(r.requestDate)}</span></td>
-                      <td>{r.orderId}</td>
-                      <td>{r.customerName}<br /><span className="muted tiny">{r.phone}</span></td>
-                      <td><span className="muted tiny">{r.items.map((it) => `${it.name}${it.size ? ` (${it.size})` : ''} ×${it.qty}`).join(', ')}</span></td>
-                      <td>{r.reason}{r.note ? <span className="muted tiny"><br />{r.note}</span> : null}</td>
-                      <td>
-                        <span className={`status-badge ${r.status}`}>{r.status.toUpperCase()}</span>
-                        {r.pickupAwb ? <span className="muted tiny"><br />AWB {r.pickupAwb}</span> : null}
-                      </td>
-                      <td className="row-gap">
-                        {r.status === 'requested' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'approved')}>Approve pickup</button>}
-                        {r.status === 'approved' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'picked')}>Mark picked</button>}
-                        {r.status === 'picked' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'received')}>Mark received</button>}
-                        {r.status === 'received' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'refunded')}>Mark refunded</button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
       {tab === 'payments' && (
         <section className="card-box">
           <h2>Payment log</h2>
@@ -998,7 +923,7 @@ export default function Admin() {
 
       {tab === 'sales' && (
         <>
-          <SalesDashboard orders={orders} payments={payments} returns={returns} />
+          <SalesDashboard orders={orders} payments={payments} />
           <SalesManager
             sales={sales}
             products={products}
@@ -1282,7 +1207,7 @@ export default function Admin() {
   );
 }
 
-function SalesDashboard({ orders, payments, returns }) {
+function SalesDashboard({ orders, payments }) {
   const [range, setRange] = useState('all');
   const now = new Date();
 
@@ -1306,8 +1231,6 @@ function SalesDashboard({ orders, payments, returns }) {
   const orderCount = completed.length;
   const avgOrder = orderCount > 0 ? revenue / orderCount : 0;
   const cancelledCount = filtered.filter((o) => o.status === 'cancelled').length;
-  const returnCount = returns.length;
-  const returnRate = orderCount > 0 ? ((returnCount / orderCount) * 100).toFixed(1) : '0.0';
 
   // Top products
   const productSales = {};
@@ -1366,10 +1289,6 @@ function SalesDashboard({ orders, payments, returns }) {
           <div className="sales-card">
             <span className="sales-label">Cancelled</span>
             <span className="sales-value">{cancelledCount}</span>
-          </div>
-          <div className="sales-card">
-            <span className="sales-label">Return rate</span>
-            <span className="sales-value">{returnRate}%</span>
           </div>
         </div>
       </section>

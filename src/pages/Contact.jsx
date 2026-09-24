@@ -33,7 +33,6 @@ export default function Contact() {
             <h2>How can we help?</h2>
             <ul className="help-list">
               <li><strong>Order status &amp; tracking</strong> — use the Track Order page with your order ID, or call us with your order number.</li>
-              <li><strong>Returns &amp; exchanges</strong> — {settings.returnsAccepted !== false ? `easy returns within ${settings.returnDays || 7} days of delivery. Keep the tags on and message us.` : 'Please contact us to discuss your order.'}</li>
               <li><strong>Product questions</strong> — sizing, fabric, colour availability — we know every piece in the store.</li>
               <li><strong>Bulk &amp; occasion orders</strong> — weddings, festivals, family functions — ask about special pricing.</li>
             </ul>
@@ -48,10 +47,6 @@ export default function Contact() {
             <details>
               <summary>What payment methods do you accept?</summary>
               <p className="muted">{name} accepts UPI, all major cards, and Cash on Delivery (where available). Payments are processed securely.</p>
-            </details>
-            <details>
-              <summary>Can I return or exchange an item?</summary>
-              <p className="muted">{settings.returnsAccepted !== false ? `Yes — returns are accepted within ${settings.returnDays || 7} days of delivery. The item must be unused with original tags attached.` : 'Please contact us directly to discuss returns for your order.'}</p>
             </details>
             <details>
               <summary>Do you ship across India?</summary>

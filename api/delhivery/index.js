@@ -1,6 +1,6 @@
 ﻿// api/delhivery/index.js - Single router for all Delhivery operations.
-// Routes by action: create-shipment, reverse-pickup, track, webhook
-import { createShipment, createReversePickup, trackByAwb, isConfigured, mapToStoreStatus } from "../../shared/delhivery.mjs";
+// Routes by action: create-shipment, track, webhook
+import { createShipment, trackByAwb, isConfigured, mapToStoreStatus } from "../../shared/delhivery.mjs";
 import { getOrdersDoc, patchOrdersDoc } from "../../shared/firestoreRest.mjs";
 import { sendOrderMail } from "../../shared/mail.mjs";
 
@@ -22,17 +22,6 @@ async function handleShipment(req, res) {
     const result = await createShipment(order, pickup || {});
     if (!result.ok) return res.status(502).json({ ok: false, configured: true, error: result.error });
     return res.json({ ok: true, configured: true, waybill: result.waybill, labelUrl: result.labelUrl });
-  } catch (err) { return res.status(500).json({ ok: false, error: "Failed" }); }
-}
-
-async function handleReverse(req, res) {
-  const { ret } = await readBody(req);
-  if (!ret?.id) return res.status(400).json({ error: "ret required" });
-  if (!isConfigured()) return res.json({ ok: false, configured: false, error: "Delhivery not connected" });
-  try {
-    const result = await createReversePickup(ret);
-    if (!result.ok) return res.status(502).json({ ok: false, configured: true, error: result.error });
-    return res.json({ ok: true, configured: true, waybill: result.waybill, demo: result.demo === true });
   } catch (err) { return res.status(500).json({ ok: false, error: "Failed" }); }
 }
 
@@ -87,7 +76,6 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   switch (action) {
     case "create-shipment": return handleShipment(req, res);
-    case "reverse-pickup": return handleReverse(req, res);
     case "webhook": return handleWebhook(req, res);
     default: return res.status(400).json({ error: "Unknown action" });
   }
