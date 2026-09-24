@@ -1541,13 +1541,14 @@ function ReviewsAdmin() {
 // ── Customer accounts: view + delete account data ─────────────
 function CustomersAdmin() {
   const { deleteUserAccount } = useData();
-  const { user, listAllUsers } = useAuth();
+  const { user, listAllUsers, deleteUserProfile } = useAuth();
   const [users, setUsers] = useState(() => db.getUsers());
   const [query, setQuery] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState('');
   const [pending, setPending] = useState(null);
   const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState(null);
 
   // Show every registered customer the moment the tab opens — no search
@@ -1626,20 +1627,47 @@ function CustomersAdmin() {
     setPending(u);
   };
 
-  const confirmDelete = () => {
-    if (!pending) return;
+  const confirmDelete = async () => {
+    if (!pending || deleting) return;
     if ((pending.email || '').trim().toLowerCase() !== confirmText.trim().toLowerCase()) {
       setMsg({ ok: false, text: 'Type the customer’s email exactly as shown to confirm deletion.' });
       return;
     }
-    const res = deleteUserAccount(pending);
-    setUsers(db.getUsers());
-    setPending(null);
-    setMsg({
-      ok: true,
-      text: `Deleted: ${res.users} profile, ${res.reviews} review(s)${res.wishlistRemoved ? ', wishlist' : ''}. ` +
-            'Note: the underlying Firebase login can only be fully removed with server-side setup.',
-    });
+    setDeleting(true);
+    setMsg(null);
+    try {
+      // 1) remove the real Firestore profile (the account row the admin sees)
+      const uid = String(pending.uid || pending.id || '').trim();
+      let profileDeleted = false;
+      if (uid && typeof deleteUserProfile === 'function' && !pending.fromOrders) {
+        try {
+          await deleteUserProfile(uid);
+          profileDeleted = true;
+        } catch (err) {
+          setMsg({ ok: false, text: err.message || 'Could not delete that profile.' });
+          return;
+        }
+      }
+      // 2) remove local store copies (profile cache, reviews, wishlist)
+      const res = deleteUserAccount(pending);
+      const removedKey = String(pending.uid || pending.id || pending.email || '').toLowerCase();
+      setUsers((prev) => prev.filter((u) =>
+        String(u.uid || u.id || u.email || '').toLowerCase() !== removedKey
+      ));
+      setPending(null);
+      setConfirmText('');
+      const removedCount = (profileDeleted ? 1 : 0) + (res.users || 0);
+      setMsg({
+        ok: removedCount > 0 || (res.reviews || 0) > 0,
+        text: removedCount > 0
+          ? `Deleted: ${removedCount} profile${removedCount === 1 ? '' : 's'}, ${res.reviews} review(s)${res.wishlistRemoved ? ', wishlist' : ''}. ` +
+            'Note: the underlying Firebase login can only be fully removed with server-side setup.'
+          : `Nothing was deleted — no stored profile matched ${pending.email || 'that account'}. ` +
+            'Their Firebase login/profile may already be gone; reload the page to refresh the list.',
+      });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const isStaffRole = (r) => r === 'admin' || ['manager', 'packer', 'shipper', 'support'].includes(r);
@@ -1688,8 +1716,8 @@ function CustomersAdmin() {
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder={pending.email || 'type their email'}
             />
-            <button className="btn btn-sm danger" onClick={confirmDelete}>Confirm deletion</button>
-            <button className="btn btn-sm" onClick={() => { setPending(null); setConfirmText(''); }}>Cancel</button>
+            <button className="btn btn-sm danger" disabled={deleting} onClick={confirmDelete}>{deleting ? 'Deleting…' : 'Confirm deletion'}</button>
+            <button className="btn btn-sm" disabled={deleting} onClick={() => { setPending(null); setConfirmText(''); }}>Cancel</button>
           </div>
         </section>
       )}

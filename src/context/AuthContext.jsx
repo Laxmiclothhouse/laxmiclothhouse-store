@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../db.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit } from 'firebase/firestore';
 import { app } from '../firebase.js';
 import { STAFF_ROLES, ROLE_LABELS, isStaffRole } from '../orderFlow.js';
 
@@ -336,6 +336,30 @@ export function AuthProvider({ children }) {
       throw new Error(error.message || 'Failed to read that user.');
     }
   };
+  // Admin-only: delete a customer's Firestore profile doc.
+  // Returns { deleted: true } when the doc existed. Firestore rules must
+  // allow an admin to delete users/{uid} (see firestore.rules). The Auth
+  // login itself is never touched here — that needs the Admin SDK.
+  const deleteUserProfile = async (uid) => {
+    const id = String(uid || '').trim();
+    if (!id) throw new Error('Missing user id.');
+    if (!isAdmin) throw new Error('Only the admin can delete accounts.');
+    try {
+      await deleteDoc(doc(firestore, 'users', id));
+      _usersDirCache = null;
+      _usersDirAt = 0;
+      return { deleted: true };
+    } catch (error) {
+      if (error?.code === 'permission-denied' || /missing or insufficient permissions/i.test(error?.message || '')) {
+        throw new Error(
+          'Missing or insufficient permissions: publish the latest firestore.rules so an admin can delete users/{uid}, ' +
+          'then reload and try again.'
+        );
+      }
+      throw new Error(error.message || 'Failed to delete that profile.');
+    }
+  };
+
   const setUserRole = async (uid, role) => {
     try {
       const firebaseUser = auth.currentUser;
@@ -369,6 +393,7 @@ export function AuthProvider({ children }) {
         isStaff,
         getIdToken,
         setUserRole,
+        deleteUserProfile,
         searchUsers,
         listAllUsers: readUsersDirectory,
         fetchUserByUid,

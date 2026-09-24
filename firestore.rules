@@ -62,6 +62,9 @@ service cloud.firestore {
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
         && request.resource.data.role in ['admin', 'manager', 'packer', 'shipper', 'support', 'customer'];
+      // Admin deleting a customer account (their Firestore profile only).
+      // The Firebase Auth login itself needs the server-side Admin SDK.
+      allow delete: if isAdmin();
     }
 
   }
