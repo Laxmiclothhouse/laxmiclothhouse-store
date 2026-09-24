@@ -370,6 +370,7 @@ export function AuthProvider({ children }) {
         getIdToken,
         setUserRole,
         searchUsers,
+        listAllUsers: readUsersDirectory,
         fetchUserByUid,
         STAFF_ROLES,
         ROLE_LABELS,

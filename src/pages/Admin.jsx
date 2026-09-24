@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -1541,12 +1541,74 @@ function ReviewsAdmin() {
 // ── Customer accounts: view + delete account data ─────────────
 function CustomersAdmin() {
   const { deleteUserAccount } = useData();
-  const { user } = useAuth();
+  const { user, listAllUsers } = useAuth();
   const [users, setUsers] = useState(() => db.getUsers());
   const [query, setQuery] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
   const [pending, setPending] = useState(null);
   const [confirmText, setConfirmText] = useState('');
   const [msg, setMsg] = useState(null);
+
+  // Show every registered customer the moment the tab opens — no search
+  // needed. Firestore `users` is the source of truth; the local cache and
+  // order emails are merged in as a fallback so the list is never empty
+  // when rules or cache hide the directory.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoadingUsers(true);
+      setUsersError('');
+      try {
+        const merged = new Map();
+        const put = (u) => {
+          const key = String(u.uid || u.id || u.email || '').toLowerCase();
+          if (!key || merged.has(key)) return;
+          merged.set(key, u);
+        };
+        if (typeof listAllUsers === 'function') {
+          try {
+            const dir = await listAllUsers();
+            (dir || []).forEach((u) => put({
+              id: u.uid,
+              uid: u.uid,
+              name: u.name || '',
+              email: u.email || '',
+              phone: u.phone || '',
+              role: u.role || 'customer',
+            }));
+          } catch (err) {
+            if (alive) setUsersError(err.message || 'Could not load customer accounts.');
+          }
+        }
+        (db.getUsers() || []).forEach((u) => put({
+          id: u.id,
+          uid: u.uid || u.id,
+          name: u.name || '',
+          email: u.email || '',
+          phone: u.phone || '',
+          role: u.role || 'customer',
+        }));
+        (db.getOrders() || []).forEach((o) => {
+          const email = String(o.customerEmail || o.customer?.email || '').trim();
+          if (!email) return;
+          put({
+            id: o.userId || email,
+            uid: o.userId || email,
+            name: o.customer?.name || '',
+            email,
+            phone: o.phone || o.customer?.phone || '',
+            role: 'customer',
+            fromOrders: true,
+          });
+        });
+        if (alive) setUsers([...merged.values()]);
+      } finally {
+        if (alive) setLoadingUsers(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const q = query.trim().toLowerCase();
   const list = users
@@ -1585,9 +1647,9 @@ function CustomersAdmin() {
   return (
     <>
       <section className="card-box">
-        <h2>Customer accounts</h2>
+        <h2>Customer accounts ({users.length})</h2>
         <p className="muted small">
-          Search registered accounts. Deleting an account removes the customer's stored profile,
+          All registered accounts are listed below — no search needed. Deleting an account removes the customer's stored profile,
           their reviews and their wishlist. <strong>Orders are kept</strong> — they are business records.
           The Firebase login itself is not removable from here (needs server-side setup).
         </p>
@@ -1596,8 +1658,10 @@ function CustomersAdmin() {
           style={{ maxWidth: 360 }}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name, email or phone…"
+          placeholder="Filter by name, email or phone… (optional)"
         />
+        {loadingUsers && <p className="muted small">Loading customer accounts…</p>}
+        {usersError && <p className="error small">{usersError} Showing cached accounts below.</p>}
       </section>
 
       {msg && (
@@ -1632,8 +1696,12 @@ function CustomersAdmin() {
 
       <section className="card-box">
         {list.length === 0 ? (
-          <p className="muted">No accounts match the search.</p>
+          <p className="muted">{q ? 'No accounts match this filter.' : 'No customer accounts yet. They appear here after someone signs up or orders.'}</p>
         ) : (
+          <>
+            <p className="muted small" style={{ marginTop: 0 }}>
+              Showing <strong>{list.length}</strong> of <strong>{users.length}</strong> account{users.length === 1 ? '' : 's'}.
+            </p>
           <div className="table-scroll">
             <table className="table">
               <thead>
@@ -1659,6 +1727,7 @@ function CustomersAdmin() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </>
