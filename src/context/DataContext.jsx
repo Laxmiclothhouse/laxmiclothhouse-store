@@ -396,9 +396,11 @@ export function DataProvider({ children }) {
 
   // ----- sales -----
   const addSale = (sale) => {
-    const next = [...sales, { ...sale, id: sale.id || db.uid('S-'), createdAt: new Date().toISOString() }];
+    const created = { ...sale, id: sale.id || db.uid('S-'), createdAt: new Date().toISOString() };
+    const next = [...sales, created];
     setSales(next);
     db.saveSales(next);
+    return created;
   };
 
   const updateSale = (id, patch) => {

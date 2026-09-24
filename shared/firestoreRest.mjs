@@ -68,6 +68,56 @@ export async function getOrdersDoc() {
   }
 }
 
+/** Read a store document as plain JS. Used for server-side campaign validation. */
+export async function getStoreDoc(docId, idToken = '') {
+  try {
+    const res = await fetch(`${BASE}/store/${encodeURIComponent(docId)}?key=${API_KEY}`, {
+      headers: idToken ? { Authorization: `Bearer ${idToken}` } : undefined,
+    });
+    if (!res.ok) return { ok: false, error: `Firestore read failed (HTTP ${res.status})` };
+    const json = await res.json();
+    return { ok: true, data: decodeMap(json.fields || {}), updateTime: json.updateTime };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/** Read one user profile. The bearer token is required by Firestore rules. */
+export async function getUserDoc(uid, idToken = '') {
+  try {
+    const res = await fetch(`${BASE}/users/${encodeURIComponent(uid)}?key=${API_KEY}`, {
+      headers: idToken ? { Authorization: `Bearer ${idToken}` } : undefined,
+    });
+    if (!res.ok) return { ok: false, error: `Firestore read failed (HTTP ${res.status})` };
+    const json = await res.json();
+    return { ok: true, data: decodeMap(json.fields || {}) };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/** List registered profiles for an authenticated administrator. */
+export async function listUserDocs(idToken = '') {
+  try {
+    const res = await fetch(`${BASE}/users?pageSize=500&key=${API_KEY}`, {
+      headers: idToken ? { Authorization: `Bearer ${idToken}` } : undefined,
+    });
+    if (!res.ok) return { ok: false, error: `Firestore user list failed (HTTP ${res.status})` };
+    const json = await res.json();
+    const documents = Array.isArray(json.documents) ? json.documents : [];
+    return {
+      ok: true,
+      data: documents.map((doc) => {
+        const name = String(doc.name || '');
+        const uid = name.slice(name.lastIndexOf('/') + 1);
+        return { uid, ...decodeMap(doc.fields || {}) };
+      }),
+    };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 /** Patch the orders document with a new array. Returns { ok, written } . */
 export async function patchOrdersDoc(data) {
   try {

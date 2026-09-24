@@ -386,3 +386,64 @@ export async function sendOrderMail({ type, to, order }) {
     return { ok: false, error: err.message };
   }
 }
+
+/** Send a branded sale promotion to one customer. */
+export async function sendSaleMail({ to, sale, customerName = 'there' }) {
+  const email = String(to || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, skipped: false, error: 'invalid-recipient' };
+  }
+  if (!KEY) {
+    console.log(`[mail] sale skipped (no RESEND_API_KEY): ${email}`);
+    return { ok: true, skipped: true, sent: false };
+  }
+
+  const s = sale || {};
+  const title = String(s.name || 'Special sale').slice(0, 120);
+  const offer = s.discountType === 'percent'
+    ? `${Number(s.value) || 0}% off`
+    : `Rs. ${Number(s.value) || 0} off`;
+  const scope = s.type === 'product'
+    ? 'selected products'
+    : s.type === 'category'
+      ? `the ${s.category || 'selected'} category`
+      : s.type === 'flash'
+        ? 'the flash sale'
+        : 'the entire store';
+  const link = `${APP_ORIGIN}/#/`;
+  const html = `<!doctype html>
+<html><body style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:${C.cream};padding:24px;max-width:640px;margin:0 auto">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:18px;border:1px solid ${C.line};overflow:hidden">
+${brandHeader()}
+<tr><td style="padding:30px 40px 12px 40px">
+  <div style="font-size:12px;letter-spacing:2px;color:${C.goldDark};font-weight:700">NEW SALE</div>
+  <h1 style="font-family:Georgia,serif;color:${C.brand};font-size:30px;margin:10px 0 12px 0">${esc(title)}</h1>
+  <p style="font-size:16px;line-height:1.6;color:${C.ink};margin:0">Hi ${esc(customerName || 'there')}, enjoy <strong>${esc(offer)}</strong> on ${esc(scope)}.</p>
+  <p style="font-size:14px;line-height:1.6;color:${C.muted};margin:16px 0 0 0">Shop the latest festive and occasion wear at Laxmiclothhouse while the sale is active.</p>
+  <div style="text-align:center;margin:26px 0 8px 0"><a href="${link}" style="display:inline-block;background:${C.brand};color:#fff;text-decoration:none;padding:13px 34px;border-radius:50px;font-size:14px;font-weight:600">SHOP THE SALE</a></div>
+</td></tr>
+${brandFooter()}
+</table></body></html>`;
+
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: `${STORE_NAME} <${FROM_EMAIL}>`,
+        to: [email],
+        subject: `${title} — ${offer} at Laxmiclothhouse`,
+        html,
+      }),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error('[mail] sale resend error', resp.status, text.slice(0, 300));
+      return { ok: false, skipped: false, error: `resend ${resp.status}: ${text.slice(0, 200)}` };
+    }
+    return { ok: true, skipped: false, sent: true };
+  } catch (err) {
+    console.error('[mail] sale send error:', err.message);
+    return { ok: false, skipped: false, error: err.message };
+  }
+}

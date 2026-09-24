@@ -1,7 +1,12 @@
 ﻿import React, { useState } from 'react';
 import { formatINR } from '../utils/format.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
+
+function dataHasFailures(message) {
+  return /failed:\s*[1-9]\d*/i.test(String(message || ''));
+}
 
 // ── Sale banner image (optional) ─────────────────────────────
 // The picked file is turned into a data URL, exactly like product images.
@@ -54,7 +59,7 @@ function imageFileToDataUrl(file) {
   });
 }
 
-function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
+function SaleRow({ sale, products, onEdit, onDelete, onToggle, onNotify, notifying }) {
   const product = sale.productId ? products.find((p) => p.id === sale.productId) : null;
   const scope = sale.type === 'product'
     ? product?.name || 'Unknown product'
@@ -81,6 +86,14 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle }) {
           {sale.active === false ? 'Activate' : 'Deactivate'}
         </button>
         <button className="btn btn-sm btn-dark" onClick={() => onEdit(sale)}>Edit</button>
+        <button
+          className="btn btn-sm btn-gold"
+          type="button"
+          disabled={notifying}
+          onClick={() => onNotify(sale)}
+        >
+          {notifying ? 'Notifying…' : 'Notify Customers'}
+        </button>
         <button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm('Delete this sale?')) onDelete(sale.id); }}>Delete</button>
       </div>
     </div>
@@ -92,6 +105,34 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true, imageUrl: '' });
   const [imageMsg, setImageMsg] = useState('');
+  const [notifyState, setNotifyState] = useState({ busyId: '', message: '' });
+  const { getIdToken } = useAuth();
+
+  const notifyCustomers = async (sale, ask = true) => {
+    if (!sale?.id || notifyState.busyId) return;
+    if (ask && !window.confirm(`Send a sale email to all customers about "${sale.name || 'this sale'}"?`)) return;
+    setNotifyState({ busyId: sale.id, message: '' });
+    try {
+      const token = await getIdToken();
+      const response = await fetch('/api/notify-sale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ sale }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Notification failed.');
+      const sent = Number(data.emailSent || 0);
+      const skipped = Number(data.emailSkipped || 0);
+      const failed = Number(data.emailFailed || 0);
+      const total = Number(data.recipients || 0);
+      setNotifyState({
+        busyId: '',
+        message: `Sale email sent to ${sent} of ${total} customer(s). Skipped: ${skipped}; failed: ${failed}.`,
+      });
+    } catch (error) {
+      setNotifyState({ busyId: '', message: error.message || 'Could not notify customers.' });
+    }
+  };
 
   const resetForm = () => { setForm({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true, imageUrl: '' }); setEditing(null); setShowForm(false); setImageMsg(''); };
   const openEdit = (sale) => { setEditing(sale.id); setForm({ type: sale.type, name: sale.name || '', discountType: sale.discountType || 'percent', value: sale.value || '', productId: sale.productId || '', category: sale.category || 'Suits', startsAt: sale.startsAt ? sale.startsAt.slice(0,16) : '', endsAt: sale.endsAt ? sale.endsAt.slice(0,16) : '', active: sale.active !== false, imageUrl: sale.imageUrl || '' }); setImageMsg(''); setShowForm(true); };
@@ -119,8 +160,14 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
     if (form.discountType === 'percent' && v > 100) return;
     if (form.type === 'product' && !form.productId) return;
     const data = { type: form.type, name: form.name.trim() || null, discountType: form.discountType, value: v, productId: form.type === 'product' ? form.productId : undefined, category: form.type === 'category' ? form.category : undefined, startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null, endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null, imageUrl: form.imageUrl || null, active: form.active };
-    if (editing) updateSale(editing, data); else addSale(data);
-    resetForm();
+    if (editing) {
+      updateSale(editing, data);
+      resetForm();
+    } else {
+      const created = addSale(data);
+      resetForm();
+      if (created && data.active) notifyCustomers(created, false);
+    }
   };
 
   const now = Date.now();
@@ -134,6 +181,7 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
         <h2>Manage sales</h2>
         {!showForm && <button className="btn btn-gold btn-sm" onClick={() => setShowForm(true)}>+ Create sale</button>}
       </div>
+      {notifyState.message && <p className={(dataHasFailures(notifyState.message)) ? 'error' : 'ok'}>{notifyState.message}</p>}
       {showForm && (
         <form onSubmit={submit} className="sale-form">
           <div className="grid2">
@@ -221,9 +269,9 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
           </div>
         </form>
       )}
-      {active.length > 0 && <div className="sale-list"><h3>Active sales ({active.length})</h3>{active.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} />)}</div>}
-      {upcoming.length > 0 && <div className="sale-list"><h3>Upcoming ({upcoming.length})</h3>{upcoming.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} />)}</div>}
-      {expired.length > 0 && <div className="sale-list"><h3>Expired ({expired.length})</h3>{expired.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} />)}</div>}
+      {active.length > 0 && <div className="sale-list"><h3>Active sales ({active.length})</h3>{active.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
+      {upcoming.length > 0 && <div className="sale-list"><h3>Upcoming ({upcoming.length})</h3>{upcoming.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
+      {expired.length > 0 && <div className="sale-list"><h3>Expired ({expired.length})</h3>{expired.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
       {sales.length === 0 && <p className="muted">No sales yet. Create your first sale to attract customers!</p>}
     </section>
   );

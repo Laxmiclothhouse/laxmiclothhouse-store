@@ -226,6 +226,11 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const getIdToken = async () => {
+    if (!auth.currentUser) throw new Error('You must be signed in.');
+    return auth.currentUser.getIdToken();
+  };
+
   const isAdmin = user?.role === 'admin';
   const isStaff = isStaffRole(user?.role);
 
@@ -362,6 +367,7 @@ export function AuthProvider({ children }) {
         user,
         isAdmin,
         isStaff,
+        getIdToken,
         setUserRole,
         searchUsers,
         fetchUserByUid,
