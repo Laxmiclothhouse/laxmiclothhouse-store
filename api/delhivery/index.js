@@ -60,9 +60,9 @@ async function handleWebhook(req, res) {
     const target = track.ok ? track.storeStatus : mapToStoreStatus(status);
     const next = [...orders];
     const updated = { ...order, courier: order.courier || "Delhivery", delhivery: { ...(order.delhivery || {}), awb: waybill, status: track.ok ? track.status : status, scans: scans.length ? scans : order.delhivery?.scans || [], lastSyncedAt: now } };
-    if ((target === "delivered" || target === "returned") && order.status !== target) {
+    if (target === "delivered" && order.status !== target) {
       updated.status = target;
-      updated.statusHistory = [...(order.statusHistory || []), { status: target, label: target === "delivered" ? "Delivered" : "Returned", by: { name: "Delhivery (auto)", role: "courier" }, note: "Auto-synced", at: now }];
+      updated.statusHistory = [...(order.statusHistory || []), { status: target, label: "Delivered", by: { name: "Delhivery (auto)", role: "courier" }, note: "Auto-synced", at: now }];
     }
     next[idx] = updated;
     const write = await patchOrdersDoc(next);

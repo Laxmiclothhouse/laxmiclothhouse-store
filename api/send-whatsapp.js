@@ -1,7 +1,7 @@
 // WhatsApp order notification API endpoint.
 import { sendWhatsApp } from '../shared/whatsapp.mjs';
 
-const VALID_TYPES = ['placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled', 'returned'];
+const VALID_TYPES = ['placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

@@ -1331,28 +1331,6 @@ p { margin: 0 0 .8em; }
   font-weight: 700;
 }
 
-/* ── Returns page ────────────────────────────────── */
-.return-qty-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 7px 12px;
-  margin-bottom: 8px;
-}
-.return-qty-row input {
-  width: 76px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 5px 8px;
-}
-.status-badge.requested,
-.status-badge.approved,
-.status-badge.picked,
-.status-badge.received,
-.status-badge.refunded { text-transform: uppercase; }
 
 
 /* ── WhatsApp opt-in (checkout) ── */

@@ -142,7 +142,6 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
     if (st === "delivered") return [30, 125, 67];
     if (st === "cancelled") return [179, 38, 30];
     if (st === "shipped") return [47, 111, 177];
-    if (st === "returned") return [176, 109, 22];
     return INK;
   };
 

@@ -38,7 +38,6 @@ export default function StaffDashboard() {
       : []),
     ...FLOW.map((s) => ({ key: s.status, num: byStatus[s.status] || 0, lbl: s.label })),
     { key: 'cancelled', num: byStatus.cancelled || 0, lbl: 'Cancelled' },
-    { key: 'returned', num: byStatus.returned || 0, lbl: 'Returned' },
     { key: 'unpaid', num: unpaid, lbl: 'Payment pending', warn: true },
     { key: 'today', num: todayOrders, lbl: 'Orders today' },
   ];

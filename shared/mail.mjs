@@ -70,7 +70,6 @@ const STATUS_STYLE = {
   shipped:   { icon: 'ðŸšš', label: 'ORDER SHIPPED',       bg: '#2f6fb1' },
   delivered: { icon: 'ðŸŽ‰', label: 'ORDER DELIVERED',     bg: '#1e7d43' },
   cancelled: { icon: 'âŒ', label: 'ORDER CANCELLED',     bg: '#b3261e' },
-  returned:  { icon: 'â†©ï¸', label: 'RETURN PROCESSED',    bg: '#b06d16' },
 };
 
 function statusRibbon(type) {
@@ -182,12 +181,6 @@ export function renderOrderMail(type, orderRaw) {
       title: 'Your order was cancelled',
       body: `${greet} your order <strong>${id}</strong> has been cancelled. Any paid amount will be refunded to the original payment method.`,
       extra: 'Questions? Reply to this email and our team will assist you.',
-    },
-    returned: {
-      subject: `â†©ï¸ Return processed â€” ${o.id}`,
-      title: 'Your return has been processed',
-      body: `${greet} your return for order <strong>${id}</strong> has been received and processed.`,
-      extra: 'Once we receive the item, we will initiate your refund to the original payment method.',
     },
   };
 

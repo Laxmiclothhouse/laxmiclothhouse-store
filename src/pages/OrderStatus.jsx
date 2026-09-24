@@ -20,7 +20,6 @@ const SCAN_MEANINGS = {
   'in transit': 'Parcel is on the move',
   'out for delivery': 'Parcel is out for delivery today â€” keep your phone nearby!',
   'delivered': 'Parcel delivered successfully',
-  'rto': 'Return to sender initiated',
   'undelivered': 'Delivery attempted â€” will try again',
   'manifested': 'Shipment booked, awaiting pickup',
 };

@@ -223,15 +223,12 @@ function normalizeScans(shipment) {
 
 /**
  * Map a Delhivery status string to our canonical pipeline.
- * Returns 'delivered' | 'returned' | 'shipped' (anything in-flight is
+ * Returns 'delivered' or 'shipped' (anything in-flight is
  * still "shipped" from the store's point of view).
  */
 export function mapToStoreStatus(raw) {
   const s = String(raw || '').toLowerCase();
-  if (s.includes('rto') && s.includes('deliver')) return 'returned';
-  if (s.includes('lost') || s.includes('damaged')) return 'returned';
   if (s.includes('delivered') && !s.includes('rto')) return 'delivered';
-  if (s.includes('rto')) return 'returned';
   return 'shipped';
 }
 

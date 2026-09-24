@@ -48,7 +48,6 @@ export function productShareText(product) {
 const STATUS_WORD = {
   placed: 'placed', confirmed: 'confirmed', packed: 'packed',
   shipped: 'shipped', delivered: 'delivered', cancelled: 'cancelled',
-  returned: 'returned',
 };
 
 function metaTemplatePayload(type, order, toE164) {
@@ -66,7 +65,6 @@ function metaTemplatePayload(type, order, toE164) {
   else if (type === 'shipped' && o.trackingNo) extra = `Tracking (${o.courier || 'courier'}): ${o.trackingNo}. ${track}`;
   else if (type === 'delivered') extra = 'Thanks for shopping with us!';
   else if (type === 'cancelled') extra = 'If this was unexpected, just reply to this message.';
-  else if (type === 'returned') extra = 'Your refund is on its way.';
 
   return {
     messaging_product: 'whatsapp',
@@ -170,7 +168,6 @@ export function renderWhatsApp(type, orderRaw) {
     shipped:   `Order Shipped - ${id}\n\nHi ${name}! Your order is on the way!${o.trackingNo ? `\nTracking: ${o.trackingNo}` : ''}`,
     delivered: `Order Delivered - ${id}\n\nHi ${name}! Your order has been delivered.`,
     cancelled: `Order Cancelled - ${id}\n\nHi ${name}, your order has been cancelled.`,
-    returned:  `Return Processed - ${id}\n\nHi ${name}, your return has been processed.`,
   };
 
   return COPY[type] || COPY.placed;

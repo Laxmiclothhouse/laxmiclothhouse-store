@@ -36,7 +36,6 @@ export default function OrderManage() {
     if (!order) return;
     if (status === 'cancelled' && !window.confirm(`Cancel order ${order.id}? This cannot be undone.`)) return;
     if (status === 'delivered' && !window.confirm(`Mark order ${order.id} as delivered?`)) return;
-    if (status === 'returned' && !window.confirm(`Mark order ${order.id} as returned?`)) return;
     if (status === 'shipped' && !opts.trackingNo) return;
     updateOrderStatus(order.id, status, statusMeta(status).label, {
       ...opts,
@@ -112,8 +111,8 @@ export default function OrderManage() {
       expectedDelivery: t.expectedDelivery || null,
     });
     setDhlMsg(`Courier status: ${t.status}`);
-    if ((t.storeStatus === 'delivered' || t.storeStatus === 'returned') && t.storeStatus !== order.status) {
-      const label = t.storeStatus === 'delivered' ? 'Delivered' : 'Returned';
+    if ((t.storeStatus === 'delivered') && t.storeStatus !== order.status) {
+      const label = 'Delivered';
       if (window.confirm(`Delhivery reports this parcel as "${t.status}". Mark the order ${label.toLowerCase()}?`)) {
         updateOrderStatus(order.id, t.storeStatus, label, {
           note: `Auto-synced from Delhivery: ${t.status}`,
@@ -194,7 +193,7 @@ export default function OrderManage() {
 
           {isStaff && order.delhivery?.ndr && (
             <p className="error" style={{ marginTop: 6 }}>
-              ⚠️ Delivery attempt failed (NDR). Contact the customer or mark the order returned.
+              ⚠️ Delivery attempt failed (NDR). Contact the customer to re-attempt delivery.
             </p>
           )}
 

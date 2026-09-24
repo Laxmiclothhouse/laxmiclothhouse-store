@@ -615,7 +615,7 @@ export function DataProvider({ children }) {
         },
       });
       // WhatsApp notification for status changes (fire-and-forget).
-      const whatsappTypes = ['packed', 'shipped', 'delivered', 'cancelled', 'returned'];
+      const whatsappTypes = ['packed', 'shipped', 'delivered', 'cancelled'];
       if (changed.whatsappOptIn && whatsappTypes.includes(status) && (changed.phone || changed.customer?.phone)) {
         postApi('/api/send-whatsapp', {
           type: status,

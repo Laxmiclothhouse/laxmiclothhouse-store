@@ -13,10 +13,9 @@ const TRANSITIONS = {
   placed: ['confirmed', 'cancelled'],
   confirmed: ['packed', 'cancelled'],
   packed: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'returned'],
-  delivered: ['returned'],
+  shipped: ['delivered'],
+  delivered: [],
   cancelled: [],
-  returned: [],
 };
 
 const MAIL_TYPES = {
@@ -26,7 +25,6 @@ const MAIL_TYPES = {
   shipped: 'shipped',
   delivered: 'delivered',
   cancelled: 'cancelled',
-  returned: 'returned',
 };
 
 export default async function handler(req, res) {
