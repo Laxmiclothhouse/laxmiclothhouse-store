@@ -19,6 +19,11 @@
 const META_TOKEN      = String(process.env.WHATSAPP_ACCESS_TOKEN || '').trim();
 const META_PHONE_ID   = String(process.env.WHATSAPP_PHONE_NUMBER_ID || '').trim();
 const TEMPLATE_NAME   = String(process.env.WHATSAPP_TEMPLATE_NAME || 'order_update').trim();
+// Language code of the approved template, e.g. "en" or "en_US".
+const TEMPLATE_LANG   = String(process.env.WHATSAPP_TEMPLATE_LANG || 'en').trim();
+// Set WHATSAPP_TEMPLATE_PARAMS=0 for templates that have no variables
+// (e.g. hello_world) - Meta rejects body parameters for those.
+const TEMPLATE_PARAMS = String(process.env.WHATSAPP_TEMPLATE_PARAMS || '1').trim() !== '0';
 const GRAPH_VERSION   = String(process.env.WHATSAPP_GRAPH_VERSION || 'v23.0').trim();
 const APP_ORIGIN      = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.vercel.app';
 
@@ -66,26 +71,34 @@ function metaTemplatePayload(type, order, toE164) {
   else if (type === 'delivered') extra = 'Thanks for shopping with us!';
   else if (type === 'cancelled') extra = 'If this was unexpected, just reply to this message.';
 
+  const template = {
+    name: TEMPLATE_NAME,
+    language: { code: TEMPLATE_LANG },
+  };
+
+  // Templates with no variables (e.g. hello_world) must not receive a
+  // body component - Meta rejects parameters for templates without
+  // placeholders. WHATSAPP_TEMPLATE_PARAMS=0 skips them.
+  if (TEMPLATE_PARAMS) {
+    template.components = [
+      {
+        type: 'body',
+        parameters: [
+          { type: 'text', text: name },
+          { type: 'text', text: id },
+          { type: 'text', text: STATUS_WORD[type] || 'updated' },
+          { type: 'text', text: extra },
+        ],
+      },
+    ];
+  }
+
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to: toE164,
     type: 'template',
-    template: {
-      name: TEMPLATE_NAME,
-      language: { code: 'en' },
-      components: [
-        {
-          type: 'body',
-          parameters: [
-            { type: 'text', text: name },
-            { type: 'text', text: id },
-            { type: 'text', text: STATUS_WORD[type] || 'updated' },
-            { type: 'text', text: extra },
-          ],
-        },
-      ],
-    },
+    template,
   };
 }
 
