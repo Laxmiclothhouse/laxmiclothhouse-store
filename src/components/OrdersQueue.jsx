@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { FLOW, statusMeta, payMeta, nextStatuses, REQUIRED_FIELDS, roleQueueScope } from '../orderFlow.js';
+import Paginator from './Paginator.jsx';
 
 /**
  * Staff orders queue with role-aware workflow guards, payment badges,
@@ -16,6 +17,8 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   const scope = roleQueueScope(role);
   const [filter, setFilter] = useState(initialFilter && initialFilter !== 'all' ? initialFilter : 'all');
   const [todayOnly, setTodayOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState('');
   const [shippingId, setShippingId] = useState(null);
   const [tf, setTf] = useState({ courier: '', trackingNo: '' });
@@ -71,6 +74,15 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
     }
     return true;
   });
+
+  // Pagination: jump back to page 1 whenever the filters change, then slice.
+  useEffect(() => {
+    setPage(1);
+  }, [filter, q, todayOnly, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const chips = [
     { id: 'all', label: `All (${counts.all || 0})` },
@@ -148,8 +160,9 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
       {filtered.length === 0 ? (
         <p className="muted">{scope ? scope.empty : (todayOnly ? 'No orders reached this status today.' : 'No orders match this filter.')}</p>
       ) : (
-        <div className="orders-list">
-          {filtered.map((o) => {
+        <>
+          <div className="orders-list">
+          {paged.map((o) => {
             const meta = statusMeta(o.status);
             const pay = payMeta(o);
             const nexts = nextsFor(o);
@@ -258,7 +271,16 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
               </div>
             );
           })}
-        </div>
+          </div>
+          <Paginator
+            total={filtered.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            unit="orders"
+          />
+        </>
       )}
     </div>
   );

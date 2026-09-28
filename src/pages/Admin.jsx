@@ -9,6 +9,7 @@ import { productImage, db } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
+import Paginator from '../components/Paginator.jsx';
 import { statusMeta } from '../orderFlow.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
@@ -356,6 +357,12 @@ export default function Admin() {
   const [pinFindRes, setPinFindRes] = useState([]);
   const [pinFindBusy, setPinFindBusy] = useState(false);
   const [pinFindMsg, setPinFindMsg] = useState('');
+  // Pagination for the "All products" table.
+  const [prodPage, setProdPage] = useState(1);
+  const [prodPageSize, setProdPageSize] = useState(10);
+  const prodPages = Math.max(1, Math.ceil(products.length / prodPageSize));
+  const prodCurrent = Math.min(prodPage, prodPages);
+  const pagedProducts = products.slice((prodCurrent - 1) * prodPageSize, prodCurrent * prodPageSize);
   const [params] = useSearchParams();
   const orderParam = params.get('order');
 
@@ -772,7 +779,7 @@ export default function Admin() {
                   <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {products.map((p) => (
+                  {pagedProducts.map((p) => (
                     <tr key={p.id}>
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
@@ -788,6 +795,14 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+            <Paginator
+              total={products.length}
+              page={prodCurrent}
+              pageSize={prodPageSize}
+              onPageChange={setProdPage}
+              onPageSizeChange={(n) => { setProdPageSize(n); setProdPage(1); }}
+              unit="products"
+            />
           </section>
         </>
       )}
@@ -1416,6 +1431,8 @@ function ReviewsAdmin() {
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const nameFor = (pid) => products.find((p) => p.id === pid)?.name || pid;
 
@@ -1429,6 +1446,12 @@ function ReviewsAdmin() {
         return reviewer.includes(q) || product.includes(q);
       });
   const sorted = [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  // Pagination
+  useEffect(() => { setPage(1); }, [query, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const startEdit = (r) => {
     setEditingId(r.id);
@@ -1472,7 +1495,7 @@ function ReviewsAdmin() {
                 <tr><th>Product</th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {sorted.map((r) => (
+                {paged.map((r) => (
                   <tr key={r.id}>
                     <td>{nameFor(r.productId)}</td>
                     <td>
@@ -1533,6 +1556,16 @@ function ReviewsAdmin() {
             </table>
           </div>
         )}
+        {sorted.length > 0 && (
+          <Paginator
+            total={sorted.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            unit="reviews"
+          />
+        )}
       </section>
     </>
   );
@@ -1550,6 +1583,8 @@ function CustomersAdmin() {
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Show every registered customer the moment the tab opens — no search
   // needed. Firestore `users` is the source of truth; the local cache and
@@ -1620,6 +1655,12 @@ function CustomersAdmin() {
       String(u.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
     )
     .sort((a, b) => String(a.email || '').localeCompare(String(b.email || '')));
+
+  // Pagination
+  useEffect(() => { setPage(1); }, [query, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = list.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const startDelete = (u) => {
     setMsg(null);
@@ -1736,7 +1777,7 @@ function CustomersAdmin() {
                 <tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {list.map((u) => (
+                {paged.map((u) => (
                   <tr key={u.id || u.email}>
                     <td>{u.name || '—'}</td>
                     <td>{u.email || '—'}</td>
@@ -1755,6 +1796,14 @@ function CustomersAdmin() {
               </tbody>
             </table>
           </div>
+          <Paginator
+            total={list.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            unit="accounts"
+          />
           </>
         )}
       </section>

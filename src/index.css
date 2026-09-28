@@ -1564,3 +1564,29 @@ p { margin: 0 0 .8em; }
   font-weight: 600;
   color: var(--ink);
 }
+
+/* -- Admin list pagination (Show N + page numbers) ------------ */
+.paginator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.paginator-size {
+  padding: 4px 8px;
+  border: 1px solid rgba(155, 28, 61, .35);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: .85rem;
+}
+.paginator-pages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.paginator-pages .chip[disabled] { opacity: .45; cursor: not-allowed; }
+
