@@ -342,7 +342,9 @@ export function DataProvider({ children }) {
       discount: Number(payload.discount) || 0,
       couponCode: payload.couponCode || null,
       total: payload.total,
-      status: payload.payment.method === 'cod' ? 'confirmed' : 'paid',
+      // Every order starts at the top of the pipeline: the admin confirms it
+      // first, then packed -> shipped -> delivered (or cancelled with a note).
+      status: 'placed',
       statusHistory: [
         {
           status: 'placed',
