@@ -400,7 +400,7 @@ export default function Checkout() {
       whatsappOptIn,
       subtotal, shippingFee,
       discount,
-      couponCode: appliedCoupon?.code || null,
+      couponCode: appliedCoupon || null,
       total,
     };
 
@@ -717,7 +717,7 @@ export default function Checkout() {
             <div><span>Shipping</span><span>{shippingFee === 0 ? 'FREE' : formatINR(shippingFee)}</span></div>
             {discount > 0 && (
               <div className="discount-line">
-                <span>Coupon ({appliedCoupon.code})</span>
+                <span>Coupon ({appliedCoupon})</span>
                 <span>− {formatINR(discount)}</span>
               </div>
             )}
@@ -733,7 +733,7 @@ export default function Checkout() {
           <div className="coupon-box">
             {appliedCoupon ? (
               <div className="coupon-applied">
-                <span>🎟️ <strong>{appliedCoupon.code}</strong> — saved {formatINR(appliedCoupon.discount)}</span>
+                <span>🎟️ <strong>{appliedCoupon}</strong> — saved {formatINR(discount)}</span>
                 <button type="button" className="linklike" onClick={removeCoupon}>Remove</button>
               </div>
             ) : (
