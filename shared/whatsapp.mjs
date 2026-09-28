@@ -24,6 +24,11 @@ const TEMPLATE_LANG   = String(process.env.WHATSAPP_TEMPLATE_LANG || 'en').trim(
 // Set WHATSAPP_TEMPLATE_PARAMS=0 for templates that have no variables
 // (e.g. hello_world) - Meta rejects body parameters for those.
 const TEMPLATE_PARAMS = String(process.env.WHATSAPP_TEMPLATE_PARAMS || '1').trim() !== '0';
+// Marketing template used for sale announcements (WhatsApp category: Marketing).
+// Expected variables: {{1}} customer name, {{2}} sale name, {{3}} offer +
+// validity, {{4}} catalogue link.
+const SALE_TEMPLATE_NAME = String(process.env.WHATSAPP_SALE_TEMPLATE_NAME || 'sale_alert').trim();
+const SALE_TEMPLATE_LANG = String(process.env.WHATSAPP_SALE_TEMPLATE_LANG || 'en').trim();
 const GRAPH_VERSION   = String(process.env.WHATSAPP_GRAPH_VERSION || 'v23.0').trim();
 const APP_ORIGIN      = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.vercel.app';
 
@@ -107,9 +112,8 @@ function metaTemplatePayload(type, order, toE164) {
   };
 }
 
-async function sendViaMeta(type, order, phone) {
+async function postMetaMessage(payload, label) {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${META_PHONE_ID}/messages`;
-  const payload = metaTemplatePayload(type, order, phone);
   try {
     const resp = await fetch(url, {
       method: 'POST',
@@ -126,7 +130,7 @@ async function sendViaMeta(type, order, phone) {
       return { ok: false, error: 'meta-send-failed', details: msg };
     }
     const msgId = data?.messages?.[0]?.id || '';
-    console.log('[whatsapp] META SUCCESS:', { msgId, type, to: phone });
+    console.log('[whatsapp] META SUCCESS:', { msgId, label });
     return { ok: true, result: { msgId, status: 'accepted', channel: 'meta' } };
   } catch (err) {
     console.error('[whatsapp] META ERROR:', err.message);
@@ -134,10 +138,13 @@ async function sendViaMeta(type, order, phone) {
   }
 }
 
+async function sendViaMeta(type, order, phone) {
+  return postMetaMessage(metaTemplatePayload(type, order, phone), type);
+}
+
 // â”€â”€ Twilio fallback (kept from the original version) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async function sendViaTwilio(type, order, phone) {
-  const message = renderWhatsApp(type, order);
+async function sendViaTwilioRaw(message, phone, label) {
   try {
     // Twilio REST API directly (no SDK dependency): HTTP basic auth with the
     // account SID + auth token, form-encoded body.
@@ -161,12 +168,16 @@ async function sendViaTwilio(type, order, phone) {
       console.error('[whatsapp] TWILIO ERROR:', res.status, data.message || data);
       return { ok: false, error: 'twilio-send-failed', details: data.message || `twilio-http-${res.status}` };
     }
-    console.log('[whatsapp] TWILIO SUCCESS:', { sid: data.sid, type });
+    console.log('[whatsapp] TWILIO SUCCESS:', { sid: data.sid, label });
     return { ok: true, result: { msgId: data.sid, status: data.status, channel: 'twilio' } };
   } catch (err) {
     console.error('[whatsapp] TWILIO ERROR:', err.message);
     return { ok: false, error: 'twilio-send-failed', details: err.message || String(err) };
   }
+}
+
+async function sendViaTwilio(type, order, phone) {
+  return sendViaTwilioRaw(renderWhatsApp(type, order), phone, type);
 }
 
 // â”€â”€ Plain-text templates (Twilio path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -214,6 +225,82 @@ export async function sendWhatsApp({ to, type, order }) {
     return sendViaTwilio(type, order, fullPhone);
   }
 
+  console.log('[whatsapp] FAIL: no WhatsApp channel configured (set WHATSAPP_ACCESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID)');
+  return { ok: false, error: 'no-whatsapp-channel' };
+}
+
+// ── Sale announcements (marketing template) ─────────────────────
+
+/** Offer line + catalogue link shared by the WhatsApp and plain-text paths. */
+export function saleOfferText(sale) {
+  const s = sale || {};
+  const value = Number(s.value || 0);
+  const amount = s.discountType === 'flat'
+    ? `Rs. ${value.toLocaleString('en-IN')} off`
+    : `${value}% off`;
+  let valid = 'Limited time only';
+  if (s.endsAt) {
+    const d = new Date(s.endsAt);
+    if (!Number.isNaN(d.getTime())) {
+      valid = `Valid till ${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+    }
+  }
+  return { amount, valid, link: `${APP_ORIGIN}/#/catalog` };
+}
+
+function metaSalePayload(sale, name, toE164) {
+  const s = sale || {};
+  const { amount, valid, link } = saleOfferText(s);
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: toE164,
+    type: 'template',
+    template: {
+      name: SALE_TEMPLATE_NAME,
+      language: { code: SALE_TEMPLATE_LANG },
+      components: [
+        {
+          type: 'body',
+          parameters: [
+            { type: 'text', text: name || 'there' },
+            { type: 'text', text: String(s.name || 'Special sale') },
+            { type: 'text', text: `${amount} - ${valid}` },
+            { type: 'text', text: link },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+export function renderSaleWhatsApp(sale, name = 'there') {
+  const s = sale || {};
+  const { amount, valid, link } = saleOfferText(s);
+  return `Sale at Laxmiclothhouse!\n\nHi ${name}! "${String(s.name || 'Special sale')}" is live: ${amount}. ${valid}\n\nShop: ${link}`;
+}
+
+/**
+ * Sale announcement for one customer. Uses the approved MARKETING template
+ * WHATSAPP_SALE_TEMPLATE_NAME (default "sale_alert"; variables: {{1}} name,
+ * {{2}} sale name, {{3}} offer + validity, {{4}} catalogue link).
+ * Falls back to a Twilio plain-text message when Meta is not configured.
+ */
+export async function sendSaleWhatsApp({ to, name, sale }) {
+  const phone = String(to || '').replace(/\D/g, '');
+  if (!phone || phone.length < 10) {
+    console.log('[whatsapp] FAIL: invalid phone', phone);
+    return { ok: false, error: 'invalid-phone' };
+  }
+  const fullPhone = phone.startsWith('91') && phone.length === 12 ? phone : '91' + phone;
+
+  if (META_TOKEN && META_PHONE_ID && SALE_TEMPLATE_NAME) {
+    return postMetaMessage(metaSalePayload(sale, name, `+${fullPhone}`), 'sale');
+  }
+  if (TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM) {
+    console.log('[whatsapp] Meta not configured - falling back to Twilio for sale');
+    return sendViaTwilioRaw(renderSaleWhatsApp(sale, name), fullPhone, 'sale');
+  }
   console.log('[whatsapp] FAIL: no WhatsApp channel configured (set WHATSAPP_ACCESS_TOKEN + WHATSAPP_PHONE_NUMBER_ID)');
   return { ok: false, error: 'no-whatsapp-channel' };
 }

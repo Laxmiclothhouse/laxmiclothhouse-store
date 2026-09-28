@@ -2,6 +2,7 @@
 // The caller must be a signed-in Firebase user whose users/{uid} profile is admin.
 import { getUserDoc, listUserDocs, getStoreDoc } from '../shared/firestoreRest.mjs';
 import { sendSaleMail } from '../shared/mail.mjs';
+import { sendSaleWhatsApp } from '../shared/whatsapp.mjs';
 
 const FIREBASE_API_KEY = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyBq2vkuVE8HjCAwZjaP9WG_OkMZ6L8c-VQ';
 const IDENTITY_URL = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`;
@@ -78,12 +79,30 @@ export default async function handler(req, res) {
     const sale = cleanSale(savedSale || requestedSale);
 
     const customerEmails = new Map();
+
+    // WhatsApp opt-in phones (keyed by the last 10 digits so +91 variants
+    // collapse into one entry). Sale messages are marketing, so only
+    // customers who ticked the opt-in box at checkout are contacted.
+    const whatsappPhones = new Map();
+    const addPhone = (rawPhone, name, optedIn) => {
+      const digits = String(rawPhone || '').replace(/\D/g, '');
+      if (digits.length < 10) return;
+      const key = digits.slice(-10);
+      const prev = whatsappPhones.get(key) || { phone: digits, name: '', optedIn: false };
+      whatsappPhones.set(key, {
+        phone: prev.phone || digits,
+        name: prev.name || name || '',
+        optedIn: prev.optedIn || optedIn === true,
+      });
+    };
+
     const usersResult = await listUserDocs(bearerToken(req));
     if (usersResult.ok) {
       for (const entry of usersResult.data || []) {
         const c = customerContact(entry);
-        if ((!c.role || c.role === 'customer') && c.email && !customerEmails.has(c.email)) {
-          customerEmails.set(c.email, c.name || '');
+        if (!c.role || c.role === 'customer') {
+          if (c.email && !customerEmails.has(c.email)) customerEmails.set(c.email, c.name || '');
+          addPhone(c.phone, c.name, entry?.whatsappOptIn === true);
         }
       }
     }
@@ -96,8 +115,9 @@ export default async function handler(req, res) {
       const cached = Array.isArray(storeUsersResult.data?.data) ? storeUsersResult.data.data : [];
       for (const entry of cached) {
         const c = customerContact(entry);
-        if ((!c.role || c.role === 'customer') && c.email && !customerEmails.has(c.email)) {
-          customerEmails.set(c.email, c.name || '');
+        if (!c.role || c.role === 'customer') {
+          if (c.email && !customerEmails.has(c.email)) customerEmails.set(c.email, c.name || '');
+          addPhone(c.phone, c.name, entry?.whatsappOptIn === true);
         }
       }
     }
@@ -111,6 +131,7 @@ export default async function handler(req, res) {
         const email = String(row?.customerEmail || row?.customer?.email || '').trim().toLowerCase();
         const name = String(row?.customer?.name || '').trim();
         if (email && !customerEmails.has(email)) customerEmails.set(email, name);
+        addPhone(row?.phone || row?.customer?.phone, name, row?.whatsappOptIn === true);
       }
     }
 
@@ -140,6 +161,28 @@ export default async function handler(req, res) {
     };
     await Promise.all(Array.from({ length: Math.min(concurrency, customers.length) }, worker));
 
+    // WhatsApp sale announcements — same bounded-concurrency pattern.
+    // Only opted-in numbers are contacted (marketing policy).
+    const whatsappTargets = [...whatsappPhones.values()].filter((p) => p.optedIn);
+    let whatsappSent = 0;
+    let whatsappFailed = 0;
+    let whatsappNotConfigured = 0;
+    let whatsappError = null;
+    let waIndex = 0;
+    const waWorker = async () => {
+      while (waIndex < whatsappTargets.length) {
+        const target = whatsappTargets[waIndex++];
+        const wa = await sendSaleWhatsApp({ to: target.phone, name: target.name, sale });
+        if (wa.ok) whatsappSent += 1;
+        else if (wa.error === 'no-whatsapp-channel') whatsappNotConfigured += 1;
+        else {
+          whatsappFailed += 1;
+          if (!whatsappError) whatsappError = wa.details || wa.error || null;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, whatsappTargets.length) }, waWorker));
+
     return res.json({
       ok: true,
       sale: { id: sale.id, name: sale.name },
@@ -147,6 +190,14 @@ export default async function handler(req, res) {
       emailSent: results.filter((r) => r.emailSent).length,
       emailSkipped: results.filter((r) => r.emailSkipped).length,
       emailFailed: results.filter((r) => !r.emailSent && !r.emailSkipped).length,
+      whatsapp: {
+        optedIn: whatsappTargets.length,
+        sent: whatsappSent,
+        skippedNoOptIn: whatsappPhones.size - whatsappTargets.length,
+        notConfigured: whatsappNotConfigured,
+        failed: whatsappFailed,
+        error: whatsappError,
+      },
       results,
     });
   } catch (err) {

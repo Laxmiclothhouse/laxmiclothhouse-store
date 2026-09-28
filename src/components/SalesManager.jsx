@@ -110,7 +110,7 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
 
   const notifyCustomers = async (sale, ask = true) => {
     if (!sale?.id || notifyState.busyId) return;
-    if (ask && !window.confirm(`Send a sale email to all customers about "${sale.name || 'this sale'}"?`)) return;
+    if (ask && !window.confirm(`Email + WhatsApp all customers about "${sale.name || 'this sale'}"? (WhatsApp goes only to customers who opted in at checkout.)`)) return;
     setNotifyState({ busyId: sale.id, message: '' });
     try {
       const token = await getIdToken();
@@ -125,9 +125,14 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
       const skipped = Number(data.emailSkipped || 0);
       const failed = Number(data.emailFailed || 0);
       const total = Number(data.recipients || 0);
+      const wa = data.whatsapp || {};
+      const waBits = [`WhatsApp sent: ${Number(wa.sent || 0)}`];
+      if (Number(wa.skippedNoOptIn || 0)) waBits.push(`no opt-in: ${Number(wa.skippedNoOptIn)}`);
+      if (Number(wa.notConfigured || 0)) waBits.push('WhatsApp not configured');
+      if (Number(wa.failed || 0)) waBits.push(`WhatsApp failed: ${Number(wa.failed)}${wa.error ? ` (${wa.error})` : ''}`);
       setNotifyState({
         busyId: '',
-        message: `Sale email sent to ${sent} of ${total} customer(s). Skipped: ${skipped}; failed: ${failed}.`,
+        message: `Sale email sent to ${sent} of ${total} customer(s). Skipped: ${skipped}; failed: ${failed}. ${waBits.join(' · ')}.`,
       });
     } catch (error) {
       setNotifyState({ busyId: '', message: error.message || 'Could not notify customers.' });
