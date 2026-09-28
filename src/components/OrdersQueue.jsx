@@ -62,10 +62,23 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   };
 
   const apply = (o, status, opts = {}) => {
-    if (status === 'cancelled' && !window.confirm(`Cancel order ${o.id}? This cannot be undone.`)) return;
+    let withNote = opts;
+    if (status === 'cancelled') {
+      // Admin must give a reason — it is stored on the order and sent to
+      // the customer inside the WhatsApp cancellation message.
+      const reason = window.prompt(
+        `Cancel order ${o.id}? This cannot be undone.\n\nReason for cancelling (required — the customer sees this):`
+      );
+      if (reason === null) return;
+      if (!String(reason).trim()) {
+        window.alert('A cancellation note is required.');
+        return;
+      }
+      withNote = { ...opts, note: String(reason).trim() };
+    }
     if (status === 'delivered' && !window.confirm(`Mark order ${o.id} as delivered?`)) return;
     const payload = {
-      ...opts,
+      ...withNote,
       by: { uid: user?.id, name: user?.name || user?.email, role: user?.role },
     };
     if (status === 'shipped' && !payload.trackingNo) return;

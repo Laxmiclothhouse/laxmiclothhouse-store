@@ -69,7 +69,12 @@ function metaTemplatePayload(type, order, toE164) {
   else if (type === 'packed') extra = `It will ship soon. ${track}`;
   else if (type === 'shipped' && o.trackingNo) extra = `Tracking (${o.courier || 'courier'}): ${o.trackingNo}. ${track}`;
   else if (type === 'delivered') extra = 'Thanks for shopping with us!';
-  else if (type === 'cancelled') extra = 'If this was unexpected, just reply to this message.';
+  else if (type === 'cancelled') {
+    const reason = String(o.note || o.cancelNote || '').trim();
+    extra = reason
+      ? `Reason: ${reason}. If this was unexpected, just reply to this message.`
+      : 'If this was unexpected, just reply to this message.';
+  }
 
   const template = {
     name: TEMPLATE_NAME,

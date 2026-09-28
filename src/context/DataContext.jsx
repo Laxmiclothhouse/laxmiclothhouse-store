@@ -616,8 +616,9 @@ export function DataProvider({ children }) {
           storeName: settings.storeName,
         },
       });
-      // WhatsApp notification for status changes (fire-and-forget).
-      const whatsappTypes = ['packed', 'shipped', 'delivered', 'cancelled'];
+      // WhatsApp notification for every forward step (placed is sent on
+      // order creation) plus cancellations (fire-and-forget).
+      const whatsappTypes = ['confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
       if (changed.whatsappOptIn && whatsappTypes.includes(status) && (changed.phone || changed.customer?.phone)) {
         postApi('/api/send-whatsapp', {
           type: status,
@@ -630,6 +631,7 @@ export function DataProvider({ children }) {
             paymentMode: changed.payment?.mode,
             trackingNo: changed.trackingNo,
             courier: changed.courier,
+            note: opts.note || '',
           },
         });
       }

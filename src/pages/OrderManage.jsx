@@ -34,11 +34,24 @@ export default function OrderManage() {
 
   const apply = (status, opts = {}) => {
     if (!order) return;
-    if (status === 'cancelled' && !window.confirm(`Cancel order ${order.id}? This cannot be undone.`)) return;
+    let withNote = opts;
+    if (status === 'cancelled') {
+      // Admin must give a reason — it is stored on the order and sent to
+      // the customer inside the WhatsApp cancellation message.
+      const reason = window.prompt(
+        `Cancel order ${order.id}? This cannot be undone.\n\nReason for cancelling (required — the customer sees this):`
+      );
+      if (reason === null) return;
+      if (!String(reason).trim()) {
+        window.alert('A cancellation note is required.');
+        return;
+      }
+      withNote = { ...opts, note: String(reason).trim() };
+    }
     if (status === 'delivered' && !window.confirm(`Mark order ${order.id} as delivered?`)) return;
-    if (status === 'shipped' && !opts.trackingNo) return;
+    if (status === 'shipped' && !withNote.trackingNo) return;
     updateOrderStatus(order.id, status, statusMeta(status).label, {
-      ...opts,
+      ...withNote,
       by: { uid: user.id, name: user.name || user.email, role: user.role },
     });
     setTracking({ courier: '', trackingNo: '', open: false });
