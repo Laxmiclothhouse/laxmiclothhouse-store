@@ -9,7 +9,7 @@ import { bookDelhiveryShipment, fetchDelhiveryTrack, isDelhiveryOrder, scansStal
 
 export default function OrderManage() {
   const { user, isStaff } = useAuth();
-  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, settings } = useData();
+  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, settings } = useData();
   const { id } = useParams();
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [slipOrder, setSlipOrder] = useState(null);
@@ -17,6 +17,8 @@ export default function OrderManage() {
   const [noteText, setNoteText] = useState('');
   const [dhlBusy, setDhlBusy] = useState(false);
   const [dhlMsg, setDhlMsg] = useState('');
+  const [refunding, setRefunding] = useState(false);
+  const [refundMsg, setRefundMsg] = useState('');
 
   // Scoped page: only THIS order is ever shown.
   const order = orders.find((o) => o.id.toLowerCase() === String(id || '').toLowerCase());
@@ -55,6 +57,47 @@ export default function OrderManage() {
       by: { uid: user.id, name: user.name || user.email, role: user.role },
     });
     setTracking({ courier: '', trackingNo: '', open: false });
+  };
+
+  // ── Razorpay refund (admin action) ─────────────────────────
+  // Refunds the captured payment back to the customer's original
+  // payment method. Enabled only for real Razorpay payments that
+  // have not been refunded yet.
+  const payRef = String(order?.payment?.ref || '');
+  const canRefund = Boolean(
+    order &&
+    isStaff &&
+    order.payment?.gateway === 'Razorpay' &&
+    payRef.startsWith('pay_') &&
+    order.refundInfo?.type !== 'razorpay_refund'
+  );
+
+  const refundPayment = async () => {
+    if (!order || refunding || !payRef.startsWith('pay_')) return;
+    if (!window.confirm(`Refund ${formatINR(order.total)} for order ${order.id}?\n\nThe money returns to the customer's original payment method in 3-7 working days.`)) return;
+    setRefunding(true);
+    setRefundMsg('');
+    try {
+      const res = await fetch('/api/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, paymentRef: payRef, amount: order.total }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.refunded) throw new Error(data.error || data.message || 'Refund failed.');
+      markOrderRefunded(order.id, {
+        type: 'razorpay_refund',
+        refundId: data.refundId || null,
+        refundedAt: new Date().toISOString(),
+        by: user.name || user.email || 'staff',
+        note: 'Refund initiated to the original payment method. It will be credited back to the same account in 5-7 working days.',
+      });
+      setRefundMsg(`Refund initiated (ID: ${data.refundId || 'pending'}). The customer receives the money in 3-7 working days.`);
+    } catch (err) {
+      setRefundMsg(err.message || 'Refund failed.');
+    } finally {
+      setRefunding(false);
+    }
   };
 
   const addNote = () => {
@@ -405,6 +448,25 @@ export default function OrderManage() {
                 <div><span>Shipping</span><span>{order.shippingFee > 0 ? formatINR(order.shippingFee) : 'FREE'}</span></div>
                 <div><span>Total</span><span>{formatINR(order.total)}</span></div>
               </div>
+              {canRefund && (
+                <button
+                  type="button"
+                  className="btn btn-sm danger"
+                  style={{ marginTop: 8 }}
+                  disabled={refunding}
+                  onClick={refundPayment}
+                >
+                  {refunding ? 'Refunding...' : `Refund ${formatINR(order.total)} to customer`}
+                </button>
+              )}
+              {refundMsg && (
+                <p
+                  className={`tiny ${refundMsg.startsWith('Refund initiated') ? 'ok' : 'error'}`}
+                  style={{ marginTop: 6 }}
+                >
+                  {refundMsg}
+                </p>
+              )}
               {order.refundInfo && (
                 <p className="muted tiny" style={{ marginTop: 6 }}>
                   Refund: {order.refundInfo.type === 'razorpay_refund' ? 'initiated' : order.refundInfo.note || '—'}

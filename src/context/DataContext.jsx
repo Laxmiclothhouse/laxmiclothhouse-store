@@ -676,6 +676,13 @@ export function DataProvider({ children }) {
     db.saveOrders(next);
   };
 
+  // Attach a refund record to an order (used by the admin "Refund" action).
+  const markOrderRefunded = (orderId, refundInfo) => {
+    const next = orders.map((o) => (o.id === orderId ? { ...o, refundInfo } : o));
+    setOrders(next);
+    db.saveOrders(next);
+  };
+
   // Best-effort calls to the Vercel API functions. Never blocks the store.
   const postApi = async (path, body) => {
     try {
@@ -714,6 +721,7 @@ export function DataProvider({ children }) {
       findOrder,
       canCancel,
       cancelOrder,
+      markOrderRefunded,
       isOrderProcessing,
       hasProcessingOrdersForUser,
       messages,
