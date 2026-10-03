@@ -26,6 +26,7 @@ import Admin from './pages/Admin.jsx';
 import Customer360 from './pages/Customer360.jsx';
 import StaffDashboard from './pages/StaffDashboard.jsx';
 import Profile from './pages/Profile.jsx';
+import Privacy from './pages/Privacy.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 
@@ -64,6 +65,7 @@ export default function App() {
               <Route path="/customer360" element={<RequireAuth><Customer360 /></RequireAuth>} />
               <Route path="/dashboard" element={<RequireAuth><StaffDashboard /></RequireAuth>} />
               <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="*" element={<Home />} />
