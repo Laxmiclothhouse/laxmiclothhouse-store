@@ -126,7 +126,10 @@ async function postMetaMessage(payload, label) {
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       const msg = data?.error?.message || `HTTP ${resp.status}`;
-      console.error('[whatsapp] META ERROR:', resp.status, msg);
+      const code = data?.error?.code ?? '?';
+      const subcode = data?.error?.error_subcode ?? '?';
+      const trace = data?.error?.fbtrace_id ?? '?';
+      console.error('[whatsapp] META ERROR:', resp.status, `code=${code} subcode=${subcode}`, msg, `trace=${trace}`);
       return { ok: false, error: 'meta-send-failed', details: msg };
     }
     const msgId = data?.messages?.[0]?.id || '';
