@@ -29,7 +29,19 @@ export default function ProductCard({ product }) {
     (typeof product.image === 'string' && product.image.trim()) ||
     '';
   const [failedSrc, setFailedSrc] = React.useState(null);
-  const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc;
+  // The admin auto-fills a generated gradient letter-tile (data:image/svg+xml
+  // SVG from db.js productImage()) whenever a product has no uploaded photo.
+  // Customers consider that "no image" — so render the placeholder for it
+  // instead of the synthetic tile.
+  const isGeneratedTile = (src) => {
+    if (!src || !src.startsWith('data:image/svg+xml')) return false;
+    try {
+      return decodeURIComponent(src).includes('Georgia, serif');
+    } catch {
+      return true;
+    }
+  };
+  const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc && !isGeneratedTile(imgSrc);
   // One diagonal sash per card — "Sold out" wins if both states apply.
   const band = soldOut ? 'Sold out' : hasImage ? '' : 'No image';
 
