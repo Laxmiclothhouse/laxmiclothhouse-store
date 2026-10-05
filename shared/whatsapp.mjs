@@ -27,7 +27,9 @@ const TEMPLATE_PARAMS = String(process.env.WHATSAPP_TEMPLATE_PARAMS || '1').trim
 // Marketing template used for sale announcements (WhatsApp category: Marketing).
 // Expected variables: {{1}} customer name, {{2}} sale name, {{3}} offer +
 // validity, {{4}} catalogue link.
-const SALE_TEMPLATE_NAME = String(process.env.WHATSAPP_SALE_TEMPLATE_NAME || 'sale_alert').trim();
+// Default MUST match the APPROVED template in the WABA (sale_notify) — a name
+// that does not exist there makes Meta reject every sale broadcast.
+const SALE_TEMPLATE_NAME = String(process.env.WHATSAPP_SALE_TEMPLATE_NAME || 'sale_notify').trim();
 const SALE_TEMPLATE_LANG = String(process.env.WHATSAPP_SALE_TEMPLATE_LANG || 'en').trim();
 const GRAPH_VERSION   = String(process.env.WHATSAPP_GRAPH_VERSION || 'v23.0').trim();
 const APP_ORIGIN      = process.env.APP_ORIGIN || 'https://laxmiclothhouse-store.vercel.app';
