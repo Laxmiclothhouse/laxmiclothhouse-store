@@ -402,7 +402,7 @@ p { margin: 0 0 .8em; }
 
 /* ── Product detail ─────────────────────── */
 .detail { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-.detail-img { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.detail-img { position: relative; aspect-ratio: 4 / 5; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: #fff; }
 .gallery-arrow {
   position: absolute;
   top: 50%;
@@ -438,7 +438,9 @@ p { margin: 0 0 .8em; }
   z-index: 3;
   pointer-events: none;
 }
-.detail-img img { width: 100%; height: 100%; object-fit: contain; background: #fff; min-height: 320px; max-height: 400px; }
+/* Full-bleed like the product card — cover fills the 4:5 frame edge-to-edge,
+   no letterbox space at the borders. */
+.detail-img img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
 .cat-line { letter-spacing: 2px; text-transform: uppercase; font-size: .78rem; color: var(--brand); margin-bottom: 4px; }
 .stock-line { font-weight: 500; color: var(--ok); }
 .stock-line.out { color: var(--err); }
@@ -897,7 +899,6 @@ p { margin: 0 0 .8em; }
 
   .bank-layout { grid-template-columns: 1fr; }
   .detail { grid-template-columns: 1fr; gap: 22px; }
-  .detail-img img { min-height: 280px; }
   .pay-methods { grid-template-columns: 1fr; }
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .track-meta, .contact-grid, .footer-grid { grid-template-columns: 1fr; }
@@ -919,11 +920,9 @@ p { margin: 0 0 .8em; }
 /* ---- Image gallery for product detail ---- */
 .detail-main-img {
   width: 100%;
-  height: auto;
-  min-height: 400px;
-  object-fit: contain;
-  background: #fff;
-  border-radius: var(--radius);
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -973,8 +972,6 @@ p { margin: 0 0 .8em; }
 }
 
 @media (max-width: 600px) {
-  .detail-main-img { min-height: 280px; }
-  
   .img-preview-item { width: 70px; height: 85px; }
 }
 /* Admin messages tab */
