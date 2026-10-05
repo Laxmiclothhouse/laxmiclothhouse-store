@@ -210,7 +210,9 @@ p { margin: 0 0 .8em; }
 .product-card:hover { transform: translateY(-6px); box-shadow: var(--shadow); }
 .pc-imgwrap { position: relative; aspect-ratio: 4/5; display: block; overflow: hidden; background: #f0e6ea; }
 .pc-imglink { display: block; position: relative; height: 100%; }
-.pc-imglink img { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; transition: .5s; }
+/* cover (not contain) — fills the 4:5 frame edge-to-edge with no letterbox
+   bars at the borders; the crop stays centered. */
+.pc-imglink img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: .5s; }
 .product-card:hover .pc-imglink img { transform: scale(1.06); }
 .ribbon {
   position: absolute; top: 12px; left: 12px; background: var(--ink); color: #fff;
