@@ -29,10 +29,14 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="product-card">
-      <div className="pc-imgwrap">
+      <div className={`pc-imgwrap${soldOut ? ' is-soldout' : ''}`}>
         <Link to={`/product/${product.id}`} className="pc-imglink">
           <img src={product.images?.[0] || product.image} alt={product.name} loading="lazy" />
-          {soldOut && <span className="ribbon">Sold out</span>}
+          {soldOut && (
+            <span className="soldout-band" role="status" aria-label="Sold out">
+              <span className="soldout-band-inner">Sold out</span>
+            </span>
+          )}
           {!soldOut && onSale && <span className="ribbon sale">{sale.saleLabel || 'SALE'}</span>}
           {!soldOut && !onSale && product.shippingCost === 0 && <span className="ribbon free">Free ship</span>}
         </Link>

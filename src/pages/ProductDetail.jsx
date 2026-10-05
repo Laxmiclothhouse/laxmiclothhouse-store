@@ -155,8 +155,13 @@ export default function ProductDetail() {
     <main className="page">
       {toast && <div className="toast">{toast}</div>}
       <div className="detail">
-                        <div className="detail-img">
+        <div className={`detail-img${soldOut ? ' is-soldout' : ''}`}>
           <img src={mainImg} alt={product.name} className="detail-main-img" loading="lazy" />
+          {soldOut && (
+            <span className="soldout-band" role="status" aria-label="Sold out">
+              <span className="soldout-band-inner">Sold out</span>
+            </span>
+          )}
           {images.length > 1 && (
             <>
               <button type="button" className="gallery-arrow gallery-prev" onClick={prevImage} aria-label="Previous image">
