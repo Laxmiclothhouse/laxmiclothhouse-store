@@ -19,6 +19,20 @@ export default function ProductCard({ product }) {
   // above the selling price is ordinary shop pricing, not a running sale.
   const onSale = sale.hasSale;
 
+  // First usable image URL (older rows only carry "image"; some entries are
+  // blank). failedSrc remembers which URL failed to load so we swap in the
+  // "No image" placeholder instead of a broken-image icon.
+  const imgSrc =
+    (Array.isArray(product.images)
+      ? product.images.find((s) => typeof s === 'string' && s.trim())
+      : null) ||
+    (typeof product.image === 'string' && product.image.trim()) ||
+    '';
+  const [failedSrc, setFailedSrc] = React.useState(null);
+  const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc;
+  // One diagonal sash per card — "Sold out" wins if both states apply.
+  const band = soldOut ? 'Sold out' : hasImage ? '' : 'No image';
+
   const onWish = () => {
     if (!user) {
       nav('/login');
@@ -31,10 +45,25 @@ export default function ProductCard({ product }) {
     <div className="product-card">
       <div className={`pc-imgwrap${soldOut ? ' is-soldout' : ''}`}>
         <Link to={`/product/${product.id}`} className="pc-imglink">
-          <img src={product.images?.[0] || product.image} alt={product.name} loading="lazy" />
-          {soldOut && (
-            <span className="soldout-band" role="status" aria-label="Sold out">
-              <span className="soldout-band-inner">Sold out</span>
+          {hasImage ? (
+            <img
+              src={imgSrc}
+              alt={product.name}
+              loading="lazy"
+              onError={() => setFailedSrc(imgSrc)}
+            />
+          ) : (
+            <span className="pc-noimg" role="img" aria-label="No image">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+                <circle cx="8.5" cy="10" r="1.6" />
+                <path d="M3.5 16.5 9 11.5l3.5 3.5 3-3 5 5" />
+              </svg>
+            </span>
+          )}
+          {band && (
+            <span className="soldout-band" role="status">
+              <span className="soldout-band-inner">{band}</span>
             </span>
           )}
           {!soldOut && onSale && <span className="ribbon sale">{sale.saleLabel || 'SALE'}</span>}

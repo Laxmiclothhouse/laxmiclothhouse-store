@@ -282,6 +282,23 @@ p { margin: 0 0 .8em; }
 @media (prefers-reduced-motion: reduce) {
   .soldout-band::after { animation: none; display: none; }
 }
+
+/* ── "No image" placeholder (mirrors sold-out look) ── */
+.pc-noimg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(43, 34, 38, .05) 0 9px,
+      rgba(43, 34, 38, 0) 9px 18px
+    ),
+    #f0e9ec;
+  color: #a99ea4;
+}
+.pc-noimg svg { width: 46px; height: 46px; opacity: .85; }
 .wish-btn {
   position: absolute; top: 10px; right: 10px; z-index: 3; width: 36px; height: 36px;
   border-radius: 50%; background: rgba(255,255,255,.94); border: none; font-size: 1.05rem;
