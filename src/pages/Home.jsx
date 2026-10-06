@@ -95,29 +95,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* features strip */}
-      <section className="features">
-        <div className="feat">
-          <span>🚚</span>
-          <strong>Fast Delivery</strong>
-          <p>Pan-India doorstep delivery</p>
-        </div>
-        <div className="feat">
-          <span>💳</span>
-          <strong>Easy Payments</strong>
-          <p>UPI · Cards · Cash on Delivery</p>
-        </div>
-        <div className="feat">
-          <span>↩️</span>
-          <strong>Easy Returns</strong>
-          <p>7-day hassle-free returns</p>
-        </div>
-        <div className="feat">
-          <span>📞</span>
-          <strong>Support</strong>
-          <p>We're here to help you</p>
-        </div>
-      </section>
+
     </main>
   );
 }
