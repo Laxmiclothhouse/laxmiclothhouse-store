@@ -1,8 +1,8 @@
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// utils/ordersReportPdf.js â€” Admin orders report: date-range
+// ─────────────────────────────────────────────────────────────
+// utils/ordersReportPdf.js — Admin orders report: date-range
 // filter + branded PDF download (jsPDF, no extra dependencies).
 // Brand: maroon #9b1c3d, gold #c9a24b, cream #faf6f0.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────
 import jsPDF from "jspdf";
 
 const money = (n) => "Rs. " + Number(n || 0).toLocaleString("en-IN");
@@ -54,7 +54,7 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
   const LINE = [234, 223, 214];
   const CREAM = [250, 246, 240];
 
-  const rangeText = `${opts.from ? fmtDate(opts.from) : "start"}  â†’  ${opts.to ? fmtDate(opts.to) : "today"}`;
+  const rangeText = `${opts.from ? fmtDate(opts.from) : "start"}  →  ${opts.to ? fmtDate(opts.to) : "today"}`;
 
   // ---------- Header band ----------
   doc.setFillColor(...CREAM);
@@ -73,7 +73,7 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
   doc.text(rangeText, W - M, 13, { align: "right" });
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text(`Generated ${fmtDate(new Date())} Â· ${list.length} orders`, W - M, 20, { align: "right" });
+  doc.text(`Generated ${fmtDate(new Date())} · ${list.length} orders`, W - M, 20, { align: "right" });
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.8);
   doc.line(M, 28, W - M, 28);
@@ -196,7 +196,7 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(255, 255, 255);
-  doc.text(`TOTAL Â· ${list.length} orders`, M + 2, y + 5.3);
+  doc.text(`TOTAL · ${list.length} orders`, M + 2, y + 5.3);
   doc.text(money(revenue), W - M - 2, y + 5.3, { align: "right" });
 
   // ---------- Footers on every page ----------
@@ -206,7 +206,7 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTED);
-    doc.text(`${STORE_LABEL(opts.storeName)} Â· Orders report`, M, H - 7);
+    doc.text(`${STORE_LABEL(opts.storeName)} · Orders report`, M, H - 7);
     doc.text(`Page ${p} of ${pages}`, W - M, H - 7, { align: "right" });
   }
 

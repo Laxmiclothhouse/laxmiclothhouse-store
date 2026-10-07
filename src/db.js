@@ -1,8 +1,8 @@
-﻿// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// db.js â€” localStorage persistence layer for the whole store.
+﻿// ─────────────────────────────────────────────────────────────
+// db.js — localStorage persistence layer for the whole store.
 // Provides a tiny synchronous "database" with seeding support.
 // Syncs to Firebase Firestore for cross-device consistency.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────
 
 import { initFirebase, isFirebaseReady, firestoreSet, firestoreGet, firestoreListen } from './firebase.js';
 
@@ -92,7 +92,7 @@ const PALETTE = ['#9b1c3d', '#7a1f3d', '#8a5a2b', '#5b2c6f', '#146c64', '#a24b18
 function seedProducts() {
   const names = [
     ['2D Suit', 'Classic 2D printed suit set with matching dupatta.'],
-    ['2D Suit â€” Teej Special', 'Festive teej special 2D suit in rich colours.'],
+    ['2D Suit — Teej Special', 'Festive teej special 2D suit in rich colours.'],
     ['3D Flowers', 'Hand-worked 3D floral design on premium fabric.'],
     ['3D Punjab Suit', 'Heavy 3D Punjabi-style designer suit.'],
     ['3D Suit (Maroon)', 'Elegant maroon 3D designer suit for occasions.'],
@@ -155,16 +155,16 @@ const DEFAULT_SETTINGS = {
    logoWidth: 40,
    logoLetter: 'B',
   tagline: 'Suit Collection',
-  announcement: 'Free shipping on orders above â‚¹1499 Â· COD available across India',
+  announcement: 'Free shipping on orders above ₹1499 · COD available across India',
   heroHeading: 'Designer Suits & Ethnic Elegance',
   heroSubheading:
-    'Heavy 3D work, rich zari, finest fabrics â€” made for your special days.',
+    'Heavy 3D work, rich zari, finest fabrics — made for your special days.',
   contactPhone: '+91 98765 43210',
   contactEmail: 'support@laxmiclothhouse.com',
   contactAddress:
-    'Najafgarh Road, Near Balour More, Opp. Sector 9, Bahadurgarh â€” 124507',
+    'Najafgarh Road, Near Balour More, Opp. Sector 9, Bahadurgarh — 124507',
   // Razorpay merchant key. Use a TEST key for the sandbox,
-  // or your LIVE key for real payments. Managed in Admin â†’ Settings.
+  // or your LIVE key for real payments. Managed in Admin → Settings.
   razorpayKeyId: 'rzp_test_TYAM6GyacLBRrL',
   paymentMode: 'demo',
     freeShippingThreshold: 1499,
