@@ -715,13 +715,6 @@ p { margin: 0 0 .8em; }
   .modal-card.invoice-modal { max-width: 100%; }
 }
 
-/* ── Features strip ─────────────────────── */
-.features { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; background: var(--ink); color: #fff; padding: 34px 22px; }
-.feat { text-align: center; }
-.feat span { font-size: 1.8rem; }
-.feat strong { display: block; font-family: var(--serif); font-size: 1.2rem; margin: 6px 0 2px; }
-.feat p { color: #c9bfb0; font-size: .9rem; margin: 0; }
-
 /* ── Contact / about ────────────────────── */
 .contact-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; }
 .about h2 { margin-top: 6px; }
@@ -789,7 +782,6 @@ p { margin: 0 0 .8em; }
 @media (max-width: 1000px) {
   .product-grid, .cat-grid { grid-template-columns: repeat(3, 1fr); }
   .checkout { grid-template-columns: 1fr; }
-  .features { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 760px) {
   /* navbar → compact + hamburger */
@@ -860,12 +852,6 @@ p { margin: 0 0 .8em; }
   .pc-rating { margin-top: 2px; }
   .pc-rating .stars { font-size: .7rem; }
   .pc-rating .rating-count { font-size: .62rem; }
-
-  /* features strip → compact 2x2 */
-  .features { grid-template-columns: repeat(2, 1fr); gap: 12px 10px; padding: 20px 14px; }
-  .feat span { font-size: 1.2rem; }
-  .feat strong { font-size: .9rem; margin: 3px 0 1px; }
-  .feat p { font-size: .7rem; line-height: 1.3; }
 
   /* pages */
   .page { padding: 26px 16px 50px; }
