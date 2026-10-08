@@ -283,12 +283,56 @@ export async function invoicePdfUrl(order, settings) {
 /** Generates the PDF and triggers a browser download. */
 export async function downloadInvoicePdf(order, settings) {
   const blob = await buildInvoicePdf(order, settings);
+  triggerBlobDownload(blob, `invoice-${order?.id || "download"}.pdf`);
+}
+
+/** Opens the invoice PDF in a hidden same-origin frame and prints it. */
+export async function printInvoicePdf(order, settings) {
+  const blob = await buildInvoicePdf(order, settings);
+  openPdfForPrint(blob, `invoice-${order?.id || "download"}.pdf`);
+}
+
+/** Download any Blob PDF with the given file name (revokes the object URL). */
+export function triggerBlobDownload(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `invoice-${order?.id || "download"}.pdf`;
+  a.download = fileName || "document.pdf";
+  document.body.appendChild(a);
   a.click();
+  a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/** Print a Blob PDF via a hidden same-origin iframe (falls back to a new tab). */
+function openPdfForPrint(blob, title) {
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement("iframe");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  frame.title = title || "document";
+  let done = false;
+  const finish = (opened) => {
+    if (done) return;
+    done = true;
+    if (opened !== false) {
+      try {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      } catch {
+        window.open(url, "_blank", "noopener");
+      }
+    }
+    window.setTimeout(() => {
+      try { frame.remove(); } catch { /* already gone */ }
+      URL.revokeObjectURL(url);
+    }, 4000);
+  };
+  frame.onload = () => finish(true);
+  frame.onerror = () => finish(false);
+  document.body.appendChild(frame);
+  frame.src = url;
+  // If the blob never loads (blocked iframe), still give the user the PDF.
+  window.setTimeout(() => finish(true), 8000);
 }
 /** Compact picking/packing slip — no prices, just items + checklist info (Step 7). */
 async function buildPackingSlip(order, settings) {
@@ -428,10 +472,11 @@ export async function packingSlipUrl(order, settings) {
 /** Generates the packing-slip PDF and triggers a browser download. */
 export async function downloadPackingSlip(order, settings) {
   const blob = await buildPackingSlip(order, settings);
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `packing-slip-${order?.id || "download"}.pdf`;
-  a.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+  triggerBlobDownload(blob, `packing-slip-${order?.id || "download"}.pdf`);
+}
+
+/** Opens the packing-slip PDF in a hidden same-origin frame and prints it. */
+export async function printPackingSlip(order, settings) {
+  const blob = await buildPackingSlip(order, settings);
+  openPdfForPrint(blob, `packing-slip-${order?.id || "download"}.pdf`);
 }

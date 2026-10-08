@@ -3,8 +3,9 @@ import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
-import { filterOrdersByRange, downloadOrdersReportPdf } from '../utils/ordersReportPdf.js';
+import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf, packingSlipUrl, downloadPackingSlip, printPackingSlip } from '../utils/invoicePdf.js';
+import { filterOrdersByRange, downloadOrdersReportPdf, ordersReportPdfUrl, printOrdersReportPdf, ordersReportFileName } from '../utils/ordersReportPdf.js';
+import PdfViewer from '../components/PdfViewer.jsx';
 import { productImage, db } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
@@ -71,46 +72,57 @@ function InvoicePreviewModal({ order, settings, onClose }) {
   const [url, setUrl] = React.useState('');
   React.useEffect(() => {
     let u = null;
-    invoicePdfUrl(order, settings).then((url) => {
-      u = url;
-      setUrl(url);
+    let alive = true;
+    invoicePdfUrl(order, settings).then((v) => {
+      if (!alive) { URL.revokeObjectURL(v); return; }
+      u = v;
+      setUrl(v);
     });
     return () => {
+      alive = false;
       if (u) URL.revokeObjectURL(u);
     };
   }, [order, settings]);
+  if (!order) return null;
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-card invoice-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 860 }}>
-        <div className="modal-head">
-          <h2>Invoice — {order.id}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div style={{ padding: 16 }}>
-          <div className="row-gap" style={{ marginBottom: 12 }}>
-            <span className="muted">{formatDateTime(order.orderDate)} · {formatINR(order.total)}</span>
-            <span style={{ flex: 1 }} />
-            <button
-              type="button"
-              className="btn btn-sm btn-gold"
-              onClick={() => downloadInvoicePdf(order, settings)}
-            >
-              ⬇ Download PDF
-            </button>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
-          </div>
-          {url ? (
-            <iframe
-              title={`Invoice ${order.id}`}
-              src={url}
-              style={{ width: '100%', height: 520, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }}
-            />
-          ) : (
-            <p className="muted">Preparing PDF…</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <PdfViewer
+      title={`Invoice — ${order.id}`}
+      subtitle={`${formatDateTime(order.orderDate)} · ${formatINR(order.total)}`}
+      url={url}
+      fileName={`invoice-${order.id || 'download'}.pdf`}
+      onDownload={() => downloadInvoicePdf(order, settings)}
+      onPrint={() => printInvoicePdf(order, settings)}
+      onClose={onClose}
+    />
+  );
+}
+
+function PackSlipPreviewModal({ order, settings, onClose }) {
+  const [url, setUrl] = React.useState('');
+  React.useEffect(() => {
+    let u = null;
+    let alive = true;
+    packingSlipUrl(order, settings).then((v) => {
+      if (!alive) { URL.revokeObjectURL(v); return; }
+      u = v;
+      setUrl(v);
+    });
+    return () => {
+      alive = false;
+      if (u) URL.revokeObjectURL(u);
+    };
+  }, [order, settings]);
+  if (!order) return null;
+  return (
+    <PdfViewer
+      title={`Packing slip — ${order.id}`}
+      subtitle="Pick list for the warehouse"
+      url={url}
+      fileName={`packing-slip-${order.id || 'download'}.pdf`}
+      onDownload={() => downloadPackingSlip(order, settings)}
+      onPrint={() => printPackingSlip(order, settings)}
+      onClose={onClose}
+    />
   );
 }
 
@@ -348,6 +360,7 @@ export default function Admin() {
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [slipOrder, setSlipOrder] = useState(null);
   const [s, setS] = useState(settings);
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
@@ -819,7 +832,7 @@ export default function Admin() {
               user={user}
               onUpdate={(o, status, opts) => updateOrderStatus(o.id, status, statusMeta(status).label, opts)}
               onInvoice={(o) => setInvoiceOrder(o)}
-              onPackSlip={(o) => downloadPackingSlip(o, settings)}
+              onPackSlip={(o) => setSlipOrder(o)}
             />
           )}
         </section>
@@ -1208,6 +1221,14 @@ export default function Admin() {
         />
       )}
 
+      {slipOrder && (
+        <PackSlipPreviewModal
+          order={slipOrder}
+          settings={settings}
+          onClose={() => setSlipOrder(null)}
+        />
+      )}
+
       {sizeGuideOpen && (
         <SizeGuide
           editable
@@ -1360,6 +1381,8 @@ function OrdersReport({ orders, settings }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState('');
+  const [previewName, setPreviewName] = React.useState('');
 
   const filtered = filterOrdersByRange(orders, from, to);
   const completed = filtered.filter((o) => o.status !== "cancelled");
@@ -1373,11 +1396,32 @@ function OrdersReport({ orders, settings }) {
     setTo(now.toISOString().slice(0, 10));
   };
 
+  const reportOpts = () => ({ from, to, storeName: settings?.storeName });
+
+  const closePreview = React.useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl('');
+    setPreviewName('');
+  }, [previewUrl]);
+
+  const openPreview = () => {
+    if (busy || !filtered.length) return;
+    setBusy(true);
+    try {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const url = ordersReportPdfUrl(filtered, reportOpts());
+      setPreviewName(ordersReportFileName(reportOpts()));
+      setPreviewUrl(url);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const download = () => {
     if (busy || !filtered.length) return;
     setBusy(true);
     try {
-      downloadOrdersReportPdf(filtered, { from, to, storeName: settings?.storeName });
+      downloadOrdersReportPdf(filtered, reportOpts());
     } finally {
       setBusy(false);
     }
@@ -1406,6 +1450,15 @@ function OrdersReport({ orders, settings }) {
             {from || to ? <span className="muted"> (filtered)</span> : ''}
           </div>
           <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginTop: 6, marginRight: 8 }}
+            disabled={busy || !filtered.length}
+            onClick={openPreview}
+            title={filtered.length ? 'Preview the orders report fullscreen' : 'No orders in this date range'}
+          >
+            👁 Preview
+          </button>
+          <button
             className="btn btn-gold btn-sm"
             style={{ marginTop: 6 }}
             disabled={busy || !filtered.length}
@@ -1420,6 +1473,17 @@ function OrdersReport({ orders, settings }) {
         <p className="muted tiny" style={{ margin: '10px 0 0 0' }}>
           Range: {from || 'beginning'} → {to || 'today'}. The PDF includes every order in this range with a revenue total.
         </p>
+      ) : null}
+      {previewUrl ? (
+        <PdfViewer
+          title="Orders report"
+          subtitle={`${filtered.length} orders · ${from || 'beginning'} → ${to || 'today'}`}
+          url={previewUrl}
+          fileName={previewName || 'orders-report.pdf'}
+          onDownload={download}
+          onPrint={() => printOrdersReportPdf(filtered, reportOpts())}
+          onClose={closePreview}
+        />
       ) : null}
     </div>
   );

@@ -3,9 +3,10 @@ import { useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf, packingSlipUrl, downloadPackingSlip } from '../utils/invoicePdf.js';
+import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf, packingSlipUrl, downloadPackingSlip, printPackingSlip } from '../utils/invoicePdf.js';
 import { FLOW, statusMeta, payMeta, nextStatuses, flowStepIndex, ROLE_LABELS, REQUIRED_FIELDS } from '../orderFlow.js';
 import { bookDelhiveryShipment, fetchDelhiveryTrack, isDelhiveryOrder, scansStale } from '../utils/delhivery.js';
+import PdfViewer from '../components/PdfViewer.jsx';
 
 export default function OrderManage() {
   const { user, isStaff } = useAuth();
@@ -490,42 +491,28 @@ export default function OrderManage() {
   const [url, setUrl] = useState('');
   React.useEffect(() => {
     let u = null;
+    let alive = true;
     invoicePdfUrl(order, settings).then((v) => {
+      if (!alive) { URL.revokeObjectURL(v); return; }
       u = v;
       setUrl(v);
     });
     return () => {
+      alive = false;
       if (u) URL.revokeObjectURL(u);
     };
   }, [order, settings]);
+  if (!order) return null;
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-card invoice-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 860 }}>
-        <div className="modal-head">
-          <h2>Invoice — {order.id}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div style={{ padding: 16 }}>
-          <div className="row-gap" style={{ marginBottom: 12 }}>
-            <span className="muted">{formatDateTime(order.orderDate)} · {formatINR(order.total)}</span>
-            <span style={{ flex: 1 }} />
-            <button type="button" className="btn btn-sm btn-gold" onClick={() => downloadInvoicePdf(order, settings)}>
-              ⬇ Download PDF
-            </button>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
-          </div>
-          {url ? (
-            <iframe
-              title={`Invoice ${order.id}`}
-              src={url}
-              style={{ width: '100%', height: 520, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }}
-            />
-          ) : (
-            <p className="muted">Preparing PDF…</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <PdfViewer
+      title={`Invoice — ${order.id}`}
+      subtitle={`${formatDateTime(order.orderDate)} · ${formatINR(order.total)}`}
+      url={url}
+      fileName={`invoice-${order.id || 'download'}.pdf`}
+      onDownload={() => downloadInvoicePdf(order, settings)}
+      onPrint={() => printInvoicePdf(order, settings)}
+      onClose={onClose}
+    />
   );
 }
 
@@ -533,41 +520,27 @@ function PackSlipModal({ order, settings, onClose }) {
   const [url, setUrl] = useState('');
   React.useEffect(() => {
     let u = null;
+    let alive = true;
     packingSlipUrl(order, settings).then((v) => {
+      if (!alive) { URL.revokeObjectURL(v); return; }
       u = v;
       setUrl(v);
     });
     return () => {
+      alive = false;
       if (u) URL.revokeObjectURL(u);
     };
   }, [order, settings]);
+  if (!order) return null;
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-card invoice-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
-        <div className="modal-head">
-          <h2>Packing slip — {order.id}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div style={{ padding: 16 }}>
-          <div className="row-gap" style={{ marginBottom: 12 }}>
-            <span className="muted">Pick list for the warehouse</span>
-            <span style={{ flex: 1 }} />
-            <button type="button" className="btn btn-sm btn-gold" onClick={() => downloadPackingSlip(order, settings)}>
-              ⬇ Download PDF
-            </button>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
-          </div>
-          {url ? (
-            <iframe
-              title={`Packing slip ${order.id}`}
-              src={url}
-              style={{ width: '100%', height: 520, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }}
-            />
-          ) : (
-            <p className="muted">Preparing PDF…</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <PdfViewer
+      title={`Packing slip — ${order.id}`}
+      subtitle="Pick list for the warehouse"
+      url={url}
+      fileName={`packing-slip-${order.id || 'download'}.pdf`}
+      onDownload={() => downloadPackingSlip(order, settings)}
+      onPrint={() => printPackingSlip(order, settings)}
+      onClose={onClose}
+    />
   );
 }

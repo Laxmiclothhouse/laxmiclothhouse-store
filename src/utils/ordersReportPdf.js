@@ -28,6 +28,73 @@ export function filterOrdersByRange(orders, from, to) {
 
 /** Build + download the branded PDF report for the given orders. */
 export function downloadOrdersReportPdf(orders, opts = {}) {
+  const { blob, fileName } = buildOrdersReportPdf(orders, opts);
+  triggerBlobDownload(blob, fileName);
+}
+
+/** Returns an object URL for in-browser preview. Caller must revoke it. */
+export function ordersReportPdfUrl(orders, opts = {}) {
+  const { blob } = buildOrdersReportPdf(orders, opts);
+  return URL.createObjectURL(blob);
+}
+
+/** Opens the orders-report PDF in a hidden same-origin frame and prints it. */
+export function printOrdersReportPdf(orders, opts = {}) {
+  const { blob, fileName } = buildOrdersReportPdf(orders, opts);
+  openPdfForPrint(blob, fileName);
+}
+
+/** File name used by download / preview / print of the orders report. */
+export function ordersReportFileName(opts = {}) {
+  const stamp = `${opts.from || "start"}_to_${opts.to || "today"}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
+  return `orders-report_${stamp}.pdf`;
+}
+
+/** Download any Blob PDF with the given file name (revokes the object URL). */
+export function triggerBlobDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName || "document.pdf";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/** Print a Blob PDF via a hidden same-origin iframe (falls back to a new tab). */
+export function openPdfForPrint(blob, title) {
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement("iframe");
+  frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  frame.title = title || "document";
+  let done = false;
+  const finish = (opened) => {
+    if (done) return;
+    done = true;
+    if (opened !== false) {
+      try {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      } catch {
+        window.open(url, "_blank", "noopener");
+      }
+    }
+    window.setTimeout(() => {
+      try { frame.remove(); } catch { /* already gone */ }
+      URL.revokeObjectURL(url);
+    }, 4000);
+  };
+  frame.onload = () => finish(true);
+  frame.onerror = () => finish(false);
+  document.body.appendChild(frame);
+  frame.src = url;
+  // If the blob never loads (blocked iframe), still give the user the PDF.
+  window.setTimeout(() => finish(true), 8000);
+}
+
+/** Build the branded PDF report; returns { blob, fileName } (no download). */
+export function buildOrdersReportPdf(orders, opts = {}) {
   const list = (orders || [])
     .slice()
     .sort((a, b) => new Date(b.orderDate || 0) - new Date(a.orderDate || 0));
@@ -210,8 +277,9 @@ export function downloadOrdersReportPdf(orders, opts = {}) {
     doc.text(`Page ${p} of ${pages}`, W - M, H - 7, { align: "right" });
   }
 
-  const stamp = `${opts.from || "start"}_to_${opts.to || "today"}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
-  doc.save(`orders-report_${stamp}.pdf`);
+  const fileName = ordersReportFileName(opts);
+  const buf = doc.output("arraybuffer");
+  return { blob: new Blob([buf], { type: "application/pdf" }), fileName };
 }
 
 const STORE_LABEL = (storeName) => String(storeName || "Laxmiclothhouse").toUpperCase();
