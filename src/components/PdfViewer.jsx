@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * PdfViewer — fullscreen in-app PDF preview.
@@ -59,10 +60,10 @@ export default function PdfViewer({ title, subtitle, url, fileName, onDownload, 
     a.remove();
   };
 
-  return (
+  return createPortal(
     <div className="pdf-viewer" role="dialog" aria-modal="true" aria-label={title}>
       <div className="pdf-bar">
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onClose} aria-label="Go back">
+        <button type="button" className="btn btn-sm btn-ghost pdf-back" onClick={onClose} aria-label="Go back">
           ← Back
         </button>
         <div className="pdf-title">
@@ -91,6 +92,7 @@ export default function PdfViewer({ title, subtitle, url, fileName, onDownload, 
           <p className="muted pdf-loading">Preparing PDF…</p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

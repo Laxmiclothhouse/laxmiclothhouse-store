@@ -716,8 +716,10 @@ p { margin: 0 0 .8em; }
 }
 
 /* ── Fullscreen PDF viewer (invoice / slip / report) ── */
+/* Portal-mounted on <body> so it paints above the sticky navbar (z 60),
+   drawer scrim (100), modals (200) and toasts (200). */
 .pdf-viewer {
-  position: fixed; inset: 0; z-index: 400;
+  position: fixed; inset: 0; z-index: 1000;
   display: flex; flex-direction: column;
   background: #2b2226; color: #fff;
   animation: fadeIn .18s ease;
