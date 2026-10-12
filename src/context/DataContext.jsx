@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { db } from '../db.js';
+import { variantKey } from '../utils/stock.js';
 import { listenFromFirestore } from '../db.js';
 
 const DataContext = createContext(null);
@@ -304,11 +305,25 @@ export function DataProvider({ children }) {
     (items || []).forEach((it) => {
       if (!it || !it.id) return;
       const q = Math.max(0, Number(it.qty) || 1);
-      next = next.map((p) =>
-        p.id === it.id
-          ? { ...p, stock: Math.max(0, Number(p.stock || 0) + delta * q) }
-          : p
-      );
+      const key = variantKey(it.colorName || it.color, it.size);
+      next = next.map((p) => {
+        if (p.id !== it.id) return p;
+        const map = p.stockByVariant && typeof p.stockByVariant === 'object' && !Array.isArray(p.stockByVariant)
+          ? { ...p.stockByVariant }
+          : {};
+        // Only touch the variant cell when the admin set explicit
+        // per-variant stock; otherwise the legacy total is the truth.
+        if (Object.prototype.hasOwnProperty.call(map, key)) {
+          map[key] = Math.max(0, Number(map[key] || 0) + delta * q);
+        } else if (key !== '::') {
+          map[key] = Math.max(0, Number(p.stock || 0) + delta * q);
+        }
+        return {
+          ...p,
+          stock: Math.max(0, Number(p.stock || 0) + delta * q),
+          ...(key === '::' ? {} : { stockByVariant: map }),
+        };
+      });
     });
     if (next !== products) {
       setProducts(next);

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR } from '../utils/format.js';
+import { getVariantStock } from '../utils/stock.js';
 
 export default function CartDrawer({ open, onClose }) {
   const { cart, updateQty, removeItem, subtotal } = useCart();
@@ -40,8 +41,9 @@ export default function CartDrawer({ open, onClose }) {
             <ul className="drawer-items">
               {cart.map((c) => {
                 const pc = products.find((x) => x.id === c.id);
-                const over = pc && typeof pc.stock === 'number' && c.qty > pc.stock;
-                const left = pc && typeof pc.stock === 'number' ? pc.stock : null;
+                const vleft = pc ? getVariantStock(pc, c.colorName || c.color, c.size) : null;
+                const over = vleft !== null && c.qty > vleft;
+                const left = vleft;
                 return (
                 <li key={c.key} className="drawer-item">
                   <img src={c.image} alt={c.name} />

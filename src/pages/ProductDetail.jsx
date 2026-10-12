@@ -7,6 +7,7 @@ import { useWishlist } from '../context/WishlistContext.jsx';
 import { formatINR, formatDate } from '../utils/format.js';
 import { normalizeColors, imagesForColor, firstImageForColor } from '../utils/colors.js';
 import { normalizeSizes } from '../utils/sizes.js';
+import { getVariantStock, getTotalVariantStock, getColorStock } from '../utils/stock.js';
 import Stars from '../components/Stars.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
@@ -74,7 +75,12 @@ export default function ProductDetail() {
     );
   }
 
-  const soldOut = !product || product.stock <= 0;
+  const selectedStock = product ? getVariantStock(product, color, size) : 0;
+  const totalStock = product ? getTotalVariantStock(product, colorOptions.map((c) => c.name), sizeOptions) : 0;
+  const colorLeft = (cname) => (product ? getColorStock(product, cname, sizeOptions) : 0);
+  const soldOut = !product || (colorOptions.length > 0 || sizeOptions.length > 0 ? totalStock <= 0 : product.stock <= 0);
+  const selectionReady = (colorOptions.length === 0 || color) && (sizeOptions.length === 0 || size);
+  const selectionOut = selectionReady && selectedStock <= 0;
   const inCart = product ? cart.some((c) => c.id === product.id) : false;
   const saved = isWishlisted(product.id);
   const related = products.filter(
@@ -97,8 +103,8 @@ export default function ProductDetail() {
       setTimeout(() => setToast(''), 1800);
       return;
     }
-    if (user && typeof product.stock === 'number' && qty > product.stock) {
-      setToast(`Only ${product.stock} left in stock`);
+    if (user && selectionReady && qty > selectedStock) {
+      setToast(`Only ${selectedStock} left in stock${color ? ` (${color}${size ? `, Size ${size}` : ''})` : ''}`);
       setTimeout(() => setToast(''), 1800);
       return;
     }
@@ -218,9 +224,15 @@ export default function ProductDetail() {
               </>
             )}
           </div>
-          <p className={`stock-line ${soldOut ? 'out' : ''}`}>
-            {soldOut ? 'Currently out of stock' : `In stock · ${product.stock} available`}
-          </p>
+ <p className={`stock-line ${soldOut || selectionOut ? 'out' : ''}`}>
+              {soldOut
+                ? 'Currently out of stock'
+                : !selectionReady
+                  ? `In stock \u00b7 ${totalStock} available`
+                  : selectionOut
+                    ? `Out of stock${color ? ` \u2014 ${color}` : ''}${size ? ` (Size ${size})` : ''}`
+                    : `In stock \u00b7 ${selectedStock} available${color ? ` \u2014 ${color}` : ''}${size ? ` (Size ${size})` : ''}`}
+            </p>
 
           <div className="buy-row">
             <div className="qty-stepper">
@@ -228,8 +240,8 @@ export default function ProductDetail() {
               <span>{qty}</span>
               <button onClick={() => setQty(qty + 1)}>+</button>
             </div>
-            <button className="btn btn-gold" disabled={soldOut} onClick={onAdd} style={inCart ? { background: 'var(--ok)', borderColor: 'var(--ok)' } : undefined}>
-              {soldOut ? 'Sold out' : inCart ? '✓ Added' : 'Add to cart'}
+            <button className="btn btn-gold" disabled={soldOut || selectionOut} onClick={onAdd} style={inCart ? { background: 'var(--ok)', borderColor: 'var(--ok)' } : undefined}>
+              {soldOut || selectionOut ? 'Sold out' : inCart ? '✓ Added' : 'Add to cart'}
             </button>
             <button className={`btn btn-wish ${saved ? 'active' : ''}`} onClick={onWish}>
               {saved ? '♥ Saved' : '♡ Save'}
@@ -240,23 +252,27 @@ export default function ProductDetail() {
           {colorOptions.length > 0 && (
             <div className="size-picker">
               <span className="size-label">Colour{color ? `: ${color}` : ''}:</span>
-              {colorOptions.map((c) => (
+              {colorOptions.map((c) => {
+                const left = colorLeft(c.name);
+                return (
                 <button
                   key={c.name}
                   type="button"
                   className={`color-opt${color === c.name ? ' active' : ''}`}
                   onClick={() => { setColor(c.name); setActiveIndex(0); }}
+                  disabled={left <= 0}
                   aria-pressed={color === c.name}
-                  title={c.name}
+                  title={`${c.name} - ${left} left`}
                 >
                   <span
                     className="color-dot"
                     style={{ background: c.hex || '#9b1c3d' }}
                     aria-hidden="true"
                   />
-                  {c.name}
+                  {c.name}{left <= 9 ? ` (${left})` : ''}
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -264,17 +280,23 @@ export default function ProductDetail() {
           {sizeOptions.length > 0 && (
             <div className="size-picker">
               <span className="size-label">Size{size ? `: ${size}` : ''}:</span>
-              {sizeOptions.map((s) => (
+              {sizeOptions.map((s) => {
+                const left = getVariantStock(product, color, s);
+                const out = color ? left <= 0 : false;
+                return (
                 <button
                   key={s}
                   type="button"
                   className={`size-opt${size === s ? ' active' : ''}`}
                   onClick={() => setSize(s)}
+                  disabled={out}
                   aria-pressed={size === s}
+                  title={color ? `${color} / ${s} - ${left} left` : `${s} - ${left} left`}
                 >
-                  {s}
+                  {s}{color && left <= 9 ? ` (${left})` : ''}
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
 

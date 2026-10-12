@@ -7,9 +7,14 @@ import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { normalizeColors } from '../utils/colors.js';
 import { normalizeSizes } from '../utils/sizes.js';
+import { getTotalVariantStock } from '../utils/stock.js';
 
 export default function ProductCard({ product }) {
-  const soldOut = product.stock <= 0;
+  const colorNames = colorOptions.map((c) => c.name);
+  const totalStock = (colorOptions.length > 0 || sizeOptions.length > 0)
+    ? getTotalVariantStock(product, colorNames, sizeOptions)
+    : product.stock;
+  const soldOut = totalStock <= 0;
   const { user } = useAuth();
   const { isWishlisted, toggle } = useWishlist();
   const { ratingFor, getSalePrice } = useData();

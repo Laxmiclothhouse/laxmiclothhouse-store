@@ -1752,3 +1752,8 @@ p { margin: 0 0 .8em; }
   padding: 1px 7px;
   background: #fafafa;
 }
+
+.size-opt:disabled, .color-opt:disabled { opacity: .45; cursor: not-allowed; }
+/* ── Admin stock matrix ───────────────────────────── */
+.stock-matrix input[type="number"] { width: 76px; }
+.stock-matrix th:first-child, .stock-matrix td:first-child { white-space: nowrap; }

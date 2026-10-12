@@ -35,6 +35,8 @@ const emptyForm = {
   customImages: [],
   // Colour variants: [{ name, hex, images: [] }]
   colors: [],
+  // Per-variant stock cells: { "ORANGE::S": 5 }
+  stockByVariant: {},
 };
 
 // ── Delhivery rate card ⇄ compact text ──────────────────────
@@ -353,6 +355,90 @@ function StaffRoleForm({ setUserRole, searchUsers, fetchUserByUid }) {
   );
 }
 
+// ── Per-variant stock matrix (admin) ──────────────────
+// One number input per Colour × Size cell, e.g. Orange/S = 5.
+// Empty cell = falls back to the main Stock above. Renames follow the
+// colour/size names (keyed case-insensitively), so editing names keeps numbers.
+function StockMatrix({ form, setForm }) {
+  const colorNames = (form.colors || [])
+    .map((c) => String(c?.name || '').trim())
+    .filter(Boolean);
+  const sizeNames = (form.sizes || [])
+    .map((s) => String(s || '').trim().toUpperCase())
+    .filter(Boolean);
+  if (colorNames.length === 0 && sizeNames.length === 0) return null;
+
+  const map = form.stockByVariant && typeof form.stockByVariant === 'object'
+    ? form.stockByVariant
+    : {};
+  const key = (c, s) =>
+    `${String(c || '').trim().toUpperCase()}::${String(s || '').trim().toUpperCase()}`;
+
+  const setCell = (c, s, raw) => {
+    const k = key(c, s);
+    setForm((f) => {
+      const prev = f.stockByVariant && typeof f.stockByVariant === 'object'
+        ? { ...f.stockByVariant }
+        : {};
+      if (raw === '' || raw === null || raw === undefined) {
+        delete prev[k]; // blank = use main Stock
+      } else {
+        const n = Math.floor(Number(raw));
+        if (!Number.isFinite(n) || n < 0) return f;
+        prev[k] = n;
+      }
+      return { ...f, stockByVariant: prev };
+    });
+  };
+
+  const cellVal = (c, s) => {
+    const k = key(c, s);
+    return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : '';
+  };
+
+  const rows = colorNames.length > 0 ? colorNames : [''];
+  const cols = sizeNames.length > 0 ? sizeNames : [''];
+
+  return (
+    <div className="sizes-box">
+      <label style={{ display: 'block', marginBottom: 4 }}>Stock per colour × size</label>
+      <div className="table-scroll">
+        <table className="table stock-matrix">
+          <thead>
+            <tr>
+              <th>Colour \ Size</th>
+              {cols.map((s) => <th key={s || 'free'}>{s || 'Free size'}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c) => (
+              <tr key={c || 'nocolor'}>
+                <td><strong>{c || '(no colour)'}</strong></td>
+                {cols.map((s) => (
+                  <td key={(c || 'nocolor') + '::' + (s || 'free')}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder={String(form.stock ?? '')}
+                      value={cellVal(c, s)}
+                      onChange={(e) => setCell(c, s, e.target.value)}
+                      aria-label={`Stock for ${c || 'no colour'} size ${s || 'free size'}`}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <span className="muted tiny">
+        Example: Orange / S = 5. Leave a cell blank to use the main Stock value above.
+      </span>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
@@ -544,6 +630,15 @@ export default function Admin() {
       mrp: Number(form.mrp) || Math.round(Number(form.price) * 1.25 / 10) * 10,
       sizes: (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean),
       colors,
+      stockByVariant: (() => {
+        const out = {};
+        const src = form.stockByVariant && typeof form.stockByVariant === 'object' ? form.stockByVariant : {};
+        for (const k of Object.keys(src)) {
+          const n = Number(src[k]);
+          if (Number.isFinite(n) && n >= 0) out[k] = Math.floor(n);
+        }
+        return out;
+      })(),
       image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
       images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
       shippingCost: Number(form.shippingCost) || 0,
@@ -575,6 +670,7 @@ export default function Admin() {
       paymentMethods: p.paymentMethods || ['upi', 'card', 'cod'],
       sizes: p.sizes || [],
       customImages: p.images || (p.image ? [p.image] : []),
+      stockByVariant: p.stockByVariant && typeof p.stockByVariant === 'object' ? { ...p.stockByVariant } : {},
       colors: Array.isArray(p.colors)
         ? p.colors.map((c) => ({
             name: c?.name || '',
@@ -784,6 +880,8 @@ export default function Admin() {
                 <label>MRP (₹)<input type="number" min="0" value={form.mrp} onChange={set('mrp')} placeholder="Optional" /></label>
                 <label>Stock<input type="number" min="0" value={form.stock} onChange={set('stock')} /></label>
               </div>
+              {/* ── Stock per colour × size ─────────────── */}
+              <StockMatrix form={form} setForm={setForm} />
               <div className="grid2">
                 <label>Image tint<input type="color" value={form.color} onChange={set('color')} /></label>
                 <label className="inline-check">
@@ -970,7 +1068,7 @@ export default function Admin() {
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
                       <td>{formatINR(p.price)}</td>
-                      <td>{p.stock}</td>
+                      <td>{p.stock}{p.stockByVariant && Object.keys(p.stockByVariant).length > 0 ? ' *' : ''}</td>
                       <td>{p.featured ? '★' : '—'}</td>
                       <td className="row-gap">
                         <button className="btn btn-sm" onClick={() => startEdit(p)}>Edit</button>

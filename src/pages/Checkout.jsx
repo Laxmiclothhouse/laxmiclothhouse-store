@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { useCartWeightGrams } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getVariantStock } from '../utils/stock.js';
 import { formatINR } from '../utils/format.js';
 import { payWithRazorpay } from '../utils/razorpay.js';
 
@@ -379,12 +380,16 @@ export default function Checkout() {
     // Hard stock guard: block the order when any cart qty exceeds available stock.
     const stockIssue = cart.find((c) => {
       const p = products.find((x) => x.id === c.id);
-      return p && typeof p.stock === 'number' && c.qty > p.stock;
+      if (!p) return false;
+      const left = getVariantStock(p, c.colorName || c.color, c.size);
+      return c.qty > left;
     });
     if (stockIssue) {
-      const left = products.find((x) => x.id === stockIssue.id)?.stock || 0;
+      const p = products.find((x) => x.id === stockIssue.id);
+      const left = p ? getVariantStock(p, stockIssue.colorName || stockIssue.color, stockIssue.size) : 0;
+      const variant = [stockIssue.colorName || stockIssue.color, stockIssue.size ? `Size ${stockIssue.size}` : ''].filter(Boolean).join(' · ');
       return setErr(
-        `Only ${left} left in stock of "${stockIssue.name}" (you have ${stockIssue.qty} in the cart). Please reduce the quantity or remove it.`
+        `Only ${left} left in stock of "${stockIssue.name}"${variant ? ` (${variant})` : ''} (you have ${stockIssue.qty} in the cart). Please reduce the quantity or remove it.`
       );
     }
 
