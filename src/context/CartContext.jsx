@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { db } from '../db.js';
+import { firstImageForColor } from '../utils/colors.js';
 
 const CartContext = createContext(null);
 
@@ -12,6 +13,7 @@ export function CartProvider({ children }) {
   };
 
   const addItem = (product, qty = 1, size = '', salePrice = null, colorName = '') => {
+    const lineImage = firstImageForColor(product, colorName) || product.image;
     const key = `${product.id}::${String(size || '').toUpperCase()}::${String(colorName || '').toUpperCase()}`;
     const effectivePrice = salePrice !== null && salePrice !== undefined ? salePrice : product.price;
     let next;
@@ -28,7 +30,7 @@ export function CartProvider({ children }) {
           id: product.id,
           name: product.name,
           price: effectivePrice,
-          image: product.image,
+          image: lineImage,
           color: colorName || product.color,
           colorName: colorName || '',
           size: String(size || ''),

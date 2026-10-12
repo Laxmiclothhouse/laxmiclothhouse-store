@@ -5,7 +5,7 @@ import Stars from './Stars.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
-import { normalizeColors } from '../utils/colors.js';
+import { normalizeColors, displayImage } from '../utils/colors.js';
 import { normalizeSizes } from '../utils/sizes.js';
 import { getTotalVariantStock } from '../utils/stock.js';
 
@@ -29,15 +29,10 @@ export default function ProductCard({ product }) {
   // above the selling price is ordinary shop pricing, not a running sale.
   const onSale = sale.hasSale;
 
-  // First usable image URL (older rows only carry "image"; some entries are
-  // blank). failedSrc remembers which URL failed to load so we swap in the
-  // "No image" placeholder instead of a broken-image icon.
-  const imgSrc =
-    (Array.isArray(product.images)
-      ? product.images.find((s) => typeof s === 'string' && s.trim())
-      : null) ||
-    (typeof product.image === 'string' && product.image.trim()) ||
-    '';
+  // Display photo: main image first; when the admin left the main
+  // gallery empty, show the first colour's first photo; when there is
+  // no photo anywhere, imgSrc is '' and the "No image" tile renders.
+  const imgSrc = displayImage(product);
   const [failedSrc, setFailedSrc] = React.useState(null);
   // The admin auto-fills a generated gradient letter-tile (data:image/svg+xml
   // SVG from db.js productImage()) whenever a product has no uploaded photo.

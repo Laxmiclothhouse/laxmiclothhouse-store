@@ -37,23 +37,63 @@ export function hasColorVariants(product) {
  * product.images / product.image when the variant has no images
  * or when no colour is selected.
  */
-export function imagesForColor(product, colorName) {
-  const legacy = (Array.isArray(product?.images) && product.images.length > 0
+function legacyGallery(product) {
+  return (Array.isArray(product?.images) && product.images.length > 0
     ? product.images
     : product?.image
       ? [product.image]
       : []
   ).filter((u) => typeof u === 'string' && u.trim() !== '');
-  if (!colorName) return legacy;
-  const v = normalizeColors(product).find(
-    (c) => c.name.toLowerCase() === String(colorName).trim().toLowerCase()
-  );
-  if (!v) return legacy;
-  return v.images.length > 0 ? v.images : legacy;
+}
+
+/**
+ * Images to show for a selected colour.
+ *  - colour chosen  → that colour's photos (may be empty → caller shows "No image")
+ *  - no colour yet  → legacy main gallery, else first colour's photos, else empty
+ */
+export function imagesForColor(product, colorName) {
+  if (colorName) {
+    const v = normalizeColors(product).find(
+      (c) => c.name.toLowerCase() === String(colorName).trim().toLowerCase()
+    );
+    if (v) return v.images;
+    return legacyGallery(product);
+  }
+  const main = legacyGallery(product);
+  if (main.length > 0) return main;
+  for (const c of normalizeColors(product)) {
+    if (c.images.length > 0) return c.images;
+  }
+  return [];
 }
 
 /** First usable image for a colour variant (for cart thumbnails). */
 export function firstImageForColor(product, colorName) {
   const imgs = imagesForColor(product, colorName);
-  return imgs.length > 0 ? imgs[0] : (product?.image || '');
+  if (imgs.length > 0) return imgs[0];
+  return displayImage(product);
+}
+
+/**
+ * Display image for product cards / detail hero.
+ *
+ * Priority:
+ *  1. Legacy main image — first non-blank entry of product.images,
+ *     else product.image.
+ *  2. First colour variant that has photos (first colour, first image).
+ *  3. '' — caller renders the "No image" placeholder.
+ */
+export function displayImage(product) {
+  if (!product) return '';
+  const clean = (u) => typeof u === 'string' && u.trim() !== '' ? u : '';
+  if (Array.isArray(product.images)) {
+    const found = product.images.map(clean).find(Boolean);
+    if (found) return found;
+  }
+  const main = clean(product.image);
+  if (main) return main;
+  for (const c of normalizeColors(product)) {
+    if (c.images.length > 0) return c.images[0];
+  }
+  return '';
 }
