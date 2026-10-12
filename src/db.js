@@ -66,29 +66,7 @@ function uid(prefix = '') {
   );
 }
 
-// ---- Product image placeholder (data URI) -------------------
-export function productImage(label, color = '#9b1c3d') {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='750'>
-    <defs>
-      <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
-        <stop offset='0' stop-color='${color}'/>
-        <stop offset='1' stop-color='#000' stop-opacity='0.65'/>
-      </linearGradient>
-    </defs>
-    <rect width='100%' height='100%' fill='url(#g)'/>
-    <g fill='rgba(255,255,255,0.14)'>
-      <circle cx='90' cy='120' r='70'/><circle cx='510' cy='640' r='110'/>
-      <path d='M0 520 Q150 420 300 540 T600 520 L600 750 L0 750 Z'/>
-    </g>
-    <text x='50%' y='50%' font-family="Georgia, serif" font-size='52' fill='#fff'
-      text-anchor='middle' dominant-baseline='middle' font-weight='bold'>${label}</text>
-  </svg>`;
-  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-}
-
 // ---- Product seeds ------------------------------------------
-const PALETTE = ['#9b1c3d', '#7a1f3d', '#8a5a2b', '#5b2c6f', '#146c64', '#a24b18'];
-
 function seedProducts() {
   const names = [
     ['2D Suit', 'Classic 2D printed suit set with matching dupatta.'],
@@ -122,11 +100,10 @@ function seedProducts() {
     price: prices[i],
     mrp: Math.round(prices[i] * 1.25 / 10) * 10,
     stock: i % 4 === 2 ? 0 : 20 + i * 5,
-    color: PALETTE[i % PALETTE.length],
-    image: productImage(n[0].toUpperCase(), PALETTE[i % PALETTE.length]),
-    images: [productImage(n[0].toUpperCase(), PALETTE[i % PALETTE.length])],
+    image: '',
+    images: [],
     
-    images: [productImage(n[0].toUpperCase(), PALETTE[i % PALETTE.length])],
+    images: [],
     featured: i < 6,
     shippingCost: shipCosts[i],
     paymentMethods: payMethods[i],

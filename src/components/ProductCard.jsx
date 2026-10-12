@@ -34,19 +34,9 @@ export default function ProductCard({ product }) {
   // no photo anywhere, imgSrc is '' and the "No image" tile renders.
   const imgSrc = displayImage(product);
   const [failedSrc, setFailedSrc] = React.useState(null);
-  // The admin auto-fills a generated gradient letter-tile (data:image/svg+xml
-  // SVG from db.js productImage()) whenever a product has no uploaded photo.
-  // Customers consider that "no image" — so render the placeholder for it
-  // instead of the synthetic tile.
-  const isGeneratedTile = (src) => {
-    if (!src || !src.startsWith('data:image/svg+xml')) return false;
-    try {
-      return decodeURIComponent(src).includes('Georgia, serif');
-    } catch {
-      return true;
-    }
-  };
-  const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc && !isGeneratedTile(imgSrc);
+  // Generated tiles are already filtered out of imgSrc by displayImage();
+  // only a genuinely missing/broken photo shows the placeholder.
+  const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc;
   // One diagonal sash per card — "Sold out" wins if both states apply.
   const band = soldOut ? 'Sold out' : hasImage ? '' : 'No image';
 

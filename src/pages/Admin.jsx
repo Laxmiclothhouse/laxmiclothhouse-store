@@ -6,7 +6,7 @@ import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf, packingSlipUrl, downloadPackingSlip, printPackingSlip } from '../utils/invoicePdf.js';
 import { filterOrdersByRange, downloadOrdersReportPdf, ordersReportPdfUrl, printOrdersReportPdf, ordersReportFileName } from '../utils/ordersReportPdf.js';
 import PdfViewer from '../components/PdfViewer.jsx';
-import { productImage, db } from '../db.js';
+import { db } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
@@ -639,8 +639,8 @@ export default function Admin() {
         }
         return out;
       })(),
-      image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
-      images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
+      image: customImgs.length > 0 ? customImgs[0] : '',
+      images: customImgs.length > 0 ? customImgs : [],
       shippingCost: Number(form.shippingCost) || 0,
     };
     if (editingId) {

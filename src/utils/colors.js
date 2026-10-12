@@ -11,6 +11,25 @@
  * Normalise a product's colour variants.
  * @returns {Array<{name:string, hex:string, images:string[]}>}
  */
+/**
+ * Generated gradient letter-tiles (old db.js productImage() data-URIs)
+ * count as NO image — customers only ever see real uploaded photos or
+ * the "No image" placeholder.
+ */
+export function isGeneratedTile(src) {
+  if (typeof src !== 'string' || !src.startsWith('data:image/svg+xml')) return false;
+  try {
+    return decodeURIComponent(src).includes('Georgia, serif');
+  } catch {
+    return true;
+  }
+}
+
+/** Real photo? (non-blank, not a generated tile) */
+export function isRealPhoto(u) {
+  return typeof u === 'string' && u.trim() !== '' && !isGeneratedTile(u);
+}
+
 export function normalizeColors(product) {
   if (!product) return [];
   const raw = Array.isArray(product.colors) ? product.colors : [];
@@ -19,9 +38,7 @@ export function normalizeColors(product) {
     if (!c) continue;
     const name = String(c.name || '').trim();
     if (!name) continue;
-    const imgs = Array.isArray(c.images)
-      ? c.images.filter((u) => typeof u === 'string' && u.trim() !== '')
-      : [];
+    const imgs = Array.isArray(c.images) ? c.images.filter(isRealPhoto) : [];
     out.push({ name, hex: c.hex || '#9b1c3d', images: imgs });
   }
   return out;
@@ -38,12 +55,12 @@ export function hasColorVariants(product) {
  * or when no colour is selected.
  */
 function legacyGallery(product) {
-  return (Array.isArray(product?.images) && product.images.length > 0
+  const imgs = Array.isArray(product?.images) && product.images.length > 0
     ? product.images
     : product?.image
       ? [product.image]
-      : []
-  ).filter((u) => typeof u === 'string' && u.trim() !== '');
+      : [];
+  return imgs.filter(isRealPhoto);
 }
 
 /**
@@ -85,13 +102,11 @@ export function firstImageForColor(product, colorName) {
  */
 export function displayImage(product) {
   if (!product) return '';
-  const clean = (u) => typeof u === 'string' && u.trim() !== '' ? u : '';
   if (Array.isArray(product.images)) {
-    const found = product.images.map(clean).find(Boolean);
-    if (found) return found;
+    const found = product.images.filter(isRealPhoto);
+    if (found.length > 0) return found[0];
   }
-  const main = clean(product.image);
-  if (main) return main;
+  if (isRealPhoto(product.image)) return product.image;
   for (const c of normalizeColors(product)) {
     if (c.images.length > 0) return c.images[0];
   }
