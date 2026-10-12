@@ -58,13 +58,23 @@ export default function ProductDetail() {
     setActiveIndex((i) => (i + 1) % images.length);
   };
 
-  // Reset the gallery, qty, size and colour when opening a different product.
+  // Reset the gallery, qty and size when opening a different product.
+  // The first colour is pre-selected so its photos show immediately.
   useEffect(() => {
     setActiveIndex(0);
     setQty(1);
     setSize('');
     setColor('');
   }, [id]);
+
+  // Default to the first colour once the product loads (manual picks win).
+  useEffect(() => {
+    if (!color && product) {
+      const first = normalizeColors(product)[0];
+      if (first) setColor(first.name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   if (!product) {
     return (
