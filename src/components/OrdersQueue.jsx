@@ -192,7 +192,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                     <ul className="sum-items">
                       {o.items.slice(0, 3).map((it) => (
                         <li key={it.id || it.name}>
-                          <span>{it.name} × {it.qty}</span>
+                          <span>{it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}</span>
                           <span className="muted">{formatINR(it.price * it.qty)}</span>
                         </li>
                       ))}

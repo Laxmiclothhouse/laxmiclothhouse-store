@@ -53,7 +53,7 @@ export async function createShipment(order, pickup = {}) {
   }
 
   const ship = order.shipping || {};
-  const items = (order.items || []).map((it) => `${it.name} x${it.qty}`).join(', ');
+  const items = (order.items || []).map((it) => `${it.name}${(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''} x${it.qty}`).join(', ');
   const isCod = String(order.payment?.mode || '').toLowerCase() === 'cod' && order.payment?.status !== 'paid';
 
   const shipment = {

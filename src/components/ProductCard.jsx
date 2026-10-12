@@ -5,6 +5,7 @@ import Stars from './Stars.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
+import { normalizeColors } from '../utils/colors.js';
 
 export default function ProductCard({ product }) {
   const soldOut = product.stock <= 0;
@@ -14,6 +15,7 @@ export default function ProductCard({ product }) {
   const nav = useNavigate();
   const saved = isWishlisted(product.id);
   const rating = ratingFor(product.id);
+  const colorOptions = normalizeColors(product);
   const sale = getSalePrice(product);
   // Only an admin-created sale counts as "on sale" — a struck-through MRP
   // above the selling price is ordinary shop pricing, not a running sale.
@@ -117,6 +119,16 @@ export default function ProductCard({ product }) {
         {product.shippingCost === 0 && (
           <div className="pc-meta-row">
             <span className="ship-badge">Free ship</span>
+          </div>
+        )}
+        {colorOptions.length > 0 && (
+          <div className="pc-colors" title={colorOptions.map((c) => c.name).join(', ')}>
+            {colorOptions.slice(0, 5).map((c) => (
+              <span key={c.name} className="color-dot sm" style={{ background: c.hex || '#9b1c3d' }} title={c.name} />
+            ))}
+            {colorOptions.length > 5 && (
+              <span className="muted tiny">+{colorOptions.length - 5}</span>
+            )}
           </div>
         )}
         {rating.count > 0 && (

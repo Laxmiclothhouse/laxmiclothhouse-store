@@ -14,7 +14,7 @@ export function invoiceLines(order, settings) {
   const s = settings || {};
   const items = (order?.items || []).map((it) => ({
     name: it.name,
-    size: it.size || it.variant || "",
+    size: [it.colorName || it.color, it.size || it.variant || ""].filter(Boolean).join(" / "),
     qty: it.qty || 1,
     price: Number(it.price || 0),
     total: Number(it.price || 0) * (it.qty || 1),
@@ -444,7 +444,7 @@ async function buildPackingSlip(order, settings) {
   doc.text(M, y, "Packer checklist — tick each piece as it goes in:");
   y += 6;
   for (const it of L.items) {
-    const sizeText = it.size ? ` (Size ${it.size})` : "";
+    const sizeText = it.size ? ` (${it.size})` : "";
     const label = `☐  ${it.name}${sizeText} × ${it.qty}`;
     const labelLines = wraps(doc, label, CW - 6, 9);
     if (y + labelLines.length * 4.2 > H - 40) {

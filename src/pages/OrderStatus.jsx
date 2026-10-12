@@ -294,7 +294,7 @@ export default function OrderStatus() {
               <h3>Items</h3>
               <ul className="sum-items">
                 {order.items.map((it) => (
-                  <li key={it.id}><span>{it.name} × {it.qty}</span><span>{formatINR(it.price * it.qty)}</span></li>
+                  <li key={it.id}><span>{it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}</span><span>{formatINR(it.price * it.qty)}</span></li>
                 ))}
               </ul>
               <div className="sum-lines">

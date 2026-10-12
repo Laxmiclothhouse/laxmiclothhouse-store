@@ -33,6 +33,8 @@ const emptyForm = {
   paymentMethods: ['upi', 'card', 'cod'],
   sizes: [],
   customImages: [],
+  // Colour variants: [{ name, hex, images: [] }]
+  colors: [],
 };
 
 // ── Delhivery rate card ⇄ compact text ──────────────────────
@@ -528,11 +530,20 @@ export default function Admin() {
       return;
     }
     const customImgs = form.customImages.filter((img) => img && img.trim() !== '');
+    // Colour variants: keep only rows with a name; drop blank image slots.
+    const colors = (form.colors || [])
+      .map((c) => ({
+        name: String(c?.name || '').trim(),
+        hex: c?.hex || '#9b1c3d',
+        images: Array.isArray(c?.images) ? c.images.filter((u) => u && String(u).trim() !== '') : [],
+      }))
+      .filter((c) => c.name !== '');
     const data = {
       ...form,
       price: Number(form.price),
       mrp: Number(form.mrp) || Math.round(Number(form.price) * 1.25 / 10) * 10,
       sizes: (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean),
+      colors,
       image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
       images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
       shippingCost: Number(form.shippingCost) || 0,
@@ -564,8 +575,85 @@ export default function Admin() {
       paymentMethods: p.paymentMethods || ['upi', 'card', 'cod'],
       sizes: p.sizes || [],
       customImages: p.images || (p.image ? [p.image] : []),
+      colors: Array.isArray(p.colors)
+        ? p.colors.map((c) => ({
+            name: c?.name || '',
+            hex: c?.hex || '#9b1c3d',
+            images: Array.isArray(c?.images) ? [...c.images] : [],
+          }))
+        : [],
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ── Colour-variant editor helpers ──────────────────────────
+  const addColorRow = () => {
+    setForm((f) => ({
+      ...f,
+      colors: [...(f.colors || []), { name: '', hex: '#9b1c3d', images: [] }],
+    }));
+  };
+
+  const setColorField = (idx, field, value) => {
+    setForm((f) => ({
+      ...f,
+      colors: (f.colors || []).map((c, i) => (i === idx ? { ...c, [field]: value } : c)),
+    }));
+  };
+
+  const removeColorRow = (idx) => {
+    setForm((f) => ({ ...f, colors: (f.colors || []).filter((_, i) => i !== idx) }));
+  };
+
+  const handleColorImageUpload = (idx, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const accepted = files.filter(
+      (file) => file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
+    );
+    if (accepted.length === 0) {
+      setMsg('Only image files under 5MB are allowed.');
+      setTimeout(() => setMsg(''), 2500);
+      e.target.value = '';
+      return;
+    }
+    Promise.all(accepted.map(readAsDataURL))
+      .then((urls) => {
+        setForm((f) => ({
+          ...f,
+          colors: (f.colors || []).map((c, i) =>
+            i === idx ? { ...c, images: [...(c.images || []), ...urls] } : c
+          ),
+        }));
+      })
+      .catch(() => {
+        setMsg('Failed to read the selected image file(s).');
+        setTimeout(() => setMsg(''), 2500);
+      });
+    e.target.value = '';
+  };
+
+  const removeColorImage = (colorIdx, imgIdx) => {
+    setForm((f) => ({
+      ...f,
+      colors: (f.colors || []).map((c, i) =>
+        i === colorIdx
+          ? { ...c, images: (c.images || []).filter((_, j) => j !== imgIdx) }
+          : c
+      ),
+    }));
+  };
+
+  const addColorImageUrl = (idx, url) => {
+    const clean = String(url || '').trim();
+    if (!clean || !(clean.startsWith('http') || clean.startsWith('data:'))) return false;
+    setForm((f) => ({
+      ...f,
+      colors: (f.colors || []).map((c, i) =>
+        i === idx ? { ...c, images: [...(c.images || []), clean] } : c
+      ),
+    }));
+    return true;
   };
 
   const togglePayMethod = (id) => {
@@ -746,6 +834,91 @@ export default function Admin() {
                   </div>
                   <span className="muted tiny">Uncheck to disable a method for this product.</span>
                 </div>
+              </div>
+
+              {/* ── Colour variants (per-colour photos) ─────────────── */}
+              <div className="sizes-box">
+                <label style={{ display: 'block', marginBottom: 4 }}>Colours for this product</label>
+                {(form.colors || []).length > 0 ? (
+                  (form.colors || []).map((c, idx) => (
+                    <div key={idx} className="color-row">
+                      <div className="color-row-top">
+                        <label>Colour name
+                          <input
+                            value={c.name || ''}
+                            onChange={(e) => setColorField(idx, 'name', e.target.value)}
+                            placeholder="e.g. Orange"
+                          />
+                        </label>
+                        <label className="color-swatch-pick">Swatch
+                          <input
+                            type="color"
+                            value={c.hex || '#9b1c3d'}
+                            onChange={(e) => setColorField(idx, 'hex', e.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-sm danger"
+                          onClick={() => removeColorRow(idx)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <label className="color-upload">Upload {c.name ? `${c.name} ` : ''}photos
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={(e) => handleColorImageUpload(idx, e)}
+                        />
+                      </label>
+                      {(c.images || []).length > 0 && (
+                        <div className="img-preview-grid">
+                          {(c.images || []).map((img, j) => (
+                            <div key={j} className="img-preview-item">
+                              <img src={img} alt={`${c.name || 'Colour'} ${j + 1}`} />
+                              {j === 0 && <span className="img-badge">Main</span>}
+                              <button
+                                type="button"
+                                className="btn btn-sm danger remove-img"
+                                onClick={() => removeColorImage(idx, j)}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <label>Paste {c.name ? `${c.name} ` : ''}image URL
+                        <input
+                          onBlur={(e) => {
+                            if (addColorImageUrl(idx, e.target.value)) e.target.value = '';
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.target.blur();
+                            }
+                          }}
+                          placeholder="https://example.com/orange-1.jpg — press Enter to add"
+                        />
+                      </label>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted tiny">No colours set — the product will sell without a colour picker.</p>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={addColorRow}
+                >
+                  ＋ Add colour
+                </button>
+                <span className="muted tiny">
+                  Add one row per colour (e.g. Orange, Red), then upload that colour's photos. Customers pick a colour and only see its photos.
+                </span>
               </div>
 
               {/* ── Sizes (opens the editable size guide) ─────────── */}

@@ -89,12 +89,13 @@ function itemsTable(items) {
   if (!list.length) return '';
   const rows = list.map((it) => {
     const name = esc(it.name || 'Item');
-    const size = it.size ? ` <span style="color:#9a8f93">(${esc(it.size)})</span>` : '';
+    const color = (it.colorName || it.color) ? ` <span style="color:#9a8f93">(${esc(it.colorName || it.color)})</span>` : '';
+    const size = it.size ? ` <span style="color:#9a8f93">(Size ${esc(it.size)})</span>` : '';
     const qty = Number(it.qty) || 1;
     const line = it.price != null ? money(Number(it.price) * qty) : '';
     return `
       <tr>
-        <td style="padding:10px 0;border-bottom:1px solid #f0e6d8;font-size:14px;color:${C.ink}">${name}${size} <span style="color:#9a8f93">&times; ${qty}</span></td>
+        <td style="padding:10px 0;border-bottom:1px solid #f0e6d8;font-size:14px;color:${C.ink}">${name}${color}${size} <span style="color:#9a8f93">&times; ${qty}</span></td>
         <td style="padding:10px 0;border-bottom:1px solid #f0e6d8;font-size:14px;color:${C.ink};text-align:right;white-space:nowrap">${line}</td>
       </tr>`;
   }).join('');
@@ -306,7 +307,7 @@ export async function sendOrderMail({ type, to, order }) {
       const o = order || {};
       const mTrack = o.trackingNo ? `${esc(o.courier || 'Courier')} ${esc(o.trackingNo)}` : '';
       const mItems = (Array.isArray(o.items) ? o.items : [])
-        .map((it) => `<li style="padding:3px 0">${esc(it.name || 'Item')}${it.size ? ` (${esc(it.size)})` : ''} &times; ${Number(it.qty) || 1}</li>`)
+        .map((it) => `<li style="padding:3px 0">${esc(it.name || 'Item')}${(it.colorName || it.color) ? ` (${esc(it.colorName || it.color)})` : ''}${it.size ? ` (Size ${esc(it.size)})` : ''} &times; ${Number(it.qty) || 1}</li>`)
         .join('');
       const mSubject = `[Merchant] ${subject}`;
 

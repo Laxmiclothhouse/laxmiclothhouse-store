@@ -47,7 +47,7 @@ export default function CartDrawer({ open, onClose }) {
                   <img src={c.image} alt={c.name} />
                   <div className="di-info">
                     <p className="di-name">
-                      {c.name}{c.size ? ` · Size ${c.size}` : ''}
+                      {c.name}{(c.colorName || c.color) ? ` · ${c.colorName || c.color}` : ''}{c.size ? ` · Size ${c.size}` : ''}
                     </p>
                     {over && <p className="di-stock-warn">Only {left} left — reduce quantity</p>}
                     {!over && left !== null && left <= 3 && c.qty <= left && (

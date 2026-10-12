@@ -5,6 +5,7 @@ import { useCart } from '../context/CartContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
 import { formatINR, formatDate } from '../utils/format.js';
+import { normalizeColors, imagesForColor, firstImageForColor } from '../utils/colors.js';
 import Stars from '../components/Stars.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
@@ -18,6 +19,8 @@ export default function ProductDetail() {
   const nav = useNavigate();
   const [qty, setQty] = useState(1);
   const [size, setSize] = useState('');
+  // Selected colour variant name ('' = none / legacy product).
+  const [color, setColor] = useState('');
   const [toast, setToast] = useState('');
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -34,13 +37,11 @@ export default function ProductDetail() {
   // above the selling price is ordinary shop pricing, not a running sale.
   const onSale = Boolean(product && sale.hasSale);
 
-  // All images for this product; older products only have "image" (single).
-  const images =
-    product && Array.isArray(product.images) && product.images.length > 0
-      ? product.images.filter((img) => img && img.trim() !== '')
-      : product
-        ? [product.image].filter((img) => img && img.trim() !== '')
-        : [];
+  // Colour variants for this product (admin-defined, backward compatible).
+  const colorOptions = product ? normalizeColors(product) : [];
+  // Gallery follows the selected colour; falls back to legacy
+  // product.images / product.image when the variant has no photos.
+  const images = product ? imagesForColor(product, color) : [];
   // Always show the first image by default; the arrows move through the rest.
   const safeIndex = activeIndex < images.length ? activeIndex : 0;
   const mainImg = images[safeIndex] || images[0];
@@ -54,11 +55,12 @@ export default function ProductDetail() {
     setActiveIndex((i) => (i + 1) % images.length);
   };
 
-  // Reset the gallery, qty and size when opening a different product.
+  // Reset the gallery, qty, size and colour when opening a different product.
   useEffect(() => {
     setActiveIndex(0);
     setQty(1);
     setSize('');
+    setColor('');
   }, [id]);
 
   if (!product) {
@@ -98,8 +100,16 @@ export default function ProductDetail() {
       setTimeout(() => setToast(''), 1800);
       return;
     }
-    addItem(product, qty, size, onSale ? sale.price : null);
-    setToast('✓ Added to cart' + (size ? ` (Size ${size})` : '') + (onSale ? ' — sale price applied!' : ''));
+    if (colorOptions.length > 0 && !color) {
+      setToast('Please select a colour first');
+      setTimeout(() => setToast(''), 1800);
+      return;
+    }
+    const productForCart = color
+      ? { ...product, image: firstImageForColor(product, color), color }
+      : product;
+    addItem(productForCart, qty, size, onSale ? sale.price : null, color);
+    setToast('✓ Added to cart' + (color ? ` (${color})` : '') + (size ? ` (Size ${size})` : '') + (onSale ? ' — sale price applied!' : ''));
     setTimeout(() => setToast(''), 1800);
   };
 
@@ -223,6 +233,30 @@ export default function ProductDetail() {
               {saved ? '♥ Saved' : '♡ Save'}
             </button>
           </div>
+
+          {/* ── Colour picker (only when admin set colours) ──── */}
+          {colorOptions.length > 0 && (
+            <div className="size-picker">
+              <span className="size-label">Colour{color ? `: ${color}` : ''}:</span>
+              {colorOptions.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  className={`color-opt${color === c.name ? ' active' : ''}`}
+                  onClick={() => { setColor(c.name); setActiveIndex(0); }}
+                  aria-pressed={color === c.name}
+                  title={c.name}
+                >
+                  <span
+                    className="color-dot"
+                    style={{ background: c.hex || '#9b1c3d' }}
+                    aria-hidden="true"
+                  />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* ── Size picker (only when admin set sizes) ────────── */}
           {product.sizes && product.sizes.length > 0 && (

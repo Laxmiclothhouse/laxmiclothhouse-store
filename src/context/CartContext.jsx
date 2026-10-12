@@ -11,8 +11,8 @@ export function CartProvider({ children }) {
     db.saveCart(next);
   };
 
-  const addItem = (product, qty = 1, size = '', salePrice = null) => {
-    const key = `${product.id}::${String(size || '').toUpperCase()}`;
+  const addItem = (product, qty = 1, size = '', salePrice = null, colorName = '') => {
+    const key = `${product.id}::${String(size || '').toUpperCase()}::${String(colorName || '').toUpperCase()}`;
     const effectivePrice = salePrice !== null && salePrice !== undefined ? salePrice : product.price;
     let next;
     const idx = cart.findIndex((c) => c.key === key);
@@ -29,7 +29,8 @@ export function CartProvider({ children }) {
           name: product.name,
           price: effectivePrice,
           image: product.image,
-          color: product.color,
+          color: colorName || product.color,
+          colorName: colorName || '',
           size: String(size || ''),
           weightGrams: Number(product.weightGrams) || 500,
           qty,
