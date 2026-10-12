@@ -14,6 +14,9 @@ const links = [
   { to: '/track', label: 'Track Order' },
   { to: '/about', label: 'About Us' },
   { to: '/contact', label: 'Contact' },
+  { to: '/terms', label: 'Terms' },
+  { to: '/cancellation-refund', label: 'Cancellation & Refund' },
+  { to: '/shipping-exchange', label: 'Shipping & Exchange' },
 ];
 
 export default function Navbar({ onCartOpen }) {

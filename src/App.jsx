@@ -27,6 +27,9 @@ import Customer360 from './pages/Customer360.jsx';
 import StaffDashboard from './pages/StaffDashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import Privacy from './pages/Privacy.jsx';
+import Terms from './pages/Terms.jsx';
+import CancellationRefund from './pages/CancellationRefund.jsx';
+import ShippingExchange from './pages/ShippingExchange.jsx';
 import About from './pages/About.jsx';
 import Contact from './pages/Contact.jsx';
 
@@ -66,6 +69,9 @@ export default function App() {
               <Route path="/dashboard" element={<RequireAuth><StaffDashboard /></RequireAuth>} />
               <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/cancellation-refund" element={<CancellationRefund />} />
+              <Route path="/shipping-exchange" element={<ShippingExchange />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="*" element={<Home />} />

@@ -20,6 +20,9 @@ export default function Footer() {
             <li><Link to="/track">Track Order</Link></li>
             <li><Link to="/about">About Us</Link></li>
             <li><Link to="/privacy">Privacy Policy</Link></li>
+            <li><Link to="/terms">Terms &amp; Conditions</Link></li>
+            <li><Link to="/cancellation-refund">Cancellation &amp; Refund</Link></li>
+            <li><Link to="/shipping-exchange">Shipping &amp; Exchange</Link></li>
             <li><Link to="/contact">Contact</Link></li>
           </ul>
         </div>
