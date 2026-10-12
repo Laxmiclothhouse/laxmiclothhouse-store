@@ -1741,3 +1741,14 @@ p { margin: 0 0 .8em; }
 
 .pc-colors { display: flex; align-items: center; gap: 5px; margin: 6px 0 2px; }
 .color-dot.sm { width: 14px; height: 14px; }
+
+.pc-sizes { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 6px 0 2px; }
+.pc-size {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 7px;
+  background: #fafafa;
+}

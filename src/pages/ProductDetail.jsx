@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
 import { formatINR, formatDate } from '../utils/format.js';
 import { normalizeColors, imagesForColor, firstImageForColor } from '../utils/colors.js';
+import { normalizeSizes } from '../utils/sizes.js';
 import Stars from '../components/Stars.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
@@ -39,6 +40,7 @@ export default function ProductDetail() {
 
   // Colour variants for this product (admin-defined, backward compatible).
   const colorOptions = product ? normalizeColors(product) : [];
+  const sizeOptions = product ? normalizeSizes(product) : [];
   // Gallery follows the selected colour; falls back to legacy
   // product.images / product.image when the variant has no photos.
   const images = product ? imagesForColor(product, color) : [];
@@ -90,7 +92,7 @@ export default function ProductDetail() {
       nav('/login');
       return;
     }
-    if (product.sizes && product.sizes.length > 0 && !size) {
+    if (sizeOptions.length > 0 && !size) {
       setToast('Please select a size first');
       setTimeout(() => setToast(''), 1800);
       return;
@@ -259,10 +261,10 @@ export default function ProductDetail() {
           )}
 
           {/* ── Size picker (only when admin set sizes) ────────── */}
-          {product.sizes && product.sizes.length > 0 && (
+          {sizeOptions.length > 0 && (
             <div className="size-picker">
-              <span className="size-label">Size:</span>
-              {product.sizes.map((s) => (
+              <span className="size-label">Size{size ? `: ${size}` : ''}:</span>
+              {sizeOptions.map((s) => (
                 <button
                   key={s}
                   type="button"

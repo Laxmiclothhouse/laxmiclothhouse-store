@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { normalizeColors } from '../utils/colors.js';
+import { normalizeSizes } from '../utils/sizes.js';
 
 export default function ProductCard({ product }) {
   const soldOut = product.stock <= 0;
@@ -16,6 +17,7 @@ export default function ProductCard({ product }) {
   const saved = isWishlisted(product.id);
   const rating = ratingFor(product.id);
   const colorOptions = normalizeColors(product);
+  const sizeOptions = normalizeSizes(product);
   const sale = getSalePrice(product);
   // Only an admin-created sale counts as "on sale" — a struck-through MRP
   // above the selling price is ordinary shop pricing, not a running sale.
@@ -128,6 +130,17 @@ export default function ProductCard({ product }) {
             ))}
             {colorOptions.length > 5 && (
               <span className="muted tiny">+{colorOptions.length - 5}</span>
+            )}
+          </div>
+        )}
+        {sizeOptions.length > 0 && (
+          <div className="pc-sizes" title={'Sizes: ' + sizeOptions.join(', ')}>
+            <span className="muted tiny">Sizes:</span>
+            {sizeOptions.slice(0, 6).map((s) => (
+              <span key={s} className="pc-size">{s}</span>
+            ))}
+            {sizeOptions.length > 6 && (
+              <span className="muted tiny">+{sizeOptions.length - 6}</span>
             )}
           </div>
         )}
