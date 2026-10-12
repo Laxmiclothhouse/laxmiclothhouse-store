@@ -10,6 +10,8 @@ import { normalizeSizes } from '../utils/sizes.js';
 import { getTotalVariantStock } from '../utils/stock.js';
 
 export default function ProductCard({ product }) {
+  const colorOptions = normalizeColors(product);
+  const sizeOptions = normalizeSizes(product);
   const colorNames = colorOptions.map((c) => c.name);
   const totalStock = (colorOptions.length > 0 || sizeOptions.length > 0)
     ? getTotalVariantStock(product, colorNames, sizeOptions)
@@ -21,8 +23,7 @@ export default function ProductCard({ product }) {
   const nav = useNavigate();
   const saved = isWishlisted(product.id);
   const rating = ratingFor(product.id);
-  const colorOptions = normalizeColors(product);
-  const sizeOptions = normalizeSizes(product);
+
   const sale = getSalePrice(product);
   // Only an admin-created sale counts as "on sale" — a struck-through MRP
   // above the selling price is ordinary shop pricing, not a running sale.
