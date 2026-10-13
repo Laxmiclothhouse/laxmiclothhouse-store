@@ -13,6 +13,7 @@ const links = [
   { to: '/catalog', label: 'Catalog' },
   { to: '/track', label: 'Track Order' },
   { to: '/about', label: 'About Us' },
+  { to: '/policies', label: 'Policies' },
   { to: '/contact', label: 'Contact' },
   { to: '/terms', label: 'Terms' },
   { to: '/cancellation-refund', label: 'Cancellation & Refund' },
