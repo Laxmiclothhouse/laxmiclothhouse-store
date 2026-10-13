@@ -116,28 +116,49 @@ export default function OrderStatus() {
         order?.payment?.gateway === 'Razorpay' && payRef.startsWith('pay_');
       let refundInfo = null;
       if (isOnlinePayment) {
-        const res = await fetch('/api/refund', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId: order.id,
-            paymentRef: payRef,
-            amount: order.total,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.refunded) {
-          throw new Error(data.error || 'Refund failed. Please contact support.');
+        let data = null;
+        try {
+          const res = await fetch('/api/refund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId: order.id,
+              paymentRef: payRef,
+              amount: order.total,
+            }),
+          });
+          data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.refunded) {
+            throw new Error(data.error || data.message || 'Refund failed. Please contact support.');
+          }
+        } catch (refundErr) {
+          // The refund could not be processed, but the order is still cancelled.
+          // Record a "failed" refund so the customer is told to contact support
+          // and the admin can retry the refund from the order page.
+          refundInfo = {
+            type: 'razorpay_refund',
+            refundStatus: 'failed',
+            refundId: null,
+            refundedAt: new Date().toISOString(),
+            cancellationNote: String(refundErr?.message || 'Refund could not be processed automatically.'),
+            note: 'Your order was cancelled, but the refund could not be processed automatically. Please contact support with your order ID so we can complete your refund.',
+          };
+          cancelOrder(order.id, refundInfo);
+          navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
+          return;
         }
         refundInfo = {
           type: 'razorpay_refund',
+          refundStatus: 'refunding',
           refundId: data.refundId || null,
+          gatewayStatus: data.status || null,
           refundedAt: new Date().toISOString(),
           note: 'Refund initiated to the original payment method. It will be credited back to the same account in 5-7 working days.',
         };
       } else {
         refundInfo = {
           type: 'no_payment_refund',
+          refundStatus: 'none',
           refundedAt: new Date().toISOString(),
           note: 'No online payment was made for this order, so no refund was needed.',
         };
@@ -362,15 +383,28 @@ export default function OrderStatus() {
           {order.status === 'cancelled' ? (
             <div className="cancel-box cant">
               <h3>Order Cancelled</h3>
-              {order.refundInfo && (
+              {order.refundInfo?.refundStatus === 'refunding' && (
                 <>
-                  <p><strong>Refund:</strong> {order.refundInfo.type === 'razorpay_refund' ? 'Refund initiated' : 'No refund needed'}</p>
-                  <p>{order.refundInfo.note}</p>
+                  <p><strong>Refund status:</strong> <span className="refund-state refunding">Refunding in process</span></p>
+                  <p>We have initiated your refund to the original payment method. It will be credited back to the same account or card in 5-7 working days.</p>
                   {order.refundInfo.refundId && <p className="muted tiny">Refund ID: {order.refundInfo.refundId}</p>}
-                  {order.refundInfo.type === 'razorpay_refund' && (
-                    <p className="cancel-explain">The money will be credited back to the same account or payment method you used for this order in 5-7 working days.</p>
-                  )}
                 </>
+              )}
+              {order.refundInfo?.refundStatus === 'refunded' && (
+                <>
+                  <p><strong>Refund status:</strong> <span className="refund-state refunded">Refunded</span></p>
+                  <p>Your refund has been completed and the amount has been credited back to your original payment method.</p>
+                  {order.refundInfo.refundId && <p className="muted tiny">Refund ID: {order.refundInfo.refundId}</p>}
+                </>
+              )}
+              {order.refundInfo?.refundStatus === 'failed' && (
+                <>
+                  <p><strong>Refund status:</strong> <span className="refund-state failed">Refund could not be processed</span></p>
+                  <p>{order.refundInfo.note || 'Please contact support with your order ID so we can complete your refund.'}</p>
+                </>
+              )}
+              {(!order.refundInfo || order.refundInfo.refundStatus === 'none') && (
+                <p>{order.refundInfo?.note || 'No online payment was made for this order, so no refund was needed.'}</p>
               )}
             </div>
           ) : isPacked ? (

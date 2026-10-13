@@ -552,6 +552,18 @@ export function DataProvider({ children }) {
     // Put the ordered pieces back on the shelf.
     const target = orders.find((o) => o.id === orderId);
     if (target) adjustStock(target.items, +1);
+    const baseRefund = refundInfo || {
+      type: 'self_cancel',
+      cancelledAt: new Date().toISOString(),
+      note: 'Cancelled by customer.',
+    };
+    // The refund outcome lives on a single record so the customer sees the
+    // right state: 'refunding' while Razorpay processes the money, 'refunded'
+    // once it is confirmed, or 'failed' if the refund call errored.
+    const mergedRefund = {
+      refundStatus: baseRefund.refundStatus || 'none',
+      ...baseRefund,
+    };
     const next = orders.map((o) =>
       o.id === orderId
         ? {
@@ -561,11 +573,7 @@ export function DataProvider({ children }) {
               ...(o.statusHistory || []),
               { status: 'cancelled', label: 'Cancelled by customer', at: new Date().toISOString() },
             ],
-            refundInfo: refundInfo || {
-              type: 'self_cancel',
-              cancelledAt: new Date().toISOString(),
-              note: 'Cancelled by customer.',
-            },
+            refundInfo: mergedRefund,
           }
         : o
     );
@@ -693,7 +701,8 @@ export function DataProvider({ children }) {
 
   // Attach a refund record to an order (used by the admin "Refund" action).
   const markOrderRefunded = (orderId, refundInfo) => {
-    const next = orders.map((o) => (o.id === orderId ? { ...o, refundInfo } : o));
+    const merged = { refundStatus: refundInfo?.refundStatus || 'refunding', ...refundInfo };
+    const next = orders.map((o) => (o.id === orderId ? { ...o, refundInfo: merged } : o));
     setOrders(next);
     db.saveOrders(next);
   };

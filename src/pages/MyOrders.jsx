@@ -30,9 +30,16 @@ export default function MyOrders() {
         {justCancelled && (
           <div className='card-box' style={{ borderLeft: '4px solid var(--ok)', marginTop: 12 }}>
             <p><strong>Order {justCancelled} cancelled.</strong></p>
-            {justRefund?.type === 'razorpay_refund' ? (
+            {justRefund?.refundStatus === 'refunding' && (
               <p className='muted'>Refund initiated{justRefund.refundId ? ` (ID: ${justRefund.refundId})` : ''}. The money will be credited back to the same account or payment method you used for this order in 5-7 working days.</p>
-            ) : (
+            )}
+            {justRefund?.refundStatus === 'failed' && (
+              <p className='error'>Your order was cancelled, but the refund could not be processed automatically. Please contact support with your order ID so we can complete your refund.</p>
+            )}
+            {justRefund?.refundStatus === 'refunded' && (
+              <p className='muted'>Your refund has been completed and credited back to your original payment method.</p>
+            )}
+            {(!justRefund || justRefund.refundStatus === 'none') && (
               <p className='muted'>No online payment was made for this order, so no refund was needed.</p>
             )}
           </div>
@@ -54,6 +61,15 @@ export default function MyOrders() {
                   <strong>Order {o.id}</strong>
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
                   <span className={`status-badge ${o.status}`}>{o.status.toUpperCase()}</span>
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunding' && (
+                    <span className="refund-badge refunding">Refunding in process</span>
+                  )}
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunded' && (
+                    <span className="refund-badge refunded">Refunded</span>
+                  )}
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'failed' && (
+                    <span className="refund-badge failed">Refund failed — contact support</span>
+                  )}
                   <span className="ord-total">{formatINR(o.total)} · {o.payment.mode}</span>
                 </div>
                 <div className="ord-body">
