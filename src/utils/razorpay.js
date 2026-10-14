@@ -19,7 +19,7 @@ function loadScript(src) {
 
 // 1) Ask backend to create a real Razorpay order
 async function createOrder(amount) {
-  const res = await fetch(`${API_BASE}/api/create-order`, {
+  const res = await fetch(`${API_BASE}/api/razorpay?action=create-order`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ amount }),
@@ -33,7 +33,7 @@ async function createOrder(amount) {
 
 // 2) Ask backend to verify the payment signature
 async function verifyPayment(payload) {
-  const res = await fetch(`${API_BASE}/api/verify-payment`, {
+  const res = await fetch(`${API_BASE}/api/razorpay?action=verify-payment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

@@ -145,6 +145,85 @@ app.post('/api/refund', async (req, res) => {
   }
 });
 
+// Consolidated Razorpay endpoint (mirrors api/razorpay.js on Vercel).
+// The client calls /api/razorpay?action=create-order|verify-payment|refund.
+app.post('/api/razorpay', async (req, res) => {
+  const action = String(req.query?.action || '');
+  try {
+    if (action === 'create-order') {
+      const amountInRupees = Number(req.body?.amount);
+      if (!amountInRupees || amountInRupees <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
+      }
+      const options = {
+        amount: Math.round(amountInRupees * 100),
+        currency: 'INR',
+        receipt: 'rcpt_' + Date.now(),
+        payment_capture: 1,
+      };
+      const order = await razorpay.orders.create(options);
+      return res.json({
+        order_id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key_id: RAZORPAY_KEY_ID,
+      });
+    }
+
+    if (action === 'verify-payment') {
+      const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: 'Missing payment details' });
+      }
+      const expected = crypto
+        .createHmac('sha256', RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+      if (expected === razorpay_signature) {
+        return res.json({ valid: true });
+      }
+      return res.status(400).json({ valid: false, error: 'Invalid signature' });
+    }
+
+    if (action === 'refund') {
+      const { orderId, paymentRef, amount } = req.body || {};
+      if (!orderId || !paymentRef || !amount) {
+        return res.status(400).json({ refunded: false, error: 'Missing orderId, paymentRef, or amount' });
+      }
+      const amountInRupees = Number(amount);
+      if (!amountInRupees || amountInRupees <= 0) {
+        return res.status(400).json({ refunded: false, error: 'Invalid amount' });
+      }
+      if (!String(paymentRef).startsWith('pay_')) {
+        return res.json({
+          refunded: false,
+          reason: 'no_online_payment',
+          message: 'No Razorpay payment to refund. This order was COD or a demo payment - no money was charged.',
+        });
+      }
+      const refund = await razorpay.payments.refund(paymentRef, {
+        amount: Math.round(amountInRupees * 100),
+        receipt: 'refund_' + String(orderId),
+        notes: { orderId: String(orderId) },
+      });
+      console.log('[refund] success, refund =', refund.id, 'status =', refund.status);
+      return res.json({
+        refunded: true,
+        refundId: refund.id,
+        amount: refund.amount,
+        status: refund.status,
+        message: 'Refund initiated. The money will be credited back to your account in 5-7 working days.',
+      });
+    }
+
+    return res.status(404).json({ error: 'Unknown action: ' + (action || '(none)') });
+  } catch (err) {
+    console.error(`[razorpay:${action}] error:`, err);
+    const message = err?.details?.description || err?.response?.description || err?.message || 'Request failed';
+    res.status(500).json({ error: message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Payment server running on port ${PORT}`);
   console.log(`Using Razorpay key: ${RAZORPAY_KEY_ID}`);

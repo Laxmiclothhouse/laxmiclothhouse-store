@@ -79,7 +79,7 @@ export default function OrderManage() {
     setRefunding(true);
     setRefundMsg('');
     try {
-      const res = await fetch('/api/refund', {
+      const res = await fetch('/api/razorpay?action=refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order.id, paymentRef: payRef, amount: order.total }),

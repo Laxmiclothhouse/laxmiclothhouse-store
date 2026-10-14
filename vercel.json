@@ -2,6 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/create-order", "destination": "/api/razorpay?action=create-order" },
+    { "source": "/api/verify-payment", "destination": "/api/razorpay?action=verify-payment" },
+    { "source": "/api/refund", "destination": "/api/razorpay?action=refund" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

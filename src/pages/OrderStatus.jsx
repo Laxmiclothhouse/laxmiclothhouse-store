@@ -118,7 +118,7 @@ export default function OrderStatus() {
       if (isOnlinePayment) {
         let data = null;
         try {
-          const res = await fetch('/api/refund', {
+          const res = await fetch('/api/razorpay?action=refund', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
