@@ -70,7 +70,8 @@ export default function OrderManage() {
     isStaff &&
     order.payment?.gateway === 'Razorpay' &&
     payRef.startsWith('pay_') &&
-    order.refundInfo?.type !== 'razorpay_refund'
+    // Allow the first refund AND a retry after a failed one.
+    (!order.refundInfo || order.refundInfo.refundStatus !== 'refunded')
   );
 
   const refundPayment = async () => {

@@ -36,6 +36,9 @@ export default function MyOrders() {
             {justRefund?.refundStatus === 'failed' && (
               <p className='error'>Your order was cancelled, but the refund could not be processed automatically. Please contact support with your order ID so we can complete your refund.</p>
             )}
+            {justRefund?.refundStatus === 'failed' && justRefund?.cancellationNote && (
+              <p className='muted tiny'>Reason: {justRefund.cancellationNote}</p>
+            )}
             {justRefund?.refundStatus === 'refunded' && (
               <p className='muted'>Your refund has been completed and credited back to your original payment method.</p>
             )}
