@@ -149,11 +149,11 @@ export default function OrderStatus() {
         }
         refundInfo = {
           type: 'razorpay_refund',
-          refundStatus: 'refunded',
+          refundStatus: 'refunding',
           refundId: data.refundId || null,
           gatewayStatus: data.status || null,
           refundedAt: new Date().toISOString(),
-          note: 'Amount refunded to the original payment method. It will be credited back to the same account in 5-7 working days.',
+          note: 'Refund initiated — the money will be credited back to the same account or payment method you used for this order in 5-7 working days.',
         };
       } else {
         refundInfo = {
