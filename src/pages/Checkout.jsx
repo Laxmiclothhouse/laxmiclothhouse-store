@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { useCartWeightGrams } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -8,8 +8,9 @@ import { getVariantStock } from '../utils/stock.js';
 import { formatINR } from '../utils/format.js';
 import { payWithRazorpay } from '../utils/razorpay.js';
 
-// Razorpay-only checkout. Cash on Delivery is intentionally NOT offered —
-// every order is paid online (UPI / card / netbanking) through Razorpay.
+// Payment modes (Admin → Settings): 'demo' simulates the payment so you can
+// test freely, 'live' charges real money via Razorpay, 'auto' tries Razorpay
+// and falls back to a simulated payment if the gateway fails.
 const ALL_PAY_METHODS = [
   { id: 'upi', label: 'UPI', hint: 'GPay / PhonePe / Paytm / BHIM' },
   { id: 'card', label: 'Credit / Debit Card', hint: 'Visa, Mastercard, RuPay' },
@@ -20,6 +21,38 @@ export default function Checkout() {
   const { placeOrder, settings, products, validateCoupon, logPayment } = useData();
   const { user } = useAuth();
   const nav = useNavigate();
+  const [params] = useSearchParams();
+
+  // ── Buy Now ──────────────────────────────────────────────
+  // A Buy Now purchase is stored in sessionStorage by the product page and
+  // checked out in isolation: the regular cart is left untouched and the
+  // summary shows only the Buy Now item. '?buy=now' activates it.
+  const buyNowItem = useMemo(() => {
+    if (params.get('buy') !== 'now') return null;
+    try {
+      const raw = sessionStorage.getItem('buynow_item');
+      if (!raw) return null;
+      const it = JSON.parse(raw);
+      if (!it || !it.id || !Number.isFinite(Number(it.qty)) || Number(it.qty) < 1) return null;
+      return {
+        key: `buynow::${it.id}::${String(it.size || '').toUpperCase()}::${String(it.colorName || '').toUpperCase()}`,
+        id: it.id,
+        name: it.name || 'Product',
+        price: Number(it.price) || 0,
+        image: it.image || '',
+        color: it.colorName || '',
+        colorName: it.colorName || '',
+        size: String(it.size || ''),
+        weightGrams: Number(it.weightGrams) || 500,
+        qty: Math.floor(Number(it.qty)),
+      };
+    } catch {
+      return null;
+    }
+  }, [params]);
+  // Effective checkout contents: Buy Now item alone, or the whole cart.
+  const effCart = buyNowItem ? [buyNowItem] : cart;
+  const effSubtotal = buyNowItem ? buyNowItem.price * buyNowItem.qty : subtotal;
 
   const [shipping, setShipping] = useState({
     name: user?.name || '',
@@ -43,6 +76,10 @@ export default function Checkout() {
   const [filterPin, setFilterPin] = useState('');
   const [filteredPins, setFilteredPins] = useState([]);
   const cartWeightGrams = useCartWeightGrams();
+  // Buy Now parcels quote their own weight (regular cart hook reads the cart).
+  const buyWeightGrams = buyNowItem
+    ? (Number(buyNowItem.weightGrams) > 0 ? Number(buyNowItem.weightGrams) : 500) * buyNowItem.qty
+    : cartWeightGrams;
   const [liveShipping, setLiveShipping] = useState(null);
   const [liveShippingLoading, setLiveShippingLoading] = useState(false);
   const [liveShippingError, setLiveShippingError] = useState(null);
@@ -60,7 +97,7 @@ export default function Checkout() {
   const rateCardKey = JSON.stringify(settings.rateCard || null);
   let shippingFee = 0;
   if (shippingSource === 'delhivery') {
-    const fb = cart.reduce((sum, c) => {
+    const fb = effCart.reduce((sum, c) => {
       const p = products.find((x) => x.id === c.id);
       const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
       return sum + pu * c.qty;
@@ -68,7 +105,7 @@ export default function Checkout() {
     shippingFee = liveShipping && liveShipping.serviceable && Number.isFinite(liveShipping.shippingCost)
       ? Math.max(0, liveShipping.shippingCost) : fb;
   } else {
-    shippingFee = cart.reduce((sum, c) => {
+    shippingFee = effCart.reduce((sum, c) => {
       const p = products.find((x) => x.id === c.id);
       const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
       return sum + pu * c.qty;
@@ -77,9 +114,9 @@ export default function Checkout() {
 
   // Discount is re-derived on every render so it stays correct if the
   // cart changes after a coupon is applied.
-  const couponRes = appliedCoupon ? validateCoupon(appliedCoupon, subtotal) : null;
+  const couponRes = appliedCoupon ? validateCoupon(appliedCoupon, effSubtotal) : null;
   const discount = couponRes?.ok ? couponRes.discount : 0;
-  const total = Math.max(0, subtotal + shippingFee - discount);
+  const total = Math.max(0, effSubtotal + shippingFee - discount);
 
   // If the coupon stops qualifying (e.g. qty dropped below min order), drop it.
   React.useEffect(() => {
@@ -88,7 +125,7 @@ export default function Checkout() {
       setCouponMsg(couponRes.error + ' Coupon removed.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedCoupon, subtotal]);
+  }, [appliedCoupon, effSubtotal]);
 
   // ── Live Delhivery serviceability + shipping cost ───────────
   // Runs whenever the pincode or the cart weight changes (debounced).
@@ -122,11 +159,11 @@ export default function Checkout() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pincode: pin,
-            weightGrams: cartWeightGrams > 0 ? cartWeightGrams : 500,
+            weightGrams: buyWeightGrams > 0 ? buyWeightGrams : 500,
             state: shipping.state || '',
             // COD carries a courier surcharge, so the quote must know the mode.
             paymentMode: String(method || '').toLowerCase() === 'cod' ? 'cod' : 'prepaid',
-            orderValue: subtotal,
+            orderValue: effSubtotal,
             rateCard: settings.rateCard || null,
             deliveryMinDays: settings.deliveryMinDays,
             deliveryMaxDays: settings.deliveryMaxDays,
@@ -165,10 +202,10 @@ export default function Checkout() {
   }, [
     shipping.pincode,
     shipping.state,
-    cartWeightGrams,
+    buyWeightGrams,
     shippingSource,
     method,
-    subtotal,
+    effSubtotal,
     rateCardKey,
   ]);
 
@@ -253,7 +290,7 @@ export default function Checkout() {
     setCouponMsg('');
     const code = couponInput.trim();
     if (!code) return;
-    const res = validateCoupon(code, subtotal);
+    const res = validateCoupon(code, effSubtotal);
     if (!res.ok) {
       setAppliedCoupon(null);
       setCouponMsg(res.error);
@@ -307,7 +344,7 @@ export default function Checkout() {
     : { state: 'empty' };
 
   const availableMethods = ALL_PAY_METHODS.filter((m) =>
-    cart.every((c) => {
+    effCart.every((c) => {
       const p = products.find((x) => x.id === c.id);
       const raw = p && Array.isArray(p.paymentMethods) ? p.paymentMethods : ['upi', 'card', 'cod'];
       // COD is no longer supported — ignore it in a product's accepted list.
@@ -318,6 +355,12 @@ export default function Checkout() {
 
   const gatewayConfigured = Boolean(settings.razorpayKeyId);
   const activeMethod = availableMethods.find((m) => m.id === method) ? method : (availableMethods[0]?.id || '');
+  // Demo / auto / live payment mode (Admin → Settings). Demo simulates the
+  // payment so you can test freely; live charges via Razorpay; auto tries
+  // Razorpay and falls back to a simulated payment if the gateway fails.
+  const pmode = settings.paymentMode || 'demo';
+  // Demo orders skip Razorpay entirely; live needs the key, auto works either way.
+  const canPay = pmode === 'demo' || pmode === 'auto' || gatewayConfigured;
 
   const payText = (p) => {
     if (p?.method === 'cod') return 'Cash on Delivery';
@@ -326,7 +369,7 @@ export default function Checkout() {
     return p ? 'Paid online via ' + (p.gateway || 'Razorpay') + (p.mode ? ' (' + p.mode + ')' : '') : '';
   };
 
-  if (cart.length === 0 && !placed) {
+  if (effCart.length === 0 && !placed) {
     return (
       <main className="page center">
         <p>Your cart is empty.</p>
@@ -376,8 +419,8 @@ export default function Checkout() {
     const v = validate();
     if (v) return setErr(v);
 
-    // Hard stock guard: block the order when any cart qty exceeds available stock.
-    const stockIssue = cart.find((c) => {
+    // Hard stock guard: block the order when any checkout qty exceeds available stock.
+    const stockIssue = effCart.find((c) => {
       const p = products.find((x) => x.id === c.id);
       if (!p) return false;
       const left = getVariantStock(p, c.colorName || c.color, c.size);
@@ -397,21 +440,59 @@ export default function Checkout() {
     const baseOrder = {
       clientToken,
       userId: user?.id || null,
-      items: cart,
+      items: effCart,
       customer: { name: shipping.name, phone: shipping.phone, email: shipping.email },
       shipping: { address: shipping.address, city: shipping.city, state: shipping.state, pincode: shipping.pincode },
       phone: shipping.phone,
       whatsappOptIn,
-      subtotal, shippingFee,
+      subtotal: effSubtotal, shippingFee,
       discount,
       couponCode: appliedCoupon || null,
       total,
     };
 
-    // Razorpay-only checkout. Cash on Delivery, demo payments and the
-    // demo/auto fallback have all been removed — every order is a real
-    // online payment through the Razorpay gateway.
-    if (!gatewayConfigured) {
+    // Record a simulated (demo) payment — no money moves, the order is paid.
+    const recordDemoPayment = () => {
+      const payment = {
+        method: 'online',
+        gateway: 'Demo',
+        status: 'paid',
+        mode: activeMethod === 'upi' ? 'UPI' : 'Card',
+        ref: 'DEMO-' + clientToken,
+      };
+      const order = placeOrder({ ...baseOrder, payment });
+      logPayment({
+        orderId: order.id,
+        method: 'online',
+        gateway: 'Demo',
+        mode: activeMethod === 'upi' ? 'UPI' : 'Card',
+        status: 'paid',
+        verified: false,
+        ref: payment.ref,
+        rzOrderId: '',
+        signaturePresent: false,
+      });
+      if (!buyNowItem) clearCart();
+      else sessionStorage.removeItem('buynow_item');
+      setPlaced(order);
+    };
+
+    // Demo mode: skip Razorpay entirely and simulate the payment.
+    if (pmode === 'demo') {
+      recordDemoPayment();
+      setSubmitting(false);
+      return;
+    }
+
+    // Auto mode with no Razorpay key behaves exactly like demo — no popup.
+    if (pmode === 'auto' && !gatewayConfigured) {
+      recordDemoPayment();
+      setSubmitting(false);
+      return;
+    }
+
+    // Live mode needs the Razorpay key — without it no payment is possible.
+    if (pmode === 'live' && !gatewayConfigured) {
       setErr('Online payment is not available right now. Please try again later.');
       return;
     }
@@ -444,10 +525,16 @@ export default function Checkout() {
         rzOrderId: response?.razorpay_order_id || '',
         signaturePresent: Boolean(response && response.razorpay_signature),
       });
-      clearCart();
+      if (!buyNowItem) clearCart();
+      else sessionStorage.removeItem('buynow_item');
       setPlaced(order);
     } catch (ex) {
-      // No fallback — a failed or dismissed Razorpay payment means no order.
+      // Auto mode falls back to a simulated payment when Razorpay fails, so a
+      // gateway outage never blocks an order. Live mode surfaces the error.
+      if (pmode === 'auto') {
+        recordDemoPayment();
+        return;
+      }
       const msg = String(ex?.message || '');
       if (/cancel/i.test(msg)) {
         setErr('Payment was cancelled. Your order was not placed — please try again when you are ready to pay.');
@@ -647,19 +734,23 @@ export default function Checkout() {
               </label>
             ))}
           </div>
-          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM) in the Razorpay window.</p>}
-          {activeMethod === 'card' && <p className="muted">Pay securely by card inside the Razorpay window.</p>}
-          {!gatewayConfigured
+          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM){pmode === 'demo' ? ' — simulated, no real money moves.' : ' in the Razorpay window.'}</p>}
+          {activeMethod === 'card' && <p className="muted">Pay securely by card{pmode === 'demo' ? ' — simulated, no real money moves.' : ' inside the Razorpay window.'}</p>}
+          {pmode === 'demo' && <p className="ok tiny">Demo mode is ON — payment is simulated, no real money is charged.</p>}
+          {pmode === 'auto' && !gatewayConfigured && <p className="ok tiny">Auto mode — Razorpay isn't configured, so this order will be recorded as a demo payment.</p>}
+          {pmode === 'auto' && gatewayConfigured && <p className="muted">Auto mode: tries Razorpay first, falls back to a demo payment if it fails.</p>}
+          {pmode !== 'demo' && pmode !== 'auto' && !canPay
             ? <p className="error">Online payment is temporarily unavailable. Please try again shortly.</p>
-            : <p className="ok tiny">Secure online payment via Razorpay (UPI, card, netbanking &amp; wallets).</p>}
+            : pmode !== 'demo' && pmode !== 'auto' && <p className="ok tiny">Secure online payment via Razorpay (UPI, card, netbanking &amp; wallets).</p>}
         </section>
       </form>
 
       <aside className="co-right">
         <div className="card-box sticky">
-          <h2>Order summary</h2>
+          <h2>Order summary{buyNowItem ? ' — Buy Now' : ''}</h2>
+          {buyNowItem && <p className="muted tiny">Checking out this item only — your cart is untouched.</p>}
           <ul className="sum-items">
-            {cart.map((c) => (
+            {effCart.map((c) => (
               <li key={c.key}>
                 <span>{c.name}{(c.colorName || c.color) ? ` (${c.colorName || c.color})` : ''}{c.size ? ` (Size ${c.size})` : ''} x {c.qty}</span>
                 <span>{formatINR(c.price * c.qty)}</span>
@@ -667,7 +758,7 @@ export default function Checkout() {
             ))}
           </ul>
           <div className="sum-lines">
-            <div><span>Subtotal</span><span>{formatINR(subtotal)}</span></div>
+            <div><span>Subtotal</span><span>{formatINR(effSubtotal)}</span></div>
             <div><span>Shipping</span><span>{shippingFee === 0 ? 'FREE' : formatINR(shippingFee)}</span></div>
             {discount > 0 && (
               <div className="discount-line">
@@ -707,8 +798,8 @@ export default function Checkout() {
           </div>
 
           {err && <p className="error">{err}</p>}
-          <button form="checkout-form" className="btn btn-gold btn-block" type="submit" disabled={paying || submitting || !activeMethod}>
-            {paying ? 'Processing...' : submitting ? 'Placing order...' : 'Pay & place order'}
+          <button form="checkout-form" className="btn btn-gold btn-block" type="submit" disabled={paying || submitting || !activeMethod || !canPay}>
+            {paying ? 'Processing...' : submitting ? 'Placing order...' : pmode === 'demo' ? 'Place order (demo — no charge)' : pmode === 'auto' && !gatewayConfigured ? 'Place order (demo — no charge)' : buyNowItem ? 'Pay & buy now' : 'Pay & place order'}
           </button>
         </div>
       </aside>

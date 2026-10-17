@@ -141,6 +141,48 @@ export default function ProductDetail() {
     setTimeout(() => setToast(''), 1800);
   };
 
+  // ── Buy Now: skip the cart and check out this variant immediately ──
+  // The item is staged in sessionStorage; checkout reads it with ?buy=now.
+  const onBuyNow = () => {
+    if (!user) {
+      nav('/login');
+      return;
+    }
+    if (sizeOptions.length > 0 && !size) {
+      setToast('Please select a size first');
+      setTimeout(() => setToast(''), 1800);
+      return;
+    }
+    if (colorOptions.length > 0 && !color) {
+      setToast('Please select a colour first');
+      setTimeout(() => setToast(''), 1800);
+      return;
+    }
+    if (user && selectionReady && qty > selectedStock) {
+      setToast(`Only ${selectedStock} left in stock${color ? ` (${color}${size ? `, Size ${size}` : ''})` : ''}`);
+      setTimeout(() => setToast(''), 1800);
+      return;
+    }
+    const unitPrice = onSale ? sale.price : product.price;
+    try {
+      sessionStorage.setItem('buynow_item', JSON.stringify({
+        id: product.id,
+        name: product.name,
+        price: unitPrice,
+        image: firstImageForColor(product, color) || product.image || '',
+        colorName: color || '',
+        size: size || '',
+        weightGrams: Number(product.weightGrams) || 500,
+        qty,
+      }));
+    } catch {
+      setToast('Could not start Buy Now — please try adding to cart instead.');
+      setTimeout(() => setToast(''), 1800);
+      return;
+    }
+    nav('/checkout?buy=now');
+  };
+
   // ── Share: copy link so the user can paste it anywhere ──────
   const productUrl = () =>
     `${window.location.origin}${window.location.pathname}#/product/${product.id}`;
@@ -252,6 +294,9 @@ export default function ProductDetail() {
             </div>
             <button className="btn btn-gold" disabled={soldOut || selectionOut} onClick={onAdd} style={inCart ? { background: 'var(--ok)', borderColor: 'var(--ok)' } : undefined}>
               {soldOut || selectionOut ? 'Sold out' : inCart ? '✓ Added' : 'Add to cart'}
+            </button>
+            <button className="btn btn-dark" disabled={soldOut || selectionOut} onClick={onBuyNow} title="Buy this item right away, without adding to cart">
+              ⚡ Buy now
             </button>
             <button className={`btn btn-wish ${saved ? 'active' : ''}`} onClick={onWish}>
               {saved ? '♥ Saved' : '♡ Save'}
