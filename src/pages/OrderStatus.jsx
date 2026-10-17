@@ -116,6 +116,20 @@ export default function OrderStatus() {
         order?.payment?.gateway === 'Razorpay' && payRef.startsWith('pay_');
       let refundInfo = null;
       if (isOnlinePayment) {
+        // Don't attempt a duplicate refund if Razorpay already confirmed one.
+        if (order.refundInfo?.refundStatus === 'refunded') {
+          refundInfo = {
+            type: 'razorpay_refund',
+            refundStatus: 'refunded',
+            refundId: order.refundInfo.refundId || null,
+            refundedAt: order.refundInfo.refundedAt || new Date().toISOString(),
+            note: 'This order was already refunded.',
+          };
+          cancelOrder(order.id, refundInfo);
+          markOrderRefunded(order.id, refundInfo);
+          navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
+          return;
+        }
         let data = null;
         try {
           const res = await fetch('/api/razorpay?action=refund', {
