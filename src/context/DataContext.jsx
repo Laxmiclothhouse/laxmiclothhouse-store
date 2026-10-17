@@ -557,9 +557,9 @@ export function DataProvider({ children }) {
       cancelledAt: new Date().toISOString(),
       note: 'Cancelled by customer.',
     };
-    // The refund outcome lives on a single record so the customer sees the
-    // right state: 'refunding' while Razorpay processes the money, 'refunded'
-    // once it is confirmed, or 'failed' if the refund call errored.
+    // Apply the cancelled status AND the refund record in a single state
+    // update so they can't overwrite each other (avoids a race where
+    // markOrderRefunded reads stale orders and resets the status).
     const mergedRefund = {
       refundStatus: baseRefund.refundStatus || 'none',
       ...baseRefund,
@@ -569,11 +569,11 @@ export function DataProvider({ children }) {
         ? {
             ...o,
             status: 'cancelled',
+            refundInfo: mergedRefund,
             statusHistory: [
               ...(o.statusHistory || []),
               { status: 'cancelled', label: 'Cancelled by customer', at: new Date().toISOString() },
             ],
-            refundInfo: mergedRefund,
           }
         : o
     );

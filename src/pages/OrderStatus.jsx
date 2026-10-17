@@ -30,7 +30,7 @@ const SCAN_MEANINGS = {
 
 export default function OrderStatus() {
   const { user } = useAuth();
-  const { findOrder, canCancel, cancelOrder, markOrderRefunded, postApi } = useData();
+  const { findOrder, canCancel, cancelOrder, postApi } = useData();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState('');
@@ -178,9 +178,10 @@ export default function OrderStatus() {
         };
       }
       cancelOrder(order.id, refundInfo);
-      // When the refund is confirmed, flip the order to the terminal
-      // "Amount Refunded" status so it doesn't stay stuck on "cancelled".
-      markOrderRefunded(order.id, refundInfo);
+      // markOrderRefunded is intentionally NOT called here — cancelOrder above
+      // already applied the cancelled status + refund record in one atomic
+      // state update. Calling markOrderRefunded again would read stale orders
+      // and reset the status back to un-cancelled.
 
       // WhatsApp: tell the customer the refund is initiated (5-7 days).
       if (order.whatsappOptIn && (order.phone || order.customer?.phone)) {
