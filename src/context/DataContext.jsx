@@ -726,15 +726,17 @@ export function DataProvider({ children }) {
   };
 
   // Best-effort calls to the Vercel API functions. Never blocks the store.
+  // Returns the fetch Response so callers can inspect success/failure.
   const postApi = async (path, body) => {
     try {
-      await fetch(path, {
+      return await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
     } catch {
       /* dev/offline — server API is optional */
+      return null;
     }
   };
 

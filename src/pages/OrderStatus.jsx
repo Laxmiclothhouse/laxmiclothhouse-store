@@ -170,7 +170,7 @@ export default function OrderStatus() {
 
       // WhatsApp: tell the customer the refund is initiated (5-7 days).
       if (order.whatsappOptIn && (order.phone || order.customer?.phone)) {
-        postApi('/api/send-whatsapp', {
+        const waRes = await postApi('/api/send-whatsapp', {
           type: 'refund',
           to: order.phone || order.customer?.phone,
           order: {
@@ -182,6 +182,13 @@ export default function OrderStatus() {
             note: refundInfo.note,
           },
         });
+        const waData = waRes ? await waRes.json().catch(() => ({})) : null;
+        if (!waRes || !waRes.ok || waData?.skipped) {
+          console.warn('[whatsapp] refund message not sent:', waData?.error || 'no response');
+          setErr((prev) => prev ? prev + ' ' : 'Refund placed, but WhatsApp message could not be sent. ');
+        } else {
+          console.log('[whatsapp] refund message sent:', waData);
+        }
       }
 
       navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
