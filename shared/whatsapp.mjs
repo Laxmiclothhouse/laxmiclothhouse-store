@@ -59,7 +59,7 @@ export function productShareText(product) {
 
 const STATUS_WORD = {
   placed: 'placed', confirmed: 'confirmed', packed: 'packed',
-  shipped: 'shipped', delivered: 'delivered', cancelled: 'cancelled',
+  shipped: 'shipped', delivered: 'delivered', cancelled: 'cancelled', refund: 'refund',
 };
 
 function metaTemplatePayload(type, order, toE164) {
@@ -81,6 +81,9 @@ function metaTemplatePayload(type, order, toE164) {
     extra = reason
       ? `Reason: ${reason}. If this was unexpected, just reply to this message.`
       : 'If this was unexpected, just reply to this message.';
+  }
+  else if (type === 'refund') {
+    extra = `Refund of ₹${money(o.total || 0)} initiated. It will be credited back to your original payment method within 5-7 working days. ${track}`;
   }
 
   const template = {
@@ -202,6 +205,7 @@ export function renderWhatsApp(type, orderRaw) {
     shipped:   `Order Shipped - ${id}\n\nHi ${name}! Your order is on the way!${o.trackingNo ? `\nTracking: ${o.trackingNo}` : ''}`,
     delivered: `Order Delivered - ${id}\n\nHi ${name}! Your order has been delivered.`,
     cancelled: `Order Cancelled - ${id}\n\nHi ${name}, your order has been cancelled.`,
+    refund: `Refund Initiated - ${id}\n\nHi ${name}, your refund of ${total} has been initiated. It will be credited back to your original payment method within 5-7 working days.\n\nTrack: ${track}`,
   };
 
   return COPY[type] || COPY.placed;
