@@ -149,11 +149,11 @@ export default function OrderStatus() {
         }
         refundInfo = {
           type: 'razorpay_refund',
-          refundStatus: 'refunding',
+          refundStatus: 'refunded',
           refundId: data.refundId || null,
           gatewayStatus: data.status || null,
           refundedAt: new Date().toISOString(),
-          note: 'Refund initiated to the original payment method. It will be credited back to the same account in 5-7 working days.',
+          note: 'Amount refunded to the original payment method. It will be credited back to the same account in 5-7 working days.',
         };
       } else {
         refundInfo = {
@@ -380,7 +380,15 @@ export default function OrderStatus() {
             <p className="muted tiny">Forward your order link to family or friends</p>
           </div>
 
-          {order.status === 'cancelled' ? (
+          {order.status === 'refunded' ? (
+            <div className="cancel-box cant">
+              <h3>Order Amount Refunded</h3>
+              <p><strong>Refund status:</strong> <span className="refund-state refunded">Amount Refunded</span></p>
+              <p>The refund has been completed and the amount has been credited back to your original payment method.</p>
+              {order.refundInfo?.refundId && <p className="muted tiny">Refund ID: {order.refundInfo.refundId}</p>}
+              {order.refundInfo?.note && <p className="muted tiny">{order.refundInfo.note}</p>}
+            </div>
+          ) : order.status === 'cancelled' ? (
             <div className="cancel-box cant">
               <h3>Order Cancelled</h3>
               {order.refundInfo?.refundStatus === 'refunding' && (

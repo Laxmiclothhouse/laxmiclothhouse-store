@@ -70,6 +70,9 @@ export default function MyOrders() {
                   {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunded' && (
                     <span className="refund-badge refunded">Refunded</span>
                   )}
+                  {o.status === 'refunded' && (
+                    <span className="refund-badge refunded">Amount Refunded</span>
+                  )}
                   {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'failed' && (
                     <span className="refund-badge failed">Refund failed — contact support</span>
                   )}

@@ -672,6 +672,7 @@ p { margin: 0 0 .8em; }
 .status-badge.delivered { background: var(--ok); }
 .status-badge.paid { background: var(--ok); }
 .status-badge.cancelled { background: var(--err); }
+.status-badge.refunded { background: #6b5b95; }
 
 /* Refund state badges (shown on cancelled orders) */
 .refund-badge { display: inline-block; padding: 5px 12px; border-radius: 30px; font-size: .72rem; font-weight: 600; letter-spacing: .3px; color: #fff; margin-left: 6px; white-space: nowrap; }

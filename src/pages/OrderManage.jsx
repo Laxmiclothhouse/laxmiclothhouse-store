@@ -92,7 +92,9 @@ export default function OrderManage() {
         refundId: data.refundId || null,
         refundedAt: new Date().toISOString(),
         by: user.name || user.email || 'staff',
-        note: 'Refund initiated to the original payment method. It will be credited back to the same account in 5-7 working days.',
+        refundStatus: 'refunded',
+        note: 'Amount refunded to the original payment method. It will be credited back to the same account in 5-7 working days.',
+        gatewayStatus: data.status || null,
       });
       setRefundMsg(`Refund initiated (ID: ${data.refundId || 'pending'}). The customer receives the money in 3-7 working days.`);
     } catch (err) {

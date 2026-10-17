@@ -531,9 +531,9 @@ export function DataProvider({ children }) {
     return true;
   };
 
-  // Orders that are still in progress (anything not delivered/cancelled).
+  // Orders that are still in progress (anything not delivered/cancelled/refunded).
   // While the user has such an order, name + mobile editing is locked.
-  const TERMINAL_ORDER_STATUSES = ['delivered', 'cancelled'];
+  const TERMINAL_ORDER_STATUSES = ['delivered', 'cancelled', 'refunded'];
   const isOrderProcessing = (o) => {
     if (!o) return false;
     return !TERMINAL_ORDER_STATUSES.includes(String(o.status || '').toLowerCase());
@@ -598,6 +598,7 @@ export function DataProvider({ children }) {
       changed = {
         ...o,
         status,
+        refundInfo: opts.refundInfo !== undefined ? opts.refundInfo : o.refundInfo,
         trackingNo: opts.trackingNo !== undefined ? opts.trackingNo : o.trackingNo,
         courier: opts.courier !== undefined ? opts.courier : o.courier,
         statusHistory: [
@@ -699,9 +700,26 @@ export function DataProvider({ children }) {
     db.saveOrders(next);
   };
 
-  // Attach a refund record to an order (used by the admin "Refund" action).
+  // Attach a refund record to an order (used by the admin "Refund" action and
+  // by customer cancellation). When Razorpay confirms the refund
+  // (refundStatus === 'refunded'), the order status is automatically flipped
+  // to "Amount Refunded" so the customer sees a terminal refunded state.
   const markOrderRefunded = (orderId, refundInfo) => {
+    const order = orders.find((o) => o.id === orderId);
     const merged = { refundStatus: refundInfo?.refundStatus || 'refunding', ...refundInfo };
+
+    if (merged.refundStatus === 'refunded') {
+      // Razorpay has confirmed the money is back with the customer — mark the
+      // order as Amount Refunded (terminal) and attach the refund record.
+      updateOrderStatus(orderId, 'refunded', 'Amount Refunded', {
+        refundInfo: merged,
+        by: merged.by,
+        note: merged.note || 'Amount refunded to the original payment method.',
+      });
+      return;
+    }
+
+    // refunding / failed / none: attach the refund record without changing status.
     const next = orders.map((o) => (o.id === orderId ? { ...o, refundInfo: merged } : o));
     setOrders(next);
     db.saveOrders(next);
