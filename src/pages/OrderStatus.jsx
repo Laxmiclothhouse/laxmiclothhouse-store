@@ -30,7 +30,7 @@ const SCAN_MEANINGS = {
 
 export default function OrderStatus() {
   const { user } = useAuth();
-  const { findOrder, canCancel, cancelOrder } = useData();
+  const { findOrder, canCancel, cancelOrder, markOrderRefunded } = useData();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState('');
@@ -164,6 +164,9 @@ export default function OrderStatus() {
         };
       }
       cancelOrder(order.id, refundInfo);
+      // When the refund is confirmed, flip the order to the terminal
+      // "Amount Refunded" status so it doesn't stay stuck on "cancelled".
+      markOrderRefunded(order.id, refundInfo);
       navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
     } catch (ex) {
       setErr(ex.message || 'Could not cancel this order.');
