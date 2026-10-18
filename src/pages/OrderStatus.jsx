@@ -196,10 +196,15 @@ export default function OrderStatus() {
         orderDate: order.orderDate,
         items: order.items,
         refundInfo,
+        refundId: refundInfo?.refundId || null,
       };
+
+      // Track non-blocking notification failures so the user is told.
+      const notifyFails: string[] = [];
 
       // Email: cancelled + refund info (fire-and-forget; skips if no RESEND_API_KEY).
       if (orderForNotify.customerEmail) {
+        // 1) Cancelled email.
         const mailRes = await postApi('/api/send-order-mail', {
           type: 'cancelled',
           to: orderForNotify.customerEmail,
@@ -209,7 +214,24 @@ export default function OrderStatus() {
         if (mailRes && mailRes.ok && !mailData?.skipped) {
           console.log('[mail] cancelled email sent:', order.id);
         } else {
-          console.warn('[mail] cancelled email skipped/not sent:', mailData?.error || mailData?.skipped);
+          notifyFails.push('cancelled e-mail');
+          console.warn('[mail] cancelled email not sent:', mailData?.error || mailData?.skipped || 'no response');
+        }
+
+        // 2) Refund email (only when a refund was actually initiated).
+        if (refundInfo?.refundStatus && refundInfo.refundStatus !== 'none' && refundInfo.refundStatus !== 'failed') {
+          const refundMailRes = await postApi('/api/send-order-mail', {
+            type: 'refund',
+            to: orderForNotify.customerEmail,
+            order: orderForNotify,
+          });
+          const refundMailData = refundMailRes ? await refundMailRes.json().catch(() => ({})) : null;
+          if (refundMailRes && refundMailRes.ok && !refundMailData?.skipped) {
+            console.log('[mail] refund email sent:', order.id);
+          } else {
+            notifyFails.push('refund e-mail');
+            console.warn('[mail] refund email not sent:', refundMailData?.error || refundMailData?.skipped || 'no response');
+          }
         }
       }
 
@@ -222,6 +244,7 @@ export default function OrderStatus() {
         });
         const waCancelData = waCancelRes ? await waCancelRes.json().catch(() => ({})) : null;
         if (!waCancelRes || !waCancelRes.ok || waCancelData?.skipped) {
+          notifyFails.push('cancelled WhatsApp');
           console.warn('[whatsapp] cancelled message not sent:', waCancelData?.error || 'no response');
         } else {
           console.log('[whatsapp] cancelled message sent:', order.id);
@@ -237,10 +260,15 @@ export default function OrderStatus() {
         });
         const waData = waRes ? await waRes.json().catch(() => ({})) : null;
         if (!waRes || !waRes.ok || waData?.skipped) {
+          notifyFails.push('refund WhatsApp');
           console.warn('[whatsapp] refund message not sent:', waData?.error || 'no response');
         } else {
           console.log('[whatsapp] refund message sent:', order.id);
         }
+      }
+
+      if (notifyFails.length > 0) {
+        setErr((prev) => (prev ? prev + ' ' : '') + 'Order cancelled, but ' + notifyFails.join(', ') + ' could not be sent.');
       }
 
       navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });

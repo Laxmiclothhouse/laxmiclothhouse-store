@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 import { sendOrderMail } from '../shared/mail.mjs';
 
-const VALID_TYPES = ['placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled'];
+const VALID_TYPES = ['placed', 'confirmed', 'packed', 'shipped', 'delivered', 'cancelled', 'refund'];
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

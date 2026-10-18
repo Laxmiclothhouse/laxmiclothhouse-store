@@ -183,6 +183,12 @@ export function renderOrderMail(type, orderRaw) {
       body: `${greet} your order <strong>${id}</strong> has been cancelled. Any paid amount will be refunded to the original payment method.`,
       extra: 'Questions? Reply to this email and our team will assist you.',
     },
+    refund: {
+      subject: `Refund initiated — ${o.id}`,
+      title: 'Your refund has been initiated',
+      body: `${greet} A refund of <strong>${total}</strong> has been initiated for your cancelled order <strong>${id}</strong>. The money will be credited back to the same account or payment method you used for this order in 5-7 working days.`,
+      extra: 'Refund ID: {{refundId}} · Keep your order ID handy for any follow-up questions.',
+    },
   };
 
   // Special-day wish (birthday / anniversary gift code) — own layout.
@@ -218,6 +224,10 @@ export function renderOrderMail(type, orderRaw) {
   }
 
   const c = COPY[type] || COPY.confirmed;
+  // Replace {{refundId}} placeholder in refund emails.
+  const extraHtml = c.extra
+    ? c.extra.replace(/\{\{refundId\}\}/g, esc(o.refundInfo?.refundId || '—'))
+    : '';
   const metaRow = `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${C.cream};border-radius:10px;margin:18px 0 0 0">
       <tr>
@@ -240,7 +250,7 @@ export function renderOrderMail(type, orderRaw) {
         ${itemsTable(o.items)}
         ${totalsTable(o)}
         ${metaRow}
-        ${c.extra ? `<p style="font-size:14px;line-height:1.6;color:#6b5f63;margin:16px 0 0 0">${c.extra}</p>` : ''}
+        ${c.extra ? `<p style="font-size:14px;line-height:1.6;color:#6b5f63;margin:16px 0 0 0">${extraHtml}</p>` : ''}
         <div style="text-align:center;margin:26px 0 6px 0">
           <a href="${track}" style="display:inline-block;background:${C.gold};color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:50px;font-size:14px;font-weight:600;letter-spacing:0.5px;box-shadow:0 6px 18px rgba(201,162,75,0.35)">TRACK MY ORDER</a>
         </div>
