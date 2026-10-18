@@ -200,7 +200,7 @@ export default function OrderStatus() {
       };
 
       // Track non-blocking notification failures so the user is told.
-      const notifyFails: string[] = [];
+      const notifyFails = [];
 
       // Email: cancelled + refund info (fire-and-forget; skips if no RESEND_API_KEY).
       if (orderForNotify.customerEmail) {
