@@ -177,6 +177,18 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
                   <span className={`status-badge ${o.status}`}>{meta.label}</span>
                   <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunding' && (
+                    <span className="refund-badge refunding">Refunding in process</span>
+                  )}
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunded' && (
+                    <span className="refund-badge refunded">Refunded</span>
+                  )}
+                  {o.status === 'refunded' && (
+                    <span className="refund-badge refunded">Amount Refunded</span>
+                  )}
+                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'failed' && (
+                    <span className="refund-badge failed">Refund failed — contact support</span>
+                  )}
                   <span className="ord-total">{formatINR(o.total)}</span>
                 </div>
 

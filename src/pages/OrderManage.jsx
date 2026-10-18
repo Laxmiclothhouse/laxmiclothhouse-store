@@ -473,7 +473,15 @@ export default function OrderManage() {
               )}
               {order.refundInfo && (
                 <p className="muted tiny" style={{ marginTop: 6 }}>
-                  Refund: {order.refundInfo.type === 'razorpay_refund' ? 'initiated' : order.refundInfo.note || '—'}
+                  Refund:{' '}
+                  {order.refundInfo.refundStatus === 'refunding'
+                    ? 'Refunding in process'
+                    : order.refundInfo.refundStatus === 'refunded'
+                    ? 'Refunded'
+                    : order.refundInfo.refundStatus === 'failed'
+                    ? 'Refund failed — contact support'
+                    : order.refundInfo.note || '—'}
+                  {order.refundInfo.refundId ? ` (ID: ${order.refundInfo.refundId})` : ''}
                 </p>
               )}
             </div>
