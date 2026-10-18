@@ -166,8 +166,6 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
             const meta = statusMeta(o.status);
             const pay = payMeta(o);
             const nexts = nextsFor(o);
-            const history = o.statusHistory || [];
-            const last = history[history.length - 1];
             return (
               <div className="order-row" key={o.id}>
                 <div className="ord-head">
@@ -196,27 +194,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                   <div>
                     <p className="muted">
                       {o.customer?.name}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}
-                      {o.customer?.email ? ` · ${o.customer.email}` : ''}
                     </p>
-                    <p className="muted">
-                      {o.shipping?.address}, {o.shipping?.city}, {o.shipping?.state} — {o.shipping?.pincode}
-                    </p>
-                    <ul className="sum-items">
-                      {o.items.slice(0, 3).map((it) => (
-                        <li key={it.id || it.name}>
-                          <span>{it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}</span>
-                          <span className="muted">{formatINR(it.price * it.qty)}</span>
-                        </li>
-                      ))}
-                      {o.items.length > 3 && (
-                        <li key="more"><span className="muted">+ {o.items.length - 3} more item(s)</span></li>
-                      )}
-                    </ul>
-                    {last && (
-                      <p className="muted tiny" style={{ marginTop: 4 }}>
-                        {last.by ? `${last.by.name} ` : ''}→ {last.label} · {formatDateTime(last.at)}
-                      </p>
-                    )}
                     {o.trackingNo && (
                       <p className="muted tiny">📦 {o.courier || 'Courier'} · {o.trackingNo}</p>
                     )}
