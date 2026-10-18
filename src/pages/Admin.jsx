@@ -1210,7 +1210,12 @@ export default function Admin() {
                           ? (p.verified ? <span className="ok">✓ verified</span> : <span className="muted">not verified</span>)
                           : <span className="muted">n/a</span>}
                       </td>
-                      <td>{p.amount ? formatINR(p.amount) : '—'}</td>
+                      <td>
+                        {(() => {
+                          const amt = Number(p.amount) || Number(orders.find((o) => o.id === p.orderId)?.total) || 0;
+                          return amt > 0 ? formatINR(amt) : '—';
+                        })()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -472,6 +472,7 @@ export default function Checkout() {
       const order = placeOrder({ ...baseOrder, payment });
       logPayment({
         orderId: order.id,
+        amount: total,
         method: 'online',
         gateway: 'Razorpay',
         mode: activeMethod === 'upi' ? 'UPI' : 'Card',
