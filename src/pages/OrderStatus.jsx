@@ -126,7 +126,6 @@ export default function OrderStatus() {
             note: 'This order was already refunded.',
           };
           cancelOrder(order.id, refundInfo);
-          markOrderRefunded(order.id, refundInfo);
           navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
           return;
         }
@@ -183,26 +182,64 @@ export default function OrderStatus() {
       // state update. Calling markOrderRefunded again would read stale orders
       // and reset the status back to un-cancelled.
 
-      // WhatsApp: tell the customer the refund is initiated (5-7 days).
-      if (order.whatsappOptIn && (order.phone || order.customer?.phone)) {
+      // ─────────────────────────────────────────────────────────────
+      // Order cancelled: notify customer by email + WhatsApp
+      // ─────────────────────────────────────────────────────────────
+      const orderForNotify = {
+        id: order.id,
+        customerEmail: order.customerEmail || order.customer?.email,
+        customerName: order.customer?.name,
+        customerPhone: order.phone || order.customer?.phone,
+        total: order.total,
+        paymentMode: order.payment?.mode || order.paymentMode,
+        payment: order.payment,
+        orderDate: order.orderDate,
+        items: order.items,
+        refundInfo,
+      };
+
+      // Email: cancelled + refund info (fire-and-forget; skips if no RESEND_API_KEY).
+      if (orderForNotify.customerEmail) {
+        const mailRes = await postApi('/api/send-order-mail', {
+          type: 'cancelled',
+          to: orderForNotify.customerEmail,
+          order: orderForNotify,
+        });
+        const mailData = mailRes ? await mailRes.json().catch(() => ({})) : null;
+        if (mailRes && mailRes.ok && !mailData?.skipped) {
+          console.log('[mail] cancelled email sent:', order.id);
+        } else {
+          console.warn('[mail] cancelled email skipped/not sent:', mailData?.error || mailData?.skipped);
+        }
+      }
+
+      // WhatsApp: cancelled notification (only if customer opted in).
+      if (order.whatsappOptIn && orderForNotify.customerPhone) {
+        const waCancelRes = await postApi('/api/send-whatsapp', {
+          type: 'cancelled',
+          to: orderForNotify.customerPhone,
+          order: orderForNotify,
+        });
+        const waCancelData = waCancelRes ? await waCancelRes.json().catch(() => ({})) : null;
+        if (!waCancelRes || !waCancelRes.ok || waCancelData?.skipped) {
+          console.warn('[whatsapp] cancelled message not sent:', waCancelData?.error || 'no response');
+        } else {
+          console.log('[whatsapp] cancelled message sent:', order.id);
+        }
+      }
+
+      // WhatsApp: refund details (existing behavior for online payments).
+      if (order.whatsappOptIn && orderForNotify.customerPhone) {
         const waRes = await postApi('/api/send-whatsapp', {
           type: 'refund',
-          to: order.phone || order.customer?.phone,
-          order: {
-            id: order.id,
-            customerPhone: order.phone || order.customer?.phone,
-            customerName: order.customer?.name,
-            total: order.total,
-            paymentMode: order.payment?.mode,
-            note: refundInfo.note,
-          },
+          to: orderForNotify.customerPhone,
+          order: orderForNotify,
         });
         const waData = waRes ? await waRes.json().catch(() => ({})) : null;
         if (!waRes || !waRes.ok || waData?.skipped) {
           console.warn('[whatsapp] refund message not sent:', waData?.error || 'no response');
-          setErr((prev) => prev ? prev + ' ' : 'Refund placed, but WhatsApp message could not be sent. ');
         } else {
-          console.log('[whatsapp] refund message sent:', waData);
+          console.log('[whatsapp] refund message sent:', order.id);
         }
       }
 
