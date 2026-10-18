@@ -8,9 +8,7 @@ import { getVariantStock } from '../utils/stock.js';
 import { formatINR } from '../utils/format.js';
 import { payWithRazorpay } from '../utils/razorpay.js';
 
-// Payment modes (Admin → Settings): 'demo' simulates the payment so you can
-// test freely, 'live' charges real money via Razorpay, 'auto' tries Razorpay
-// and falls back to a simulated payment if the gateway fails.
+// Razorpay only — live card/UPI payments.
 const ALL_PAY_METHODS = [
   { id: 'upi', label: 'UPI', hint: 'GPay / PhonePe / Paytm / BHIM' },
   { id: 'card', label: 'Credit / Debit Card', hint: 'Visa, Mastercard, RuPay' },
@@ -355,12 +353,9 @@ export default function Checkout() {
 
   const gatewayConfigured = Boolean(settings.razorpayKeyId);
   const activeMethod = availableMethods.find((m) => m.id === method) ? method : (availableMethods[0]?.id || '');
-  // Demo / auto / live payment mode (Admin → Settings). Demo simulates the
-  // payment so you can test freely; live charges via Razorpay; auto tries
-  // Razorpay and falls back to a simulated payment if the gateway fails.
-  const pmode = settings.paymentMode || 'demo';
-  // Demo orders skip Razorpay entirely; live needs the key, auto works either way.
-  const canPay = pmode === 'demo' || pmode === 'auto' || gatewayConfigured;
+  // Live Razorpay payments only - demo/auto payment modes were removed.
+  const pmode = 'live';
+  const canPay = gatewayConfigured;
 
   const payText = (p) => {
     if (p?.method === 'cod') return 'Cash on Delivery';
@@ -451,45 +446,6 @@ export default function Checkout() {
       total,
     };
 
-    // Record a simulated (demo) payment — no money moves, the order is paid.
-    const recordDemoPayment = () => {
-      const payment = {
-        method: 'online',
-        gateway: 'Demo',
-        status: 'paid',
-        mode: activeMethod === 'upi' ? 'UPI' : 'Card',
-        ref: 'DEMO-' + clientToken,
-      };
-      const order = placeOrder({ ...baseOrder, payment });
-      logPayment({
-        orderId: order.id,
-        method: 'online',
-        gateway: 'Demo',
-        mode: activeMethod === 'upi' ? 'UPI' : 'Card',
-        status: 'paid',
-        verified: false,
-        ref: payment.ref,
-        rzOrderId: '',
-        signaturePresent: false,
-      });
-      if (!buyNowItem) clearCart();
-      else sessionStorage.removeItem('buynow_item');
-      setPlaced(order);
-    };
-
-    // Demo mode: skip Razorpay entirely and simulate the payment.
-    if (pmode === 'demo') {
-      recordDemoPayment();
-      setSubmitting(false);
-      return;
-    }
-
-    // Auto mode with no Razorpay key behaves exactly like demo — no popup.
-    if (pmode === 'auto' && !gatewayConfigured) {
-      recordDemoPayment();
-      setSubmitting(false);
-      return;
-    }
 
     // Live mode needs the Razorpay key — without it no payment is possible.
     if (pmode === 'live' && !gatewayConfigured) {
@@ -529,12 +485,6 @@ export default function Checkout() {
       else sessionStorage.removeItem('buynow_item');
       setPlaced(order);
     } catch (ex) {
-      // Auto mode falls back to a simulated payment when Razorpay fails, so a
-      // gateway outage never blocks an order. Live mode surfaces the error.
-      if (pmode === 'auto') {
-        recordDemoPayment();
-        return;
-      }
       const msg = String(ex?.message || '');
       if (/cancel/i.test(msg)) {
         setErr('Payment was cancelled. Your order was not placed — please try again when you are ready to pay.');
@@ -734,14 +684,11 @@ export default function Checkout() {
               </label>
             ))}
           </div>
-          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM){pmode === 'demo' ? ' — simulated, no real money moves.' : ' in the Razorpay window.'}</p>}
-          {activeMethod === 'card' && <p className="muted">Pay securely by card{pmode === 'demo' ? ' — simulated, no real money moves.' : ' inside the Razorpay window.'}</p>}
-          {pmode === 'demo' && <p className="ok tiny">Demo mode is ON — payment is simulated, no real money is charged.</p>}
-          {pmode === 'auto' && !gatewayConfigured && <p className="ok tiny">Auto mode — Razorpay isn't configured, so this order will be recorded as a demo payment.</p>}
-          {pmode === 'auto' && gatewayConfigured && <p className="muted">Auto mode: tries Razorpay first, falls back to a demo payment if it fails.</p>}
-          {pmode !== 'demo' && pmode !== 'auto' && !canPay
+          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM) in the Razorpay window.</p>}
+          {activeMethod === 'card' && <p className="muted">Pay securely by card inside the Razorpay window.</p>}
+          {!canPay
             ? <p className="error">Online payment is temporarily unavailable. Please try again shortly.</p>
-            : pmode !== 'demo' && pmode !== 'auto' && <p className="ok tiny">Secure online payment via Razorpay (UPI, card, netbanking &amp; wallets).</p>}
+            : <p className="ok tiny">Secure online payment via Razorpay (UPI, card, netbanking &amp; wallets).</p>}
         </section>
       </form>
 
@@ -799,7 +746,7 @@ export default function Checkout() {
 
           {err && <p className="error">{err}</p>}
           <button form="checkout-form" className="btn btn-gold btn-block" type="submit" disabled={paying || submitting || !activeMethod || !canPay}>
-            {paying ? 'Processing...' : submitting ? 'Placing order...' : pmode === 'demo' ? 'Place order (demo — no charge)' : pmode === 'auto' && !gatewayConfigured ? 'Place order (demo — no charge)' : buyNowItem ? 'Pay & buy now' : 'Pay & place order'}
+            {paying ? 'Processing...' : submitting ? 'Placing order...' : buyNowItem ? 'Pay & buy now' : 'Pay & place order'}
           </button>
         </div>
       </aside>

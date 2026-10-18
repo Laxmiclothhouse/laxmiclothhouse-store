@@ -143,8 +143,8 @@ const DEFAULT_SETTINGS = {
   // Razorpay merchant key. Use a TEST key for the sandbox,
   // or your LIVE key for real payments. Managed in Admin → Settings.
   razorpayKeyId: 'rzp_test_TYAM6GyacLBRrL',
-  paymentMode: 'demo',
-    freeShippingThreshold: 1499,
+  paymentMode: 'live',
+  freeShippingThreshold: 1499,
   // Empty list = deliver everywhere (India). Enter pincodes in Admin → Settings
   // to restrict service areas. Delivery promise in days (min–max window).
   serviceablePincodes: [],

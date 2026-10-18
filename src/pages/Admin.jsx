@@ -1459,15 +1459,13 @@ export default function Admin() {
               <label style={{ display: 'block', marginBottom: 4 }}>Payment mode</label>
               <div className="pay-mode-options">
                 {[
-                  { id: 'demo', label: 'Demo', desc: 'Simulated payments — no real money' },
-                  { id: 'auto', label: 'Auto', desc: 'Try Razorpay, fall back to demo' },
                   { id: 'live', label: 'Live', desc: 'Real payments only — no fallback' },
                 ].map((opt) => (
-                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'demo') === opt.id ? 'active' : ''}`}>
+                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'live') === opt.id ? 'active' : ''}`}>
                     <input
                       type="radio"
                       name="paymentMode"
-                      checked={(s.paymentMode || 'demo') === opt.id}
+                      checked={(s.paymentMode || 'live') === opt.id}
                       onChange={() => setS({ ...s, paymentMode: opt.id })}
                     />
                     <div>
