@@ -171,8 +171,8 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
             return (
               <div className="order-row" key={o.id}>
                 <div className="ord-head">
-                  <Link to={`/order-manage/${o.id}`} className="ord-id-link" style={{ fontWeight: 700 }}>
-                    Order {o.id}
+                  <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }}>
+                    {o.id}
                   </Link>
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
                   <span className={`status-badge ${o.status}`}>{meta.label}</span>
@@ -195,7 +195,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                 <div className="ord-body">
                   <div>
                     <p className="muted">
-                      {o.customer?.name} · {o.customer?.phone}
+                      {o.customer?.name}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}
                       {o.customer?.email ? ` · ${o.customer.email}` : ''}
                     </p>
                     <p className="muted">
@@ -245,7 +245,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                         </button>
                       )
                     )}
-                    <Link to={`/order-manage/${o.id}`} className="linklike">Open manage →</Link>
+                    <Link to={`/order-manage/${o.id}`} className="linklike">Open →</Link>
                     <button type="button" className="linklike" onClick={() => onInvoice(o)}>🧾 Invoice</button>
                     {onPackSlip && <button type="button" className="linklike" onClick={() => onPackSlip(o)}>📦 Slip</button>}
                   </div>
