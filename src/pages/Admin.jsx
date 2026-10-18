@@ -443,7 +443,21 @@ export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
   const { payments, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
-  const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
+  // The active tab lives in the URL (?tab=payments) so a page refresh,
+  // browser back/forward or a shared link keeps the admin on the same section.
+  const [params, setParams] = useSearchParams();
+  const DEFAULT_TAB = isAdmin ? 'products' : 'orders';
+  const TABS = isAdmin
+    ? ['products', 'orders', 'reviews', 'customers', 'settings', 'coupons', 'payments', 'sales', 'staff']
+    : ['orders'];
+  const tabParam = params.get('tab');
+  const tab = TABS.includes(tabParam) ? tabParam : DEFAULT_TAB;
+  const setTab = (t) => {
+    const next = new URLSearchParams(params);
+    if (t && t !== DEFAULT_TAB) next.set('tab', t);
+    else next.delete('tab');
+    setParams(next, { replace: true });
+  };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
@@ -464,7 +478,6 @@ export default function Admin() {
   const prodPages = Math.max(1, Math.ceil(products.length / prodPageSize));
   const prodCurrent = Math.min(prodPage, prodPages);
   const pagedProducts = products.slice((prodCurrent - 1) * prodPageSize, prodCurrent * prodPageSize);
-  const [params] = useSearchParams();
   const orderParam = params.get('order');
 
   React.useEffect(() => {
