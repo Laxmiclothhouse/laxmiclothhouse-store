@@ -472,6 +472,7 @@ export default function Admin() {
   const [payPageSize, setPayPageSize] = useState(10);
   const [refPage, setRefPage] = useState(1);
   const [refPageSize, setRefPageSize] = useState(10);
+  const [payView, setPayView] = useState('latest');
   // Pagination for the "All products" table.
   const [prodPage, setProdPage] = useState(1);
   const [prodPageSize, setProdPageSize] = useState(10);
@@ -1195,17 +1196,28 @@ export default function Admin() {
 
       {tab === 'payments' && (
         <section className="card-box">
-          <h2>Payment log</h2>
+          <h2>Payments & refunds</h2>
           <p className="muted tiny">
-            Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side.
+            Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side. Use the dropdown below to switch between the latest payments and refunds — the search applies to whichever is shown.
           </p>
-          <input
-            value={payQ}
-            onChange={(e) => setPayQ(e.target.value)}
-            placeholder="Search order ID, payment ref, customer, gateway…"
-            aria-label="Search payments"
-            style={{ maxWidth: 380 }}
-          />
+          <div className="row-gap" style={{ margin: '10px 0 14px' }}>
+            <input
+              value={payQ}
+              onChange={(e) => setPayQ(e.target.value)}
+              placeholder="Search order ID, payment ref, customer, gateway…"
+              aria-label="Search payments"
+              style={{ maxWidth: 380 }}
+            />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              Show
+              <select value={payView} onChange={(e) => setPayView(e.target.value)} aria-label="Choose payments or refunds">
+                <option value="latest">Latest payments</option>
+                <option value="refunds">Refunds</option>
+              </select>
+            </label>
+          </div>
+          {payView === 'latest' && (
+            <>
           {payments.length === 0 ? (
             <p className="muted">No payments recorded yet.</p>
           ) : filteredPayments.length === 0 ? (
@@ -1259,7 +1271,10 @@ export default function Admin() {
             </>
           )}
 
-          <h2 style={{ marginTop: 26 }}>Refunds</h2>
+            </>
+          )}
+          {payView === 'refunds' && (
+            <>
           <p className="muted tiny">
             Orders with a refund record. Razorpay refunds go back to the customer's original payment method; cancellations without an online payment are marked "no money moved".
           </p>
@@ -1306,6 +1321,8 @@ export default function Admin() {
                   onPageSizeChange={(n) => { setRefPageSize(n); setRefPage(1); }}
                   unit="refunds"
                 />
+            </>
+          )}
             </>
           )}
         </section>
