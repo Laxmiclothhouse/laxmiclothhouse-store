@@ -145,9 +145,9 @@ const DEFAULT_SETTINGS = {
   razorpayKeyId: 'rzp_test_TYAM6GyacLBRrL',
   paymentMode: 'live',
   freeShippingThreshold: 1499,
-  // Empty list = deliver everywhere (India). Enter pincodes in Admin → Settings
-  // to restrict service areas. Delivery promise in days (min–max window).
-  serviceablePincodes: [],
+  // Delivery promise in days (min-max window), used when Delhivery's live
+  // serviceability answer is unavailable. Delhivery itself decides which
+  // pincodes are deliverable.
   deliveryMinDays: 4,
   deliveryMaxDays: 7,
   shippingSource: 'product',  // 'product' | 'delhivery'

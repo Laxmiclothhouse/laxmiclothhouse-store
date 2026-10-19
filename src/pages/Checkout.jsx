@@ -70,9 +70,6 @@ export default function Checkout() {
   const [couponMsg, setCouponMsg] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showPinList, setShowPinList] = useState(false);
-  const [filterPin, setFilterPin] = useState('');
-  const [filteredPins, setFilteredPins] = useState([]);
   const cartWeightGrams = useCartWeightGrams();
   // Buy Now parcels quote their own weight (regular cart hook reads the cart).
   const buyWeightGrams = buyNowItem
@@ -273,16 +270,6 @@ export default function Checkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipping.pincode]);
 
-  const selectPincode = (pin) => {
-    // Selecting the value that is already there does not re-run the lookup
-    // effect, so trigger it here to keep the details on screen.
-    const unchanged = String(shipping.pincode || '') === pin;
-    setShipping((prev) => ({ ...prev, pincode: pin }));
-    setShowPinList(false);
-    if (unchanged) lookupPinDetails(pin);
-  };
-
-  const closePinDropdown = () => setShowPinList(false);
 
   const applyCoupon = () => {
     setCouponMsg('');
@@ -308,10 +295,9 @@ export default function Checkout() {
   const pinCode = String(shipping.pincode || '').trim();
   const pinInfo = /^\d{6}$/.test(pinCode)
     ? (() => {
-        // With Delhivery shipping the courier decides serviceability, so its
-        // live answer wins over the static serviceablePincodes list. When the
-        // API is unavailable nothing is set, so we fall back to the list and
-        // never wrongly block a valid pincode.
+        // Delhivery decides serviceability: its live answer is final. When
+        // the API answer is unavailable, allow the pincode and promise the
+        // delivery window from settings instead of blocking a real customer.
         if (shippingSource === 'delhivery' && liveShipping) {
           if (liveShipping.serviceable) {
             return {
@@ -323,21 +309,15 @@ export default function Checkout() {
           }
           return { state: 'no', label: `We don't deliver to pincode ${pinCode} yet` };
         }
-        const pins = Array.isArray(settings.serviceablePincodes)
-          ? settings.serviceablePincodes
-          : [];
-        if (pins.length === 0 || pins.includes(pinCode)) {
-          const minD = Math.max(1, Number(settings.deliveryMinDays) || 4);
-          const maxD = Math.max(minD, Number(settings.deliveryMaxDays) || 7);
-          const fmt = (d) =>
-            new Date(Date.now() + d * 86400000).toLocaleDateString('en-IN', {
-              weekday: 'short',
-              day: 'numeric',
-              month: 'short',
-            });
-          return { state: 'ok', label: `Expected delivery ${fmt(minD)} – ${fmt(maxD)}` };
-        }
-        return { state: 'no', label: `We don't deliver to pincode ${pinCode} yet` };
+        const minD = Math.max(1, Number(settings.deliveryMinDays) || 4);
+        const maxD = Math.max(minD, Number(settings.deliveryMaxDays) || 7);
+        const fmt = (d) =>
+          new Date(Date.now() + d * 86400000).toLocaleDateString('en-IN', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+          });
+        return { state: 'ok', label: `Expected delivery ${fmt(minD)} – ${fmt(maxD)}` };
       })()
     : { state: 'empty' };
 
@@ -534,15 +514,7 @@ export default function Checkout() {
             </label>
             <div className="pin-field">
             <label htmlFor="co-pincode">Pincode</label>
-            <div
-              className="pin-input-wrap"
-              onBlur={(e) => {
-                // Keep the dropdown usable while focus stays inside it (the
-                // area search lives there); close only on a real focus-out.
-                if (e.currentTarget.contains(e.relatedTarget)) return;
-                setTimeout(closePinDropdown, 150);
-              }}
-            >
+            <div className="pin-input-wrap">
               <input
                 id="co-pincode"
                 value={shipping.pincode}
@@ -551,71 +523,11 @@ export default function Checkout() {
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                   setShip('pincode')({ target: { value: val } });
-                  // Re-filter dropdown while typing if it's open
-                  if (showPinList) {
-                    const p = Array.isArray(settings.serviceablePincodes)
-                      ? settings.serviceablePincodes
-                      : [];
-                    setFilterPin(val);
-                    setFilteredPins(
-                      p.length === 0
-                        ? []
-                        : val
-                          ? p.filter((x) => x.startsWith(val))
-                          : p
-                    );
-                  }
-                }}
-                onFocus={() => {
-                  const p = Array.isArray(settings.serviceablePincodes)
-                    ? settings.serviceablePincodes
-                    : [];
-                  setShowPinList(true);
-                  setFilterPin(shipping.pincode);
-                  setFilteredPins(
-                    p.length === 0
-                      ? []
-                      : shipping.pincode
-                        ? p.filter((x) => x.startsWith(shipping.pincode))
-                        : p
-                  );
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && filteredPins.length === 1) {
-                    e.preventDefault();
-                    selectPincode(filteredPins[0]);
-                  }
                 }}
                 maxLength={6}
-                placeholder="Type or select pincode"
+                placeholder="Type 6-digit pincode"
                 aria-label="Pincode"
               />
-              {showPinList && (
-                <div className="pin-dropdown">
-                  {filteredPins.length > 0 ? (
-                    <ul className="pin-list">
-                      {filteredPins.map((pin) => (
-                        <li
-                          key={pin}
-                          className={shipping.pincode === pin ? 'selected' : ''}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectPincode(pin);
-                          }}
-                        >
-                          {pin}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="pin-empty">
-                      {Array.isArray(settings.serviceablePincodes) && settings.serviceablePincodes.length
-                        ? 'No listed pincode matches — type the full 6-digit pincode.'
-                        : 'Type the 6-digit pincode.'}
-                    </p>
-                  )}
-                </div>
-              )}
 
               {/* ── Live shipping info ─────────────────────────── */}
               {shippingSource === "delhivery" && liveShipping && (
@@ -637,7 +549,6 @@ export default function Checkout() {
                 </div>
               )}
 
-              {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
               {pinLookup.status === 'loading' && <span className="pin-msg muted">Looking up pincode…</span>}
               {pinLookup.status === 'ok' && (
                 <span className="pin-msg ok">
