@@ -468,6 +468,10 @@ export default function Admin() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
   const [payQ, setPayQ] = useState('');
+  const [payPage, setPayPage] = useState(1);
+  const [payPageSize, setPayPageSize] = useState(10);
+  const [refPage, setRefPage] = useState(1);
+  const [refPageSize, setRefPageSize] = useState(10);
   // Pagination for the "All products" table.
   const [prodPage, setProdPage] = useState(1);
   const [prodPageSize, setProdPageSize] = useState(10);
@@ -497,6 +501,12 @@ export default function Admin() {
     .sort((a, b) =>
       String(b.r.refundedAt || b.r.cancelledAt || b.o.orderDate || '')
         .localeCompare(String(a.r.refundedAt || a.r.cancelledAt || a.o.orderDate || '')));
+  const payPages = Math.max(1, Math.ceil(filteredPayments.length / payPageSize));
+  const payCur = Math.min(payPage, payPages);
+  const pagedPayments = filteredPayments.slice((payCur - 1) * payPageSize, payCur * payPageSize);
+  const refPages = Math.max(1, Math.ceil(refundRows.length / refPageSize));
+  const refCur = Math.min(refPage, refPages);
+  const pagedRefunds = refundRows.slice((refCur - 1) * refPageSize, refCur * refPageSize);
 
   React.useEffect(() => {
     if (autoOpened || !orderParam) return;
@@ -1201,13 +1211,14 @@ export default function Admin() {
           ) : filteredPayments.length === 0 ? (
             <p className="muted">No payments match "{payQ}".</p>
           ) : (
+            <>
             <div className="table-scroll">
               <table className="table">
                 <thead>
                   <tr><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Refund</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
-                  {filteredPayments.map((p) => {
+                  {pagedPayments.map((p) => {
                     const linked = orderById.get(p.orderId);
                     const rr = linked && linked.refundInfo;
                     const amt = Number(p.amount) || Number(linked && linked.total) || 0;
@@ -1237,6 +1248,15 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+              <Paginator
+                total={filteredPayments.length}
+                page={payCur}
+                pageSize={payPageSize}
+                onPageChange={setPayPage}
+                onPageSizeChange={(n) => { setPayPageSize(n); setPayPage(1); }}
+                unit="payments"
+              />
+            </>
           )}
 
           <h2 style={{ marginTop: 26 }}>Refunds</h2>
@@ -1246,13 +1266,14 @@ export default function Admin() {
           {refundRows.length === 0 ? (
             <p className="muted">{payQuery ? `No refunds match "${payQ}".` : 'No refunds recorded yet.'}</p>
           ) : (
+            <>
             <div className="table-scroll">
               <table className="table">
                 <thead>
                   <tr><th>Date</th><th>Order</th><th>Customer</th><th>Refund ID</th><th>Initiated by</th><th>Status</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
-                  {refundRows.map(({ o, r }) => {
+                  {pagedRefunds.map(({ o, r }) => {
                     const moneyBack = r.type === 'razorpay_refund';
                     const cls = r.refundStatus === 'failed' ? 'failed' : r.refundStatus === 'refunding' ? 'refunding' : 'refunded';
                     const lbl = r.refundStatus === 'failed' ? 'Refund failed' : r.refundStatus === 'refunding' ? 'Refunding in process' : moneyBack ? 'Refunded' : 'No money moved';
@@ -1277,6 +1298,15 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
+                <Paginator
+                  total={refundRows.length}
+                  page={refCur}
+                  pageSize={refPageSize}
+                  onPageChange={setRefPage}
+                  onPageSizeChange={(n) => { setRefPageSize(n); setRefPage(1); }}
+                  unit="refunds"
+                />
+            </>
           )}
         </section>
       )}
