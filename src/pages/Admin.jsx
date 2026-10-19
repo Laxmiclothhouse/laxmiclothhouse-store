@@ -467,6 +467,7 @@ export default function Admin() {
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
+  const [payQ, setPayQ] = useState('');
   // Pagination for the "All products" table.
   const [prodPage, setProdPage] = useState(1);
   const [prodPageSize, setProdPageSize] = useState(10);
@@ -474,6 +475,28 @@ export default function Admin() {
   const prodCurrent = Math.min(prodPage, prodPages);
   const pagedProducts = products.slice((prodCurrent - 1) * prodPageSize, prodCurrent * prodPageSize);
   const orderParam = params.get('order');
+
+  // ------ Payments tab: search + refunds joined from the order book ------
+  const payQuery = payQ.trim().toLowerCase();
+  const orderById = new Map(orders.map((o) => [o.id, o]));
+  const payHay = (p, o) =>
+    [p.orderId, p.ref, p.gateway, p.mode, p.status,
+ o?.customer?.name, o?.customer?.phone, o?.customer?.email, o?.shipping?.city]
+      .join(' ').toLowerCase();
+  const filteredPayments = payQuery
+    ? payments.filter((p) => payHay(p, orderById.get(p.orderId)).includes(payQuery))
+    : payments;
+  const refundRows = orders
+    .filter((o) => o.refundInfo)
+    .map((o) => ({ o, r: o.refundInfo }))
+    .filter(({ o, r }) =>
+      !payQuery ||
+      [o.id, r.refundId, r.type, r.refundStatus, r.by,
+       o.customer?.name, o.customer?.phone, o.customer?.email]
+        .join(' ').toLowerCase().includes(payQuery))
+    .sort((a, b) =>
+      String(b.r.refundedAt || b.r.cancelledAt || b.o.orderDate || '')
+        .localeCompare(String(a.r.refundedAt || a.r.cancelledAt || a.o.orderDate || '')));
 
   React.useEffect(() => {
     if (autoOpened || !orderParam) return;
@@ -1163,38 +1186,94 @@ export default function Admin() {
       {tab === 'payments' && (
         <section className="card-box">
           <h2>Payment log</h2>
-          <p className="muted small">
+          <p className="muted tiny">
             Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side.
           </p>
+          <input
+            value={payQ}
+            onChange={(e) => setPayQ(e.target.value)}
+            placeholder="Search order ID, payment ref, customer, gateway…"
+            aria-label="Search payments"
+            style={{ maxWidth: 380 }}
+          />
           {payments.length === 0 ? (
             <p className="muted">No payments recorded yet.</p>
+          ) : filteredPayments.length === 0 ? (
+            <p className="muted">No payments match "{payQ}".</p>
           ) : (
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>When</th><th>Order</th><th>Gateway</th><th>Mode</th><th>Ref</th><th>Verified</th><th>Amount</th></tr>
+                  <tr><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Refund</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
-                  {payments.map((p) => (
-                    <tr key={p.id}>
-                      <td>{formatDateTime(p.at)}</td>
-                      <td>{p.orderId || '—'}</td>
-                      <td>{p.gateway || p.method || '—'}</td>
-                      <td>{p.mode || '—'}</td>
-                      <td>{String(p.ref || '').slice(0, 22)}</td>
-                      <td>
-                        {p.gateway === 'Razorpay'
-                          ? (p.verified ? <span className="ok">✓ verified</span> : <span className="muted">not verified</span>)
-                          : <span className="muted">n/a</span>}
-                      </td>
-                      <td>
-                        {(() => {
-                          const amt = Number(p.amount) || Number(orders.find((o) => o.id === p.orderId)?.total) || 0;
-                          return amt > 0 ? formatINR(amt) : '—';
-                        })()}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredPayments.map((p) => {
+                    const linked = orderById.get(p.orderId);
+                    const rr = linked && linked.refundInfo;
+                    const amt = Number(p.amount) || Number(linked && linked.total) || 0;
+                    return (
+                      <tr key={p.id}>
+                        <td>{formatDateTime(p.at)}</td>
+                        <td>
+                          {p.orderId ? (
+                            <Link to={`/order-manage/${p.orderId}`}>{p.orderId}</Link>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>{p.gateway || 'Razorpay'}{p.mode ? ` (${p.mode})` : ''}</td>
+                        <td>{p.verified ? '✓' : <span className="muted">n/a</span>}</td>
+                        <td>
+                          {rr && rr.refundStatus === 'refunded' && <span className="refund-badge refunded">Refunded</span>}
+                          {rr && rr.refundStatus === 'refunding' && <span className="refund-badge refunding">Refunding</span>}
+                          {rr && rr.refundStatus === 'failed' && <span className="refund-badge failed">Refund failed</span>}
+                          {rr && !rr.refundStatus && rr.type === 'razorpay_refund' && <span className="refund-badge refunded">Refunded</span>}
+                          {(!rr || (!rr.refundStatus && rr.type !== 'razorpay_refund')) && <span className="muted">—</span>}
+                        </td>
+                        <td>{amt > 0 ? formatINR(amt) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h2 style={{ marginTop: 26 }}>Refunds</h2>
+          <p className="muted tiny">
+            Orders with a refund record. Razorpay refunds go back to the customer's original payment method; cancellations without an online payment are marked "no money moved".
+          </p>
+          {refundRows.length === 0 ? (
+            <p className="muted">{payQuery ? `No refunds match "${payQ}".` : 'No refunds recorded yet.'}</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr><th>Date</th><th>Order</th><th>Customer</th><th>Refund ID</th><th>Initiated by</th><th>Status</th><th>Amount</th></tr>
+                </thead>
+                <tbody>
+                  {refundRows.map(({ o, r }) => {
+                    const moneyBack = r.type === 'razorpay_refund';
+                    const cls = r.refundStatus === 'failed' ? 'failed' : r.refundStatus === 'refunding' ? 'refunding' : 'refunded';
+                    const lbl = r.refundStatus === 'failed' ? 'Refund failed' : r.refundStatus === 'refunding' ? 'Refunding in process' : moneyBack ? 'Refunded' : 'No money moved';
+                    return (
+                      <tr key={o.id}>
+                        <td>{formatDateTime(r.refundedAt || r.cancelledAt || o.orderDate)}</td>
+                        <td><Link to={`/order-manage/${o.id}`}>{o.id}</Link></td>
+                        <td>{o.customer?.name || '—'}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}</td>
+                        <td>{r.refundId ? <code>{r.refundId}</code> : <span className="muted">—</span>}</td>
+                        <td>{r.by || 'customer'}</td>
+                        <td>
+                          {moneyBack ? (
+                            <span className={`refund-badge ${cls}`}>{lbl}</span>
+                          ) : (
+                            <span className="muted tiny">{lbl}</span>
+                          )}
+                        </td>
+                        <td>{formatINR(Number(o.total) || 0)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
