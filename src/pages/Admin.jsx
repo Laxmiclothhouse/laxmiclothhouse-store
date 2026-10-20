@@ -11,7 +11,7 @@ import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
 import Paginator from '../components/Paginator.jsx';
-import { statusMeta } from '../orderFlow.js';
+import { statusMeta, payMeta } from '../orderFlow.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
 const ALL_PAY = [
@@ -489,19 +489,14 @@ export default function Admin() {
   const [delPage, setDelPage] = useState(1);
   const [delPageSize, setDelPageSize] = useState(10);
   const setDelKindSafe = (k) => { setDelKind(k); setDelIds([]); setDelMsg(''); setDelPage(1); };
-  // Rows for the selected record type: { id, label }.
+  // Raw records for the selected type — DelRow styles each like its own page.
   const delRows =
-    delKind === 'orders'
-      ? orders.map((o) => ({ id: o.id, label: `${o.id} · ${formatDateTime(o.orderDate)} · ${o.customer?.name || ''}${o.customer?.phone ? ` · ${o.customer.phone}` : ''} · ${formatINR(o.total)} · ${o.status || ''}` }))
-      : delKind === 'payments'
-        ? payments.map((p) => ({ id: p.id, label: `${formatDateTime(p.at)} · ${p.orderId || '-'} · ${p.gateway || ''}${p.mode ? ` (${p.mode})` : ''} · ${p.amount ? formatINR(p.amount) : '-'}` }))
-        : delKind === 'sales'
-          ? sales.map((s) => ({ id: s.id, label: `${s.name || 'Unnamed sale'} · ${s.type || ''}${s.active === false ? ' (inactive)' : ''}` }))
-          : delKind === 'coupons'
-            ? coupons.map((c) => ({ id: c.id, label: `${c.code || c.id}${c.active === false ? ' (inactive)' : ''}` }))
-            : delKind === 'reviews'
-              ? reviews.map((r) => ({ id: r.id, label: `${r.userName || 'User'}${r.date ? ` · ${formatDateTime(r.date)}` : ''}${r.title ? ` · ${r.title}` : ''}` }))
-              : messages.map((m) => ({ id: m.id, label: `${m.name || ''}${m.email ? ` · ${m.email}` : ''}${m.subject ? ` · ${m.subject}` : ''}${m.at ? ` · ${formatDateTime(m.at)}` : ''}` }));
+    delKind === 'orders' ? orders
+      : delKind === 'payments' ? payments
+      : delKind === 'sales' ? sales
+      : delKind === 'coupons' ? coupons
+      : delKind === 'reviews' ? reviews
+      : messages;
   const delTotal = delRows.length;
   const delPages = Math.max(1, Math.ceil(delTotal / delPageSize));
   const delCur = Math.min(delPage, delPages);
@@ -1604,16 +1599,26 @@ export default function Admin() {
                   />
                   Select page ({delPaged.length})
                 </label>
-                {delPaged.map((r) => (
-                  <label
-                    key={r.id}
-                    className="del-row"
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
-                  >
-                    <input type="checkbox" checked={delIds.includes(r.id)} onChange={() => toggleDelId(r.id)} />
-                    <span className="muted" style={{ fontSize: '.85rem', wordBreak: 'break-word' }}>{r.label}</span>
-                  </label>
-                ))}
+              {['payments', 'coupons', 'reviews'].includes(delKind) ? (
+                <div className="table-scroll">
+                  <table className="table">
+                    <thead>
+                      {delKind === 'payments' && <tr><th></th><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Amount</th></tr>}
+                      {delKind === 'coupons' && <tr><th></th><th>Code</th><th>Discount</th><th>Min order</th><th>Status</th></tr>}
+                      {delKind === 'reviews' && <tr><th></th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th></tr>}
+                    </thead>
+                    <tbody>
+                      {delPaged.map((r) => (
+                        <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                delPaged.map((r) => (
+                  <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
+                ))
+              )}
               </div>
               <Paginator
                 total={delTotal}
@@ -2313,3 +2318,103 @@ function CustomersAdmin() {
   );
 }
 
+
+
+/**
+ * Row inside Admin → Delete records, styled like the record’s own page:
+ * order-queue cards, payments/coupons/reviews tables, sale cards and
+ * message cards — each with a selection checkbox on the left.
+ */
+function DelRow({ kind, item: r, checked, onToggle }) {
+  if (kind === 'orders') {
+    const pay = payMeta(r);
+    return (
+      <label className="order-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer' }}>
+        <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} />
+        <span style={{ fontWeight: 700 }}>{r.id}</span>
+        <span className="muted tiny">{formatDateTime(r.orderDate)}</span>
+        <span className={`status-badge ${r.status}`}>{r.status}</span>
+        <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
+        <span className="ord-total" style={{ marginLeft: 'auto' }}>{formatINR(r.total)}</span>
+      </label>
+    );
+  }
+  if (kind === 'payments') {
+    return (
+      <tr>
+        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+        <td>{formatDateTime(r.at)}</td>
+        <td>{r.orderId || '—'}</td>
+        <td>{r.gateway || 'Razorpay'}{r.mode ? ` (${r.mode})` : ''}</td>
+        <td>{r.verified ? '✓' : <span className="muted">n/a</span>}</td>
+        <td>{r.amount ? formatINR(r.amount) : '—'}</td>
+      </tr>
+    );
+  }
+  if (kind === 'coupons') {
+    return (
+      <tr>
+        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+        <td><strong>{r.code}</strong></td>
+        <td>{r.type === 'percent' ? `${r.value}% off` : `${formatINR(r.value)} off`}</td>
+        <td>{r.minOrder ? formatINR(r.minOrder) : '—'}</td>
+        <td>
+          <span className={`status-badge ${r.active ? 'confirmed' : 'cancelled'}`}>
+            {r.active ? 'Active' : 'Paused'}
+          </span>
+        </td>
+      </tr>
+    );
+  }
+  if (kind === 'reviews') {
+    return (
+      <tr>
+        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+        <td>{r.userName || '—'}{r.email && <span className="muted small" style={{ display: 'block' }}>{r.email}</span>}</td>
+        <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
+          {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
+        </td>
+        <td className="muted" style={{ maxWidth: 260 }}>{r.comment || '—'}</td>
+        <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
+      </tr>
+    );
+  }
+  if (kind === 'sales') {
+    const scope =
+      r.type === 'product'
+        ? 'Product sale'
+        : r.type === 'category'
+          ? `${r.category || ''} category`
+          : r.type === 'flash'
+            ? 'Flash sale (all products)'
+            : 'Entire store';
+    return (
+      <label className={`sale-row${r.active === false ? ' inactive' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+        <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} />
+        <div className="sale-row-main">
+          {r.imageUrl && <img className="sale-thumb" src={r.imageUrl} alt="" />}
+          <span className="sale-badge">{r.type}</span>
+          <div>
+            <strong>{r.name || 'Unnamed sale'}</strong>
+            <span className="sale-scope">{scope}{r.active === false ? ' · inactive' : ''}</span>
+          </div>
+        </div>
+      </label>
+    );
+  }
+  // messages
+  return (
+    <div className="msg-card" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+      <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} style={{ marginTop: 4 }} />
+      <div style={{ flex: 1 }}>
+        <div className="msg-head">
+          <strong className="msg-name">{r.name || 'Customer'}</strong>
+          {r.email && <span className="msg-email">{r.email}</span>}
+          <span className={`msg-status ${r.status === 'pending' ? 'pending' : 'success'}`}>{r.status || 'pending'}</span>
+        </div>
+        <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>{r.message || ''}</p>
+        <p className="muted tiny" style={{ margin: '4px 0 0' }}>{formatDateTime(r.date)}</p>
+      </div>
+    </div>
+  );
+}
