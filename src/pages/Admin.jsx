@@ -451,7 +451,7 @@ export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
   const { payments, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
-  const { clearRecords } = useData();
+  const { deleteRecords, messages } = useData();
   // The active tab lives in the URL (?tab=payments) so a page refresh,
   // browser back/forward or a shared link keeps the admin on the same section.
   const [params, setParams] = useSearchParams();
@@ -482,18 +482,44 @@ export default function Admin() {
   const [refPage, setRefPage] = useState(1);
   const [refPageSize, setRefPageSize] = useState(10);
   const [payView, setPayView] = useState('latest');
-  const [clearKinds, setClearKinds] = useState([]);
-  const [clearConfirm, setClearConfirm] = useState('');
-  const [clearMsg, setClearMsg] = useState('');
-  const toggleClearKind = (id) =>
-    setClearKinds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const runClear = () => {
-    if (!clearKinds.length || clearConfirm !== 'DELETE') return;
-    if (!window.confirm(`Permanently delete: ${clearKinds.join(', ')}?\n\nThis cannot be undone.`)) return;
-    clearRecords(clearKinds);
-    setClearMsg(`✓ Deleted: ${clearKinds.join(', ')}. Products & settings untouched.`);
-    setClearKinds([]);
-    setClearConfirm('');
+  const [delKind, setDelKind] = useState('orders');
+  const [delIds, setDelIds] = useState([]);
+  const [delConfirm, setDelConfirm] = useState('');
+  const [delMsg, setDelMsg] = useState('');
+  const [delPage, setDelPage] = useState(1);
+  const [delPageSize, setDelPageSize] = useState(10);
+  const setDelKindSafe = (k) => { setDelKind(k); setDelIds([]); setDelMsg(''); setDelPage(1); };
+  // Rows for the selected record type: { id, label }.
+  const delRows =
+    delKind === 'orders'
+      ? orders.map((o) => ({ id: o.id, label: `${o.id} · ${formatDateTime(o.orderDate)} · ${o.customer?.name || ''}${o.customer?.phone ? ` · ${o.customer.phone}` : ''} · ${formatINR(o.total)} · ${o.status || ''}` }))
+      : delKind === 'payments'
+        ? payments.map((p) => ({ id: p.id, label: `${formatDateTime(p.at)} · ${p.orderId || '-'} · ${p.gateway || ''}${p.mode ? ` (${p.mode})` : ''} · ${p.amount ? formatINR(p.amount) : '-'}` }))
+        : delKind === 'sales'
+          ? sales.map((s) => ({ id: s.id, label: `${s.name || 'Unnamed sale'} · ${s.type || ''}${s.active === false ? ' (inactive)' : ''}` }))
+          : delKind === 'coupons'
+            ? coupons.map((c) => ({ id: c.id, label: `${c.code || c.id}${c.active === false ? ' (inactive)' : ''}` }))
+            : delKind === 'reviews'
+              ? reviews.map((r) => ({ id: r.id, label: `${r.userName || 'User'}${r.date ? ` · ${formatDateTime(r.date)}` : ''}${r.title ? ` · ${r.title}` : ''}` }))
+              : messages.map((m) => ({ id: m.id, label: `${m.name || ''}${m.email ? ` · ${m.email}` : ''}${m.subject ? ` · ${m.subject}` : ''}${m.at ? ` · ${formatDateTime(m.at)}` : ''}` }));
+  const delTotal = delRows.length;
+  const delPages = Math.max(1, Math.ceil(delTotal / delPageSize));
+  const delCur = Math.min(delPage, delPages);
+  const delPaged = delRows.slice((delCur - 1) * delPageSize, delCur * delPageSize);
+  const toggleDelId = (id) =>
+    setDelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleDelPageAll = () => {
+    const pageIds = delPaged.map((r) => r.id);
+    const allOn = pageIds.length > 0 && pageIds.every((id) => delIds.includes(id));
+    setDelIds((prev) => (allOn ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])]));
+  };
+  const runDel = () => {
+    if (!delIds.length || delConfirm !== 'DELETE') return;
+    if (!window.confirm(`Delete ${delIds.length} record(s) from "${delKind}"? This cannot be undone.`)) return;
+    const n = deleteRecords(delKind, delIds);
+    setDelMsg(`✓ Deleted ${n} record(s) from "${delKind}".`);
+    setDelIds([]);
+    setDelConfirm('');
   };
   // Pagination for the "All products" table.
   const [prodPage, setProdPage] = useState(1);
@@ -1547,30 +1573,65 @@ export default function Admin() {
         </section>
 
         <section className="card-box" style={{ borderColor: '#e11d48' }}>
-          <h2 style={{ color: '#e11d48' }}>⚠️ Danger zone</h2>
+          <h2 style={{ color: '#e11d48' }}>🗑️ Delete records</h2>
           <p className="muted tiny">
-            Permanently deletes the selected records from the store database (browser + cloud sync).
-            This cannot be undone. Products, settings and staff accounts are never touched here.
+            Pick a record type, tick exactly the records you want to remove, then type DELETE and confirm.
+            Products, settings and staff accounts are never touched.
           </p>
-          <div className="ord-actions" style={{ margin: '12px 0' }}>
-            {CLEAR_OPTS.map((o) => (
-              <label key={o.id} className={`chip${clearKinds.includes(o.id) ? ' active' : ''}`} style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={clearKinds.includes(o.id)}
-                  onChange={() => toggleClearKind(o.id)}
-                  style={{ marginRight: 6 }}
-                />
-                {o.label}
-              </label>
-            ))}
+          <div className="row-gap" style={{ margin: '10px 0' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              Record type
+              <select value={delKind} onChange={(e) => setDelKindSafe(e.target.value)} aria-label="Record type">
+                {CLEAR_OPTS.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <span className="muted tiny">{delTotal} record(s) · {delIds.length} selected</span>
           </div>
+
+          {delTotal === 0 ? (
+            <p className="muted">No records to delete here.</p>
+          ) : (
+            <>
+              <div className="del-list">
+                <label className="chip" style={{ cursor: 'pointer', marginBottom: 8, display: 'inline-flex', alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={delPaged.length > 0 && delPaged.every((r) => delIds.includes(r.id))}
+                    onChange={toggleDelPageAll}
+                    style={{ marginRight: 6 }}
+                  />
+                  Select page ({delPaged.length})
+                </label>
+                {delPaged.map((r) => (
+                  <label
+                    key={r.id}
+                    className="del-row"
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}
+                  >
+                    <input type="checkbox" checked={delIds.includes(r.id)} onChange={() => toggleDelId(r.id)} />
+                    <span className="muted" style={{ fontSize: '.85rem', wordBreak: 'break-word' }}>{r.label}</span>
+                  </label>
+                ))}
+              </div>
+              <Paginator
+                total={delTotal}
+                page={delCur}
+                pageSize={delPageSize}
+                onPageChange={setDelPage}
+                onPageSizeChange={(n) => { setDelPageSize(n); setDelPage(1); }}
+                unit="records"
+              />
+            </>
+          )}
+
           <div className="row-gap" style={{ margin: '10px 0' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               Type DELETE to confirm
               <input
-                value={clearConfirm}
-                onChange={(e) => setClearConfirm(e.target.value)}
+                value={delConfirm}
+                onChange={(e) => setDelConfirm(e.target.value)}
                 placeholder="DELETE"
                 aria-label="Type DELETE to confirm"
                 style={{ maxWidth: 180 }}
@@ -1579,13 +1640,13 @@ export default function Admin() {
             <button
               type="button"
               className="btn btn-dark"
-              disabled={!clearKinds.length || clearConfirm !== 'DELETE'}
-              onClick={runClear}
+              disabled={!delIds.length || delConfirm !== 'DELETE'}
+              onClick={runDel}
             >
-              Delete selected records
+              Delete selected ({delIds.length})
             </button>
           </div>
-          {clearMsg && <p className="ok">{clearMsg}</p>}
+          {delMsg && <p className="ok">{delMsg}</p>}
         </section>
         </>
       )}

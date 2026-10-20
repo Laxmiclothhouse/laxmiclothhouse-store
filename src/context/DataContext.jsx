@@ -725,18 +725,20 @@ export function DataProvider({ children }) {
     db.saveOrders(next);
   };
 
-  // ----- bulk clear (admin Danger zone) -----
-  // Empties the selected record stores. Writing through the same save*
-  // helpers keeps localStorage and Firestore in sync (both get an empty list).
-  const clearRecords = (kinds) => {
-    const k = Array.isArray(kinds) ? kinds : [];
-    if (k.includes('orders')) { setOrders([]); db.saveOrders([]); }
-    if (k.includes('payments')) { setPayments([]); db.savePayments([]); }
-    if (k.includes('sales')) { setSales([]); db.saveSales([]); }
-    if (k.includes('coupons')) { setCoupons([]); db.saveCoupons([]); }
-    if (k.includes('reviews')) { setReviews([]); db.saveReviews([]); }
-    if (k.includes('messages')) { setMessages([]); db.saveMessages([]); }
-    return k;
+  // ----- selective delete (admin Delete records) -----
+  // Removes the chosen ids from one record store, writing through the same
+  // save* helper so localStorage and Firestore stay in sync.
+  const deleteRecords = (kind, ids) => {
+    const idSet = new Set((ids || []).map(String));
+    const pick = (list) => list.filter((x) => !idSet.has(String(x.id)));
+    let removed = 0;
+    if (kind === 'orders') { const n = pick(orders); removed = orders.length - n.length; setOrders(n); db.saveOrders(n); }
+    else if (kind === 'payments') { const n = pick(payments); removed = payments.length - n.length; setPayments(n); db.savePayments(n); }
+    else if (kind === 'sales') { const n = pick(sales); removed = sales.length - n.length; setSales(n); db.saveSales(n); }
+    else if (kind === 'coupons') { const n = pick(coupons); removed = coupons.length - n.length; setCoupons(n); db.saveCoupons(n); }
+    else if (kind === 'reviews') { const n = pick(reviews); removed = reviews.length - n.length; setReviews(n); db.saveReviews(n); }
+    else if (kind === 'messages') { const n = pick(messages); removed = messages.length - n.length; setMessages(n); db.saveMessages(n); }
+    return removed;
   };
 
   // Best-effort calls to the Vercel API functions. Never blocks the store.
@@ -793,7 +795,7 @@ export function DataProvider({ children }) {
       validateCoupon,
       payments,
       logPayment,
-      clearRecords,
+      deleteRecords,
       sales,
       addSale,
       updateSale,
