@@ -1611,7 +1611,7 @@ export default function Admin() {
                   </thead>
                   <tbody>
                     {delPaged.map((r) => (
-                      <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
+                      <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} orderById={orderById} />
                     ))}
                   </tbody>
                 </table>
@@ -2322,11 +2322,19 @@ function CustomersAdmin() {
  * order-queue cards, payments/coupons/reviews tables, sale cards and
  * message cards — each with a selection checkbox on the left.
  */
-function DelRow({ kind, item: r, checked, onToggle }) {
+function DelRow({ kind, item: r, checked, onToggle, orderById }) {
+  // Click anywhere on the row (except the checkbox) to select/deselect it.
+  const rowProps = {
+    style: { cursor: 'pointer' },
+    onClick: (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      onToggle(r.id);
+    },
+  };
   if (kind === 'orders') {
     const pay = payMeta(r);
     return (
-      <tr>
+      <tr {...rowProps}>
         <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
         <td><strong>{r.id}</strong></td>
         <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(r.orderDate)}</td>
@@ -2338,19 +2346,19 @@ function DelRow({ kind, item: r, checked, onToggle }) {
   }
   if (kind === 'payments') {
     return (
-      <tr>
+      <tr {...rowProps}>
         <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
         <td>{formatDateTime(r.at)}</td>
         <td>{r.orderId || '—'}</td>
         <td>{r.gateway || 'Razorpay'}{r.mode ? ` (${r.mode})` : ''}</td>
         <td>{r.verified ? '✓' : <span className="muted">n/a</span>}</td>
-        <td>{r.amount ? formatINR(r.amount) : '—'}</td>
+        <td style={{ whiteSpace: 'nowrap' }}>{r.amount ? formatINR(r.amount) : ((orderById && Number(orderById.get(r.orderId)?.total)) > 0 ? formatINR(orderById.get(r.orderId).total) : '—')}</td>
       </tr>
     );
   }
   if (kind === 'coupons') {
     return (
-      <tr>
+      <tr {...rowProps}>
         <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
         <td><strong>{r.code}</strong></td>
         <td>{r.type === 'percent' ? `${r.value}% off` : `${formatINR(r.value)} off`}</td>
@@ -2365,13 +2373,13 @@ function DelRow({ kind, item: r, checked, onToggle }) {
   }
   if (kind === 'reviews') {
     return (
-      <tr>
+      <tr {...rowProps}>
         <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
         <td>{r.userName || '—'}{r.email && <span className="muted small" style={{ display: 'block' }}>{r.email}</span>}</td>
         <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
           {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
         </td>
-        <td className="muted" style={{ maxWidth: 260 }}>{r.comment || '—'}</td>
+        <td className="muted" style={{ maxWidth: 340 }}>{r.comment || r.text || '—'}</td>
         <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
       </tr>
     );
@@ -2386,7 +2394,7 @@ function DelRow({ kind, item: r, checked, onToggle }) {
             ? 'Flash sale (all products)'
             : 'Entire store';
     return (
-      <tr>
+      <tr {...rowProps}>
         <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
         <td><span className="sale-badge">{r.type}</span></td>
         <td>
@@ -2399,11 +2407,11 @@ function DelRow({ kind, item: r, checked, onToggle }) {
   }
   // messages
   return (
-    <tr>
+    <tr {...rowProps}>
       <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
       <td>{r.name || 'Customer'}</td>
       <td className="muted">{r.email || '—'}</td>
-      <td className="muted" style={{ maxWidth: 320 }}>{r.message || '—'}</td>
+      <td className="muted" style={{ maxWidth: 340 }}>{r.message || r.text || '—'}</td>
       <td><span className={`status-badge ${r.status === 'pending' ? 'cancelled' : 'confirmed'}`}>{r.status || 'pending'}</span></td>
       <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
     </tr>
