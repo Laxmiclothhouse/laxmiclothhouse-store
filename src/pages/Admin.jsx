@@ -1599,26 +1599,23 @@ export default function Admin() {
                   />
                   Select page ({delPaged.length})
                 </label>
-              {['payments', 'coupons', 'reviews'].includes(delKind) ? (
-                <div className="table-scroll">
-                  <table className="table">
-                    <thead>
-                      {delKind === 'payments' && <tr><th></th><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Amount</th></tr>}
-                      {delKind === 'coupons' && <tr><th></th><th>Code</th><th>Discount</th><th>Min order</th><th>Status</th></tr>}
-                      {delKind === 'reviews' && <tr><th></th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th></tr>}
-                    </thead>
-                    <tbody>
-                      {delPaged.map((r) => (
-                        <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                delPaged.map((r) => (
-                  <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
-                ))
-              )}
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    {delKind === 'orders' && <tr><th></th><th>Order</th><th>Date</th><th>Status</th><th>Payment</th><th>Total</th></tr>}
+                    {delKind === 'payments' && <tr><th></th><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Amount</th></tr>}
+                    {delKind === 'coupons' && <tr><th></th><th>Code</th><th>Discount</th><th>Min order</th><th>Status</th></tr>}
+                    {delKind === 'reviews' && <tr><th></th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th></tr>}
+                    {delKind === 'sales' && <tr><th></th><th>Type</th><th>Sale</th><th>Status</th></tr>}
+                    {delKind === 'messages' && <tr><th></th><th>Name</th><th>Email</th><th>Message</th><th>Status</th><th>Date</th></tr>}
+                  </thead>
+                  <tbody>
+                    {delPaged.map((r) => (
+                      <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               </div>
               <Paginator
                 total={delTotal}
@@ -2329,14 +2326,14 @@ function DelRow({ kind, item: r, checked, onToggle }) {
   if (kind === 'orders') {
     const pay = payMeta(r);
     return (
-      <label className="order-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer' }}>
-        <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} />
-        <span style={{ fontWeight: 700 }}>{r.id}</span>
-        <span className="muted tiny">{formatDateTime(r.orderDate)}</span>
-        <span className={`status-badge ${r.status}`}>{r.status}</span>
-        <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
-        <span className="ord-total" style={{ marginLeft: 'auto' }}>{formatINR(r.total)}</span>
-      </label>
+      <tr>
+        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+        <td><strong>{r.id}</strong></td>
+        <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(r.orderDate)}</td>
+        <td><span className={`status-badge ${r.status}`}>{r.status}</span></td>
+        <td><span className={`pay-badge ${pay.cls}`}>{pay.label}</span></td>
+        <td style={{ whiteSpace: 'nowrap' }}>{formatINR(r.total)}</td>
+      </tr>
     );
   }
   if (kind === 'payments') {
@@ -2389,32 +2386,26 @@ function DelRow({ kind, item: r, checked, onToggle }) {
             ? 'Flash sale (all products)'
             : 'Entire store';
     return (
-      <label className={`sale-row${r.active === false ? ' inactive' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-        <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} />
-        <div className="sale-row-main">
-          {r.imageUrl && <img className="sale-thumb" src={r.imageUrl} alt="" />}
-          <span className="sale-badge">{r.type}</span>
-          <div>
-            <strong>{r.name || 'Unnamed sale'}</strong>
-            <span className="sale-scope">{scope}{r.active === false ? ' · inactive' : ''}</span>
-          </div>
-        </div>
-      </label>
+      <tr>
+        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+        <td><span className="sale-badge">{r.type}</span></td>
+        <td>
+          <strong>{r.name || 'Unnamed sale'}</strong>
+          <span className="muted small" style={{ display: 'block' }}>{scope}{r.active === false ? ' · inactive' : ''}</span>
+        </td>
+        <td><span className={`status-badge ${r.active ? 'confirmed' : 'cancelled'}`}>{r.active ? 'Active' : 'Paused'}</span></td>
+      </tr>
     );
   }
   // messages
   return (
-    <div className="msg-card" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
-      <input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} style={{ marginTop: 4 }} />
-      <div style={{ flex: 1 }}>
-        <div className="msg-head">
-          <strong className="msg-name">{r.name || 'Customer'}</strong>
-          {r.email && <span className="msg-email">{r.email}</span>}
-          <span className={`msg-status ${r.status === 'pending' ? 'pending' : 'success'}`}>{r.status || 'pending'}</span>
-        </div>
-        <p className="muted" style={{ margin: 0, fontSize: '.9rem' }}>{r.message || ''}</p>
-        <p className="muted tiny" style={{ margin: '4px 0 0' }}>{formatDateTime(r.date)}</p>
-      </div>
-    </div>
+    <tr>
+      <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
+      <td>{r.name || 'Customer'}</td>
+      <td className="muted">{r.email || '—'}</td>
+      <td className="muted" style={{ maxWidth: 320 }}>{r.message || '—'}</td>
+      <td><span className={`status-badge ${r.status === 'pending' ? 'cancelled' : 'confirmed'}`}>{r.status || 'pending'}</span></td>
+      <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
+    </tr>
   );
 }
