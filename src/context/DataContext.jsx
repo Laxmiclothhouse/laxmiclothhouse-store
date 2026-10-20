@@ -725,6 +725,20 @@ export function DataProvider({ children }) {
     db.saveOrders(next);
   };
 
+  // ----- bulk clear (admin Danger zone) -----
+  // Empties the selected record stores. Writing through the same save*
+  // helpers keeps localStorage and Firestore in sync (both get an empty list).
+  const clearRecords = (kinds) => {
+    const k = Array.isArray(kinds) ? kinds : [];
+    if (k.includes('orders')) { setOrders([]); db.saveOrders([]); }
+    if (k.includes('payments')) { setPayments([]); db.savePayments([]); }
+    if (k.includes('sales')) { setSales([]); db.saveSales([]); }
+    if (k.includes('coupons')) { setCoupons([]); db.saveCoupons([]); }
+    if (k.includes('reviews')) { setReviews([]); db.saveReviews([]); }
+    if (k.includes('messages')) { setMessages([]); db.saveMessages([]); }
+    return k;
+  };
+
   // Best-effort calls to the Vercel API functions. Never blocks the store.
   // Returns the fetch Response so callers can inspect success/failure.
   const postApi = async (path, body) => {
@@ -779,6 +793,7 @@ export function DataProvider({ children }) {
       validateCoupon,
       payments,
       logPayment,
+      clearRecords,
       sales,
       addSale,
       updateSale,

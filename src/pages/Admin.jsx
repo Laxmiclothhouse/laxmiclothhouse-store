@@ -19,6 +19,14 @@ const ALL_PAY = [
   { id: 'card', label: 'Card' },
   { id: 'cod', label: 'COD' },
 ];
+const CLEAR_OPTS = [
+  { id: 'orders', label: 'Orders' },
+  { id: 'payments', label: 'Payments log' },
+  { id: 'sales', label: 'Sales & deals' },
+  { id: 'coupons', label: 'Coupons' },
+  { id: 'reviews', label: 'Reviews' },
+  { id: 'messages', label: 'Messages' },
+];
 
 const emptyForm = {
   name: '',
@@ -443,6 +451,7 @@ export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
   const { payments, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
+  const { clearRecords } = useData();
   // The active tab lives in the URL (?tab=payments) so a page refresh,
   // browser back/forward or a shared link keeps the admin on the same section.
   const [params, setParams] = useSearchParams();
@@ -473,6 +482,19 @@ export default function Admin() {
   const [refPage, setRefPage] = useState(1);
   const [refPageSize, setRefPageSize] = useState(10);
   const [payView, setPayView] = useState('latest');
+  const [clearKinds, setClearKinds] = useState([]);
+  const [clearConfirm, setClearConfirm] = useState('');
+  const [clearMsg, setClearMsg] = useState('');
+  const toggleClearKind = (id) =>
+    setClearKinds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const runClear = () => {
+    if (!clearKinds.length || clearConfirm !== 'DELETE') return;
+    if (!window.confirm(`Permanently delete: ${clearKinds.join(', ')}?\n\nThis cannot be undone.`)) return;
+    clearRecords(clearKinds);
+    setClearMsg(`✓ Deleted: ${clearKinds.join(', ')}. Products & settings untouched.`);
+    setClearKinds([]);
+    setClearConfirm('');
+  };
   // Pagination for the "All products" table.
   const [prodPage, setProdPage] = useState(1);
   const [prodPageSize, setProdPageSize] = useState(10);
@@ -1343,6 +1365,7 @@ export default function Admin() {
       )}
 
       {tab === 'settings' && (
+        <>
         <section className="card-box">
           <h2>Store settings</h2>
           <p className="muted">These changes are applied across the site instantly.</p>
@@ -1522,6 +1545,49 @@ export default function Admin() {
             <button className="btn btn-gold" type="submit">Save settings</button>
           </form>
         </section>
+
+        <section className="card-box" style={{ borderColor: '#e11d48' }}>
+          <h2 style={{ color: '#e11d48' }}>⚠️ Danger zone</h2>
+          <p className="muted tiny">
+            Permanently deletes the selected records from the store database (browser + cloud sync).
+            This cannot be undone. Products, settings and staff accounts are never touched here.
+          </p>
+          <div className="ord-actions" style={{ margin: '12px 0' }}>
+            {CLEAR_OPTS.map((o) => (
+              <label key={o.id} className={`chip${clearKinds.includes(o.id) ? ' active' : ''}`} style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={clearKinds.includes(o.id)}
+                  onChange={() => toggleClearKind(o.id)}
+                  style={{ marginRight: 6 }}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+          <div className="row-gap" style={{ margin: '10px 0' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              Type DELETE to confirm
+              <input
+                value={clearConfirm}
+                onChange={(e) => setClearConfirm(e.target.value)}
+                placeholder="DELETE"
+                aria-label="Type DELETE to confirm"
+                style={{ maxWidth: 180 }}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-dark"
+              disabled={!clearKinds.length || clearConfirm !== 'DELETE'}
+              onClick={runClear}
+            >
+              Delete selected records
+            </button>
+          </div>
+          {clearMsg && <p className="ok">{clearMsg}</p>}
+        </section>
+        </>
       )}
 
       {invoiceOrder && (
