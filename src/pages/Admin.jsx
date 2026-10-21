@@ -1188,3 +1188,529 @@ function SalesDashboard({ orders, payments, returns }) {
   );
 }
 
+// ── Orders report: date-range filter + PDF download ──────────
+function OrdersReport({ orders, settings }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState('');
+  const [previewName, setPreviewName] = React.useState('');
+
+  const filtered = filterOrdersByRange(orders, from, to);
+  const completed = filtered.filter((o) => o.status !== "cancelled");
+  const revenue = completed.reduce((s, o) => s + (o.total || 0), 0);
+
+  const applyPreset = (days) => {
+    if (days == null) { setFrom(""); setTo(""); return; }
+    const now = new Date();
+    const start = new Date(now.getTime() - days * 86400000);
+    setFrom(start.toISOString().slice(0, 10));
+    setTo(now.toISOString().slice(0, 10));
+  };
+
+  const reportOpts = () => ({ from, to, storeName: settings?.storeName });
+
+  const closePreview = React.useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl('');
+    setPreviewName('');
+  }, [previewUrl]);
+
+  const openPreview = () => {
+    if (busy || !filtered.length) return;
+    setBusy(true);
+    try {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const url = ordersReportPdfUrl(filtered, reportOpts());
+      setPreviewName(ordersReportFileName(reportOpts()));
+      setPreviewUrl(url);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = () => {
+    if (busy || !filtered.length) return;
+    setBusy(true);
+    try {
+      downloadOrdersReportPdf(filtered, reportOpts());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card-box" style={{ background: '#faf6f0', marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'flex-end' }}>
+        <label style={{ fontSize: 13 }}>
+          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>From</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input" />
+        </label>
+        <label style={{ fontSize: 13 }}>
+          <span style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>To</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="input" />
+        </label>
+        <div className="row-gap" style={{ paddingBottom: 2 }}>
+          <button className="chip" onClick={() => applyPreset(0)}>Today</button>
+          <button className="chip" onClick={() => applyPreset(7)}>Last 7 days</button>
+          <button className="chip" onClick={() => applyPreset(30)}>Last 30 days</button>
+          <button className="chip" onClick={() => applyPreset(null)}>All time</button>
+        </div>
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ fontSize: 13 }}>
+            <strong>{filtered.length}</strong> orders · <strong style={{ color: '#9b1c3d' }}>{formatINR(revenue)}</strong> revenue
+            {from || to ? <span className="muted"> (filtered)</span> : ''}
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginTop: 6, marginRight: 8 }}
+            disabled={busy || !filtered.length}
+            onClick={openPreview}
+            title={filtered.length ? 'Preview the orders report fullscreen' : 'No orders in this date range'}
+          >
+            👁 Preview
+          </button>
+          <button
+            className="btn btn-gold btn-sm"
+            style={{ marginTop: 6 }}
+            disabled={busy || !filtered.length}
+            onClick={download}
+            title={filtered.length ? 'Download the orders report as PDF' : 'No orders in this date range'}
+          >
+            {busy ? 'Preparing…' : '⬇ Download PDF'}
+          </button>
+        </div>
+      </div>
+      {from || to ? (
+        <p className="muted tiny" style={{ margin: '10px 0 0 0' }}>
+          Range: {from || 'beginning'} → {to || 'today'}. The PDF includes every order in this range with a revenue total.
+        </p>
+      ) : null}
+      {previewUrl ? (
+        <PdfViewer
+          title="Orders report"
+          subtitle={`${filtered.length} orders · ${from || 'beginning'} → ${to || 'today'}`}
+          url={previewUrl}
+          fileName={previewName || 'orders-report.pdf'}
+          onDownload={download}
+          onPrint={() => printOrdersReportPdf(filtered, reportOpts())}
+          onClose={closePreview}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ── Review moderation: search + edit + delete reviews ──
+function ReviewsAdmin() {
+  const { products, reviews, updateReview, deleteReview } = useData();
+  const [query, setQuery] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [reviewDelMode, setReviewDelMode] = useState(false);
+
+  const nameFor = (pid) => products.find((p) => p.id === pid)?.name || pid;
+
+  // search: customer name / email / product name / product name + customer name
+  const q = (query || '').trim().toLowerCase();
+  const list = q === ''
+    ? reviews
+    : reviews.filter((r) => {
+        const reviewer = `${r.userName || ''} ${r.email || ''}`.toLowerCase();
+        const product = `${nameFor(r.productId)} ${r.productName || ''}`.toLowerCase();
+        return reviewer.includes(q) || product.includes(q);
+      });
+  const sorted = [...list].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  // Pagination
+  useEffect(() => { setPage(1); }, [query, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const startEdit = (r) => {
+    setEditingId(r.id);
+    setDraft({ rating: r.rating || 0, comment: r.comment || '' });
+  };
+  const saveEdit = (r) => {
+    if (draft.rating < 1 || draft.rating > 5) {
+      alert('Rating must be between 1 and 5.');
+      return;
+    }
+    updateReview(r.id, { rating: draft.rating, comment: draft.comment.trim() });
+    setEditingId(null);
+  };
+
+  return (
+    <>
+      <section className="card-box">
+        <h2>Review moderation</h2>
+        <button
+          className={`btn btn-sm danger ${reviewDelMode ? 'active' : ''}`}
+          onClick={() => setReviewDelMode((m) => !m)}
+          title={reviewDelMode ? 'Done' : 'Delete mode'}
+        >
+          {reviewDelMode ? '✓ Done' : '🗑️'}
+        </button>
+        <p className="muted small">
+          Search across customer name, email or product name. Edit a review in place, or delete it. Changes are permanent and sync to every device.
+        </p>
+        <input
+          className="input"
+          style={{ maxWidth: 360 }}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search: try a customer name, email, or product…"
+        />
+        <p className="muted small" style={{ marginTop: 6 }}>
+          Showing <strong>{sorted.length}</strong> review{sorted.length === 1 ? '' : 's'}.
+        </p>
+      </section>
+
+      <section className="card-box">
+        {sorted.length === 0 ? (
+          <p className="muted">{q ? 'No reviews match the search.' : 'No reviews yet.'}</p>
+        ) : (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  {reviewDelMode && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}
+                  <th>Product</th>
+                  <th>Reviewer</th>
+                  <th>Rating</th>
+                  <th>Comment</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((r) => (
+                  <tr key={r.id}>
+                    {reviewDelMode && (
+                      <td style={{ width: 44, textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          onChange={(e) => { e.stopPropagation(); deleteReview(r.id); }}
+                          aria-label={`Delete review by ${r.userName || 'customer'}`}
+                        />
+                      </td>
+                    )}
+                    <td>{nameFor(r.productId)}</td>
+                    <td>
+                      {r.userName || '—'}
+                      {r.email && <span className="muted small" style={{ display: 'block' }}>{r.email}</span>}
+                    </td>
+                    <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
+                      {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
+                    </td>
+                    <td style={{ maxWidth: 280 }}>
+                      {editingId === r.id ? (
+                        <textarea
+                          className="input"
+                          rows={3}
+                          value={draft.comment}
+                          onChange={(e) => setDraft({ ...draft, comment: e.target.value })}
+                        />
+                      ) : (
+                        r.comment || '—'
+                      )}
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
+                    <td>
+                      {editingId === r.id ? (
+                        <>
+                          <input
+                            type="number"
+                            min={1}
+                            max={5}
+                            className="input"
+                            style={{ width: 64, marginBottom: 6 }}
+                            value={draft.rating}
+                            onChange={(e) => setDraft({ ...draft, rating: Number(e.target.value) })}
+                          />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-sm" onClick={() => saveEdit(r)}>Save</button>
+                            <button className="btn btn-sm" onClick={() => setEditingId(null)}>✕</button>
+                          </div>
+                        </>
+                      ) : (
+                        <button className="btn btn-sm" onClick={() => startEdit(r)}>Edit</button>
+                      )}
+                      {!reviewDelMode && (
+                        <button
+                          className="btn btn-sm danger"
+                          style={{ marginLeft: 8 }}
+                          onClick={() => {
+                            if (window.confirm(`Delete this review by ${r.userName || 'this customer'}?\n\nThis cannot be undone.`)) {
+                              deleteReview(r.id);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {sorted.length > 0 && (
+          <Paginator
+            total={sorted.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            unit="reviews"
+          />
+        )}
+      </section>
+    </>
+  );
+}
+
+// ── Customer accounts: view + delete account data ─────────────
+function CustomersAdmin() {
+  const { deleteUserAccount } = useData();
+  const { user, listAllUsers, deleteUserProfile } = useAuth();
+  const [users, setUsers] = useState(() => db.getUsers());
+  const [query, setQuery] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [pending, setPending] = useState(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Show every registered customer the moment the tab opens — no search
+  // needed. Firestore `users` is the source of truth; the local cache and
+  // order emails are merged in as a fallback so the list is never empty
+  // when rules or cache hide the directory.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoadingUsers(true);
+      setUsersError('');
+      try {
+        const merged = new Map();
+        const put = (u) => {
+          const key = String(u.uid || u.id || u.email || '').toLowerCase();
+          if (!key || merged.has(key)) return;
+          merged.set(key, u);
+        };
+        if (typeof listAllUsers === 'function') {
+          try {
+            const dir = await listAllUsers();
+            (dir || []).forEach((u) => put({
+              id: u.uid,
+              uid: u.uid,
+              name: u.name || '',
+              email: u.email || '',
+              phone: u.phone || '',
+              role: u.role || 'customer',
+            }));
+          } catch (err) {
+            if (alive) setUsersError(err.message || 'Could not load customer accounts.');
+          }
+        }
+        (db.getUsers() || []).forEach((u) => put({
+          id: u.id,
+          uid: u.uid || u.id,
+          name: u.name || '',
+          email: u.email || '',
+          phone: u.phone || '',
+          role: u.role || 'customer',
+        }));
+        (db.getOrders() || []).forEach((o) => {
+          const email = String(o.customerEmail || o.customer?.email || '').trim();
+          if (!email) return;
+          put({
+            id: o.userId || email,
+            uid: o.userId || email,
+            name: o.customer?.name || '',
+            email,
+            phone: o.phone || o.customer?.phone || '',
+            role: 'customer',
+            fromOrders: true,
+          });
+        });
+        if (alive) setUsers([...merged.values()]);
+      } finally {
+        if (alive) setLoadingUsers(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const list = users
+    .filter((u) =>
+      !q ||
+      String(u.name || '').toLowerCase().includes(q) ||
+      String(u.email || '').toLowerCase().includes(q) ||
+      String(u.phone || '').replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+    )
+    .sort((a, b) => String(a.email || '').localeCompare(String(b.email || '')));
+
+  // Pagination
+  useEffect(() => { setPage(1); }, [query, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = list.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const startDelete = (u) => {
+    setMsg(null);
+    setConfirmText('');
+    setPending(u);
+  };
+
+  const confirmDelete = async () => {
+    if (!pending || deleting) return;
+    if ((pending.email || '').trim().toLowerCase() !== confirmText.trim().toLowerCase()) {
+      setMsg({ ok: false, text: 'Type the customer’s email exactly as shown to confirm deletion.' });
+      return;
+    }
+    setDeleting(true);
+    setMsg(null);
+    try {
+      // 1) remove the real Firestore profile (the account row the admin sees)
+      const uid = String(pending.uid || pending.id || '').trim();
+      let profileDeleted = false;
+      if (uid && typeof deleteUserProfile === 'function' && !pending.fromOrders) {
+        try {
+          await deleteUserProfile(uid);
+          profileDeleted = true;
+        } catch (err) {
+          setMsg({ ok: false, text: err.message || 'Could not delete that profile.' });
+          return;
+        }
+      }
+      // 2) remove local store copies (profile cache, reviews, wishlist)
+      const res = deleteUserAccount(pending);
+      const removedKey = String(pending.uid || pending.id || pending.email || '').toLowerCase();
+      setUsers((prev) => prev.filter((u) =>
+        String(u.uid || u.id || u.email || '').toLowerCase() !== removedKey
+      ));
+      setPending(null);
+      setConfirmText('');
+      const removedCount = (profileDeleted ? 1 : 0) + (res.users || 0);
+      setMsg({
+        ok: removedCount > 0 || (res.reviews || 0) > 0,
+        text: removedCount > 0
+          ? `Deleted: ${removedCount} profile${removedCount === 1 ? '' : 's'}, ${res.reviews} review(s)${res.wishlistRemoved ? ', wishlist' : ''}. ` +
+            'Note: the underlying Firebase login can only be fully removed with server-side setup.'
+          : `Nothing was deleted — no stored profile matched ${pending.email || 'that account'}. ` +
+            'Their Firebase login/profile may already be gone; reload the page to refresh the list.',
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const isStaffRole = (r) => r === 'admin' || ['manager', 'packer', 'shipper', 'support'].includes(r);
+
+  return (
+    <>
+      <section className="card-box">
+        <h2>Customer accounts ({users.length})</h2>
+        <p className="muted small">
+          All registered accounts are listed below — no search needed. Deleting an account removes the customer's stored profile,
+          their reviews and their wishlist. <strong>Orders are kept</strong> — they are business records.
+          The Firebase login itself is not removable from here (needs server-side setup).
+        </p>
+        <input
+          className="input"
+          style={{ maxWidth: 360 }}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter by name, email or phone… (optional)"
+        />
+        {loadingUsers && <p className="muted small">Loading customer accounts…</p>}
+        {usersError && <p className="error small">{usersError} Showing cached accounts below.</p>}
+      </section>
+
+      {msg && (
+        <section className="card-box">
+          <p className={msg.ok ? 'ok' : 'error'}>{msg.text}</p>
+        </section>
+      )}
+
+      {pending && (
+        <section className="card-box" style={{ borderColor: '#b3261e' }}>
+          <h2>⚠ Delete account</h2>
+          <p>
+            <strong>{pending.name || 'Unknown'}</strong> — {pending.email || 'no email'} (role: {pending.role || 'customer'})
+          </p>
+          <p className="muted small">
+            This permanently deletes their profile, reviews and wishlist from the store.
+            Type their email below to confirm.
+          </p>
+          <div className="row-gap" style={{ alignItems: 'center' }}>
+            <input
+              className="input"
+              style={{ maxWidth: 320 }}
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={pending.email || 'type their email'}
+            />
+            <button className="btn btn-sm danger" disabled={deleting} onClick={confirmDelete}>{deleting ? 'Deleting…' : 'Confirm deletion'}</button>
+            <button className="btn btn-sm" disabled={deleting} onClick={() => { setPending(null); setConfirmText(''); }}>Cancel</button>
+          </div>
+        </section>
+      )}
+
+      <section className="card-box">
+        {list.length === 0 ? (
+          <p className="muted">{q ? 'No accounts match this filter.' : 'No customer accounts yet. They appear here after someone signs up or orders.'}</p>
+        ) : (
+          <>
+            <p className="muted small" style={{ marginTop: 0 }}>
+              Showing <strong>{list.length}</strong> of <strong>{users.length}</strong> account{users.length === 1 ? '' : 's'}.
+            </p>
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {paged.map((u) => (
+                  <tr key={u.id || u.email}>
+                    <td>{u.name || '—'}</td>
+                    <td>{u.email || '—'}</td>
+                    <td>{u.role || 'customer'}</td>
+                    <td>
+                      {u.id === user?.id ? (
+                        <span className="muted tiny">You</span>
+                      ) : isStaffRole(u.role) ? (
+                        <span className="muted tiny">Staff — protected</span>
+                      ) : (
+                        <button className="btn btn-sm danger" onClick={() => startDelete(u)}>Delete account</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Paginator
+            total={list.length}
+            page={currentPage}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            unit="accounts"
+          />
+          </>
+        )}
+      </section>
+    </>
+  );
+}
+

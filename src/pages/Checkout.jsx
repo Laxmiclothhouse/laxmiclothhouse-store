@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { useCartWeightGrams } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -10,7 +10,6 @@ import { payWithRazorpay } from '../utils/razorpay.js';
 const ALL_PAY_METHODS = [
   { id: 'upi', label: 'UPI', hint: 'GPay / PhonePe / Paytm / BHIM' },
   { id: 'card', label: 'Credit / Debit Card', hint: 'Visa, Mastercard, RuPay' },
-  { id: 'cod', label: 'Cash on Delivery', hint: 'Pay in cash at your doorstep' },
 ];
 
 export default function Checkout() {
@@ -18,6 +17,8 @@ export default function Checkout() {
   const { placeOrder, settings, products, validateCoupon, logPayment } = useData();
   const { user } = useAuth();
   const nav = useNavigate();
+const [params] = useSearchParams();
+const buyNowOrderId = params.get('order');
 
   const [shipping, setShipping] = useState({
     name: user?.name || '',
@@ -232,7 +233,7 @@ export default function Checkout() {
 
   const gatewayConfigured = Boolean(settings.razorpayKeyId);
   const activeMethod = availableMethods.find((m) => m.id === method) ? method : (availableMethods[0]?.id || '');
-  const pmode = settings.paymentMode || 'demo';
+  const pmode = 'live'; // Razorpay only — COD / demo / auto payment removed
 
   const payText = (p) => {
     if (p?.method === 'cod') return 'Cash on Delivery';
@@ -241,6 +242,28 @@ export default function Checkout() {
     return p ? 'Paid online via ' + (p.gateway || 'Razorpay') + (p.mode ? ' (' + p.mode + ')' : '') : '';
   };
 
+  if (buyNowOrderId) {
+    const order = findOrder(buyNowOrderId);
+    if (order) {
+      return (
+        <main className="page center">
+          <div className="card-box">
+            <div className="ok" style={{ fontSize: 48 }}>OK</div>
+            <h2>Order placed successfully!</h2>
+            <p><strong>Order ID:</strong> {order.id}</p>
+            <p><strong>Payment:</strong> {payText(order.payment)}</p>
+            <p><strong>Total paid:</strong> {formatINR(order.total)}</p>
+            <div className="pay-methods">
+              <button className="btn btn-dark" onClick={() => nav('/')}>Continue shopping</button>
+              <button className="btn btn-gold" onClick={() => nav('/track')}>Track order</button>
+            </div>
+          </div>
+        </main>
+      );
+    }
+  }
+
+  if (cart.length === 0 && !placed) {
   if (cart.length === 0 && !placed) {
     return (
       <main className="page center">
@@ -321,55 +344,6 @@ export default function Checkout() {
       total,
     };
 
-    if (activeMethod === 'cod') {
-      const payment = { method: 'cod', status: 'pending', mode: 'Cash on Delivery' };
-      const order = placeOrder({ ...baseOrder, payment });
-      logPayment({ orderId: order.id, method: 'cod', gateway: '', mode: 'COD', status: 'pending', amount: total, verified: null, ref: '' });
-      clearCart();
-      setPlaced(order);
-      return;
-    }
-
-    // Simulated online payment (used by Demo mode & Auto fallback). No Razorpay call.
-    const simulatePayment = () => {
-      const payment = {
-        method: 'online',
-        gateway: 'Demo',
-        status: 'paid',
-        mode: activeMethod === 'upi' ? 'UPI' : 'Card',
-        ref: 'DEMO-' + Date.now().toString(36).toUpperCase(),
-      };
-      const order = placeOrder({ ...baseOrder, payment });
-      logPayment({ orderId: order.id, method: 'online', gateway: 'Demo', mode: activeMethod === 'upi' ? 'UPI' : 'Card', status: 'paid', verified: false, ref: payment.ref });
-      clearCart();
-      setPlaced(order);
-    };
-
-    // Payment mode from Admin -> Settings:
-    //   demo -> always simulate (no Razorpay, no real money)
-    //   auto -> try Razorpay, fall back to demo payment on failure
-    //   live -> Razorpay only (real money)
-    if (pmode === 'demo') {
-      setPaying(true);
-      await new Promise((r) => setTimeout(r, 1200));
-      simulatePayment();
-      setPaying(false);
-      return;
-    }
-
-    if (!gatewayConfigured) {
-      if (pmode === 'auto') {
-        setPaying(true);
-        await new Promise((r) => setTimeout(r, 900));
-        simulatePayment();
-        setPaying(false);
-        setGatewayNotice("Razorpay isn't configured yet, so this test order was completed as a demo payment — no money was charged.");
-        return;
-      }
-      setErr('Payment gateway not configured. Add the Razorpay Key ID in Admin > Settings.');
-      return;
-    }
-
     setPaying(true);
     try {
       const response = await payWithRazorpay({
@@ -401,19 +375,11 @@ export default function Checkout() {
       clearCart();
       setPlaced(order);
     } catch (ex) {
-      if (pmode === 'auto') {
-        await new Promise((r) => setTimeout(r, 600));
-        simulatePayment();
-        setGatewayNotice("Payment gateway couldn't complete the payment (" + (ex.message || 'gateway error') + ") — this test order was recorded as a demo payment. No money was charged.");
-      } else {
-        setErr(ex.message || 'Payment failed. Please try again.');
-      }
+      setErr(ex.message || 'Payment failed. Please try again.');
     } finally {
       setPaying(false);
     }
-    } finally {
-      setSubmitting(false);
-    }
+    setSubmitting(false);
   };
 
   return (
