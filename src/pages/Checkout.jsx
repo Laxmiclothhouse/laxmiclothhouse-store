@@ -379,8 +379,10 @@ const buyNowOrderId = params.get('order');
     } finally {
       setPaying(false);
     }
+  } finally {
     setSubmitting(false);
-  };
+  }
+};
 
   return (
     <main className="page checkout">
