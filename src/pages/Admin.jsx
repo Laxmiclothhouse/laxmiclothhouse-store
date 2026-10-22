@@ -461,6 +461,8 @@ export default function Admin() {
     : ['orders'];
   const tabParam = params.get('tab');
   const tab = TABS.includes(tabParam) ? tabParam : DEFAULT_TAB;
+  // Per-tab "delete mode": when ON, each row shows a tick box; clicking a tick deletes that record.
+  const [delMode, setDelMode] = useState({});
   const setTab = (t) => {
     const next = new URLSearchParams(params);
     if (t && t !== DEFAULT_TAB) next.set('tab', t);
@@ -1111,14 +1113,26 @@ export default function Admin() {
 
           <section className="card-box">
             <h2>All products</h2>
+            <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, products: !delMode.products }))} title="Delete mode">
+              {delMode.products ? '✓ Done' : '🗑️'}
+            </button>
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
+                  <tr><th>{delMode.products ? '' : 'Name'}</th><th>{delMode.products ? '' : 'Category'}</th><th>{delMode.products ? '' : 'Price'}</th><th>{delMode.products ? '' : 'Stock'}</th><th>{delMode.products ? '' : 'Featured'}</th><th>{delMode.products ? '' : 'Actions'}</th>{delMode.products && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
                 </thead>
                 <tbody>
                   {pagedProducts.map((p) => (
                     <tr key={p.id}>
+                      {delMode.products && (
+                        <td style={{ width: 44, textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            onChange={(e) => { e.stopPropagation(); deleteRecords('products', [p.id]); }}
+                            aria-label={`Select ${p.name}`}
+                          />
+                        </td>
+                      )}
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
                       <td>{formatINR(p.price)}</td>
@@ -1192,17 +1206,29 @@ export default function Admin() {
 
           <section className="card-box">
             <h2>All coupons</h2>
+            <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, coupons: !delMode.coupons }))} title="Delete mode">
+              {delMode.coupons ? '✓ Done' : '🗑️'}
+            </button>
             {coupons.length === 0 ? (
               <p className="muted">No coupons yet. Create your first one above.</p>
             ) : (
               <div className="table-scroll">
                 <table className="table">
                   <thead>
-                    <tr><th>Code</th><th>Discount</th><th>Min order</th><th>Used</th><th>Status</th><th>Actions</th></tr>
+                    <tr><th>{delMode.coupons ? '' : 'Code'}</th><th>{delMode.coupons ? '' : 'Discount'}</th><th>{delMode.coupons ? '' : 'Min order'}</th><th>{delMode.coupons ? '' : 'Used'}</th><th>{delMode.coupons ? '' : 'Status'}</th><th>{delMode.coupons ? '' : 'Actions'}</th>{delMode.coupons && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
                   </thead>
                   <tbody>
                     {coupons.map((c) => (
                       <tr key={c.id}>
+                        {delMode.coupons && (
+                          <td style={{ width: 44, textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              onChange={(e) => { e.stopPropagation(); deleteRecords('coupons', [c.id]); }}
+                              aria-label={`Select ${c.code}`}
+                            />
+                          </td>
+                        )}
                         <td><strong>{c.code}</strong></td>
                         <td>{c.type === 'percent' ? `${c.value}% off` : `${formatINR(c.value)} off`}</td>
                         <td>{c.minOrder ? formatINR(c.minOrder) : '—'}</td>
@@ -1240,6 +1266,9 @@ export default function Admin() {
       {tab === 'payments' && (
         <section className="card-box">
           <h2>Payments & refunds</h2>
+          <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, payments: !delMode.payments }))} title="Delete mode">
+            {delMode.payments ? '✓ Done' : '🗑️'}
+          </button>
           <p className="muted tiny">
             Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side. Use the dropdown below to switch between the latest payments and refunds — the search applies to whichever is shown.
           </p>
@@ -1270,7 +1299,7 @@ export default function Admin() {
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Refund</th><th>Amount</th></tr>
+                  <tr><th>{delMode.payments ? '' : 'Date'}</th><th>{delMode.payments ? '' : 'Order'}</th><th>{delMode.payments ? '' : 'Payment'}</th><th>{delMode.payments ? '' : 'Verified'}</th><th>{delMode.payments ? '' : 'Refund'}</th><th>{delMode.payments ? '' : 'Amount'}</th>{delMode.payments && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
                 </thead>
                 <tbody>
                   {pagedPayments.map((p) => {
@@ -1279,6 +1308,15 @@ export default function Admin() {
                     const amt = Number(p.amount) || Number(linked && linked.total) || 0;
                     return (
                       <tr key={p.id}>
+                        {delMode.payments && (
+                          <td style={{ width: 44, textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              onChange={(e) => { e.stopPropagation(); deleteRecords('payments', [p.id]); }}
+                              aria-label={`Select payment ${p.id}`}
+                            />
+                          </td>
+                        )}
                         <td>{formatDateTime(p.at)}</td>
                         <td>
                           {p.orderId ? (
@@ -1328,7 +1366,7 @@ export default function Admin() {
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>Date</th><th>Order</th><th>Customer</th><th>Refund ID</th><th>Initiated by</th><th>Status</th><th>Amount</th></tr>
+                  <tr>{delMode.payments && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}<th>Date</th><th>Order</th><th>Customer</th><th>Refund ID</th><th>Initiated by</th><th>Status</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
                   {pagedRefunds.map(({ o, r }) => {
@@ -1337,6 +1375,15 @@ export default function Admin() {
                     const lbl = r.refundStatus === 'failed' ? 'Refund failed' : r.refundStatus === 'refunding' ? 'Refunding in process' : moneyBack ? 'Refunded' : 'No money moved';
                     return (
                       <tr key={o.id}>
+                        {delMode.payments && (
+                          <td style={{ width: 44, textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              onChange={(e) => { e.stopPropagation(); deleteRecords('payments', [o.id]); }}
+                              aria-label={`Delete refund ${o.id}`}
+                            />
+                          </td>
+                        )}
                         <td>{formatDateTime(r.refundedAt || r.cancelledAt || o.orderDate)}</td>
                         <td><Link to={`/order-manage/${o.id}`}>{o.id}</Link></td>
                         <td>{o.customer?.name || '—'}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}</td>

@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { formatINR } from '../utils/format.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useData } from '../context/DataContext.jsx';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
 
@@ -59,7 +60,7 @@ function imageFileToDataUrl(file) {
   });
 }
 
-function SaleRow({ sale, products, onEdit, onDelete, onToggle, onNotify, notifying }) {
+function SaleRow({ sale, products, onEdit, onDelete, onToggle, onNotify, notifying, saleDelMode, deleteRecords }) {
   const product = sale.productId ? products.find((p) => p.id === sale.productId) : null;
   const scope = sale.type === 'product'
     ? product?.name || 'Unknown product'
@@ -71,6 +72,15 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle, onNotify, notifyi
   return (
     <div className={'sale-row ' + (sale.active === false ? 'inactive' : '')}>
       <div className="sale-row-main">
+        {saleDelMode && (
+          <label style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}>
+            <input
+              type="checkbox"
+              onChange={(e) => { e.stopPropagation(); deleteRecords('sales', [sale.id]); }}
+              aria-label={`Delete sale ${sale.name || sale.id}`}
+            />
+          </label>
+        )}
         {sale.imageUrl && <img className="sale-thumb" src={sale.imageUrl} alt="" />}
         <span className="sale-badge">{sale.type}</span>
         <div>
@@ -94,19 +104,23 @@ function SaleRow({ sale, products, onEdit, onDelete, onToggle, onNotify, notifyi
         >
           {notifying ? 'Notifying…' : 'Notify Customers'}
         </button>
-        <button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm('Delete this sale?')) onDelete(sale.id); }}>Delete</button>
+        {!saleDelMode && (
+          <button className="btn btn-sm btn-danger" onClick={() => { if (window.confirm('Delete this sale?')) onDelete(sale.id); }}>Delete</button>
+        )}
       </div>
     </div>
   );
 }
 
 export default function SalesManager({ sales, products, addSale, updateSale, deleteSale, toggleSale }) {
+  const { deleteRecords } = useData();
+  const { getIdToken } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ type: 'product', name: '', discountType: 'percent', value: '', productId: '', category: 'Suits', startsAt: '', endsAt: '', active: true, imageUrl: '' });
   const [imageMsg, setImageMsg] = useState('');
   const [notifyState, setNotifyState] = useState({ busyId: '', message: '' });
-  const { getIdToken } = useAuth();
+  const [saleDelMode, setSaleDelMode] = useState(false);
 
   const notifyCustomers = async (sale, ask = true) => {
     if (!sale?.id || notifyState.busyId) return;
@@ -185,6 +199,16 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
       <div className="sales-header">
         <h2>Manage sales</h2>
         {!showForm && <button className="btn btn-gold btn-sm" onClick={() => setShowForm(true)}>+ Create sale</button>}
+        {sales.length > 0 && (
+          <button
+            className={`btn btn-sm danger ${saleDelMode ? 'active' : ''}`}
+            onClick={() => setSaleDelMode((m) => !m)}
+            title={saleDelMode ? 'Done' : 'Delete mode'}
+            style={{ marginLeft: 10 }}
+          >
+            {saleDelMode ? '✓ Done' : '🗑️'}
+          </button>
+        )}
       </div>
       {notifyState.message && <p className={(dataHasFailures(notifyState.message)) ? 'error' : 'ok'}>{notifyState.message}</p>}
       {showForm && (
@@ -274,9 +298,9 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
           </div>
         </form>
       )}
-      {active.length > 0 && <div className="sale-list"><h3>Active sales ({active.length})</h3>{active.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
-      {upcoming.length > 0 && <div className="sale-list"><h3>Upcoming ({upcoming.length})</h3>{upcoming.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
-      {expired.length > 0 && <div className="sale-list"><h3>Expired ({expired.length})</h3>{expired.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} />)}</div>}
+      {active.length > 0 && <div className="sale-list"><h3>Active sales ({active.length})</h3>{active.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} saleDelMode={saleDelMode} deleteRecords={deleteRecords} />)}</div>}
+      {upcoming.length > 0 && <div className="sale-list"><h3>Upcoming ({upcoming.length})</h3>{upcoming.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} saleDelMode={saleDelMode} deleteRecords={deleteRecords} />)}</div>}
+      {expired.length > 0 && <div className="sale-list"><h3>Expired ({expired.length})</h3>{expired.map((s) => <SaleRow key={s.id} sale={s} products={products} onEdit={openEdit} onDelete={deleteSale} onToggle={toggleSale} onNotify={notifyCustomers} notifying={notifyState.busyId === s.id} saleDelMode={saleDelMode} deleteRecords={deleteRecords} />)}</div>}
       {sales.length === 0 && <p className="muted">No sales yet. Create your first sale to attract customers!</p>}
     </section>
   );
