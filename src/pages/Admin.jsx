@@ -1,31 +1,20 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf, packingSlipUrl, downloadPackingSlip, printPackingSlip } from '../utils/invoicePdf.js';
-import { filterOrdersByRange, downloadOrdersReportPdf, ordersReportPdfUrl, printOrdersReportPdf, ordersReportFileName } from '../utils/ordersReportPdf.js';
-import PdfViewer from '../components/PdfViewer.jsx';
-import { db } from '../db.js';
+import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
+import { productImage } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
-import Paginator from '../components/Paginator.jsx';
-import { statusMeta, payMeta } from '../orderFlow.js';
+import { statusMeta } from '../orderFlow.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
 const ALL_PAY = [
   { id: 'upi', label: 'UPI' },
   { id: 'card', label: 'Card' },
   { id: 'cod', label: 'COD' },
-];
-const CLEAR_OPTS = [
-  { id: 'orders', label: 'Orders' },
-  { id: 'payments', label: 'Payments log' },
-  { id: 'sales', label: 'Sales & deals' },
-  { id: 'coupons', label: 'Coupons' },
-  { id: 'reviews', label: 'Reviews' },
-  { id: 'messages', label: 'Messages' },
 ];
 
 const emptyForm = {
@@ -39,12 +28,10 @@ const emptyForm = {
   color: '#9b1c3d',
   shippingCost: 99,
   paymentMethods: ['upi', 'card', 'cod'],
+  returnsAccepted: true,
+  returnDays: 7,
   sizes: [],
   customImages: [],
-  // Colour variants: [{ name, hex, images: [] }]
-  colors: [],
-  // Per-variant stock cells: { "ORANGE::S": 5 }
-  stockByVariant: {},
 };
 
 // ── Delhivery rate card ⇄ compact text ──────────────────────
@@ -84,57 +71,46 @@ function InvoicePreviewModal({ order, settings, onClose }) {
   const [url, setUrl] = React.useState('');
   React.useEffect(() => {
     let u = null;
-    let alive = true;
-    invoicePdfUrl(order, settings).then((v) => {
-      if (!alive) { URL.revokeObjectURL(v); return; }
-      u = v;
-      setUrl(v);
+    invoicePdfUrl(order, settings).then((url) => {
+      u = url;
+      setUrl(url);
     });
     return () => {
-      alive = false;
       if (u) URL.revokeObjectURL(u);
     };
   }, [order, settings]);
-  if (!order) return null;
   return (
-    <PdfViewer
-      title={`Invoice — ${order.id}`}
-      subtitle={`${formatDateTime(order.orderDate)} · ${formatINR(order.total)}`}
-      url={url}
-      fileName={`invoice-${order.id || 'download'}.pdf`}
-      onDownload={() => downloadInvoicePdf(order, settings)}
-      onPrint={() => printInvoicePdf(order, settings)}
-      onClose={onClose}
-    />
-  );
-}
-
-function PackSlipPreviewModal({ order, settings, onClose }) {
-  const [url, setUrl] = React.useState('');
-  React.useEffect(() => {
-    let u = null;
-    let alive = true;
-    packingSlipUrl(order, settings).then((v) => {
-      if (!alive) { URL.revokeObjectURL(v); return; }
-      u = v;
-      setUrl(v);
-    });
-    return () => {
-      alive = false;
-      if (u) URL.revokeObjectURL(u);
-    };
-  }, [order, settings]);
-  if (!order) return null;
-  return (
-    <PdfViewer
-      title={`Packing slip — ${order.id}`}
-      subtitle="Pick list for the warehouse"
-      url={url}
-      fileName={`packing-slip-${order.id || 'download'}.pdf`}
-      onDownload={() => downloadPackingSlip(order, settings)}
-      onPrint={() => printPackingSlip(order, settings)}
-      onClose={onClose}
-    />
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="modal-card invoice-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 860 }}>
+        <div className="modal-head">
+          <h2>Invoice — {order.id}</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div style={{ padding: 16 }}>
+          <div className="row-gap" style={{ marginBottom: 12 }}>
+            <span className="muted">{formatDateTime(order.orderDate)} · {formatINR(order.total)}</span>
+            <span style={{ flex: 1 }} />
+            <button
+              type="button"
+              className="btn btn-sm btn-gold"
+              onClick={() => downloadInvoicePdf(order, settings)}
+            >
+              ⬇ Download PDF
+            </button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
+          </div>
+          {url ? (
+            <iframe
+              title={`Invoice ${order.id}`}
+              src={url}
+              style={{ width: '100%', height: 520, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }}
+            />
+          ) : (
+            <p className="muted">Preparing PDF…</p>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -192,78 +168,11 @@ function CouponForm({ addCoupon }) {
   );
 }
 
-function StaffRoleForm({ setUserRole, searchUsers, fetchUserByUid }) {
+function StaffRoleForm({ setUserRole }) {
   const [uid, setUid] = useState('');
   const [role, setRole] = useState('packer');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
-  // ── Find UID by name / email / phone ──
-  const [finder, setFinder] = useState('');
-  const [hits, setHits] = useState([]);
-  const [finding, setFinding] = useState(false);
-  const [finderMsg, setFinderMsg] = useState('');
-  const [preview, setPreview] = useState(null);
-
-  const runFinder = async (text) => {
-    const v = typeof text === 'string' ? text : finder;
-    setFinderMsg('');
-    setPreview(null);
-    if (!searchUsers) {
-      setFinderMsg('User search is not available in this build.');
-      return;
-    }
-    if (String(v || '').trim().length < 2) {
-      setHits([]);
-      return;
-    }
-    setFinding(true);
-    try {
-      const res = await searchUsers(v);
-      setHits(res || []);
-      if (!res || !res.length) {
-        setFinderMsg('No user found for that name / email / phone. They must log in on the site at least once first.');
-      }
-    } catch (ex) {
-      setHits([]);
-      setFinderMsg(ex.message || 'Search failed. You can still paste the UID by hand.');
-    } finally {
-      setFinding(false);
-    }
-  };
-
-  const pickUser = (u) => {
-    setUid(u.uid);
-    setMsg('');
-    setErr('');
-    setFinderMsg(`Selected ${u.name || u.email || u.uid} — UID filled below.`);
-    setHits([]);
-  };
-
-  const lookupUid = async () => {
-    setErr('');
-    setMsg('');
-    setPreview(null);
-    if (!fetchUserByUid) return;
-    if (!uid.trim()) {
-      setErr('Enter or pick a UID first.');
-      return;
-    }
-    try {
-      const p = await fetchUserByUid(uid.trim());
-      setPreview(p);
-    } catch (ex) {
-      setErr(ex.message || 'Could not read that user.');
-    }
-  };
-
-  const copyUid = async () => {
-    try {
-      await navigator.clipboard.writeText(uid.trim());
-      setFinderMsg('UID copied to clipboard.');
-    } catch {
-      setFinderMsg('Copy failed — select the UID text and copy it by hand.');
-    }
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -273,286 +182,56 @@ function StaffRoleForm({ setUserRole, searchUsers, fetchUserByUid }) {
       await setUserRole(uid.trim(), role);
       setMsg('Role saved: ' + uid.trim() + ' is now "' + role + '". Applies on their next login/reload.');
       setUid('');
-      setPreview(null);
     } catch (ex) {
       setErr(ex.message || 'Failed to update role.');
     }
   };
 
   return (
-    <>
-      <div className="form" style={{ marginBottom: 12, border: '1px dashed var(--line)', borderRadius: 8, padding: 12 }}>
+    <form onSubmit={submit} className="form">
+      <div className="grid2">
         <label>
-          Find UID by name / email / phone
-          <div className="row-gap">
-            <input
-              value={finder}
-              onChange={(e) => { setFinder(e.target.value); runFinder(e.target.value); }}
-              placeholder="e.g. Rahul, rahul@gmail.com or 98765…"
-              style={{ flex: 1 }}
-            />
-            <button type="button" className="btn btn-sm" disabled={finding} onClick={() => runFinder()}>
-              {finding ? 'Searching…' : 'Search'}
-            </button>
-          </div>
+          Firebase UID
+          <input
+            value={uid}
+            onChange={(e) => setUid(e.target.value)}
+            required
+            placeholder="e.g. 3XkQ9Z... (Firebase console > Authentication)"
+          />
         </label>
-        {finderMsg && <p className="muted small" style={{ margin: '6px 0 0' }}>{finderMsg}</p>}
-        {hits.length > 0 && (
-          <div className="table-scroll" style={{ marginTop: 8 }}>
-            <table className="table">
-              <thead>
-                <tr><th>Name</th><th>Email</th><th>Phone</th><th>UID</th><th></th></tr>
-              </thead>
-              <tbody>
-                {hits.map((h) => (
-                  <tr key={h.uid}>
-                    <td>{h.name || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{h.email || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{h.phone || '—'}</td>
-                    <td style={{ fontSize: 11, wordBreak: 'break-all' }}>
-                      {h.uid}
-                      {h.fromOrders && <span className="muted tiny" style={{ display: 'block' }}>from orders</span>}
-                    </td>
-                    <td><button type="button" className="btn btn-sm" onClick={() => pickUser(h)}>Use</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      <form onSubmit={submit} className="form">
-        <div className="grid2">
-          <label>
-            Firebase UID
-            <div className="row-gap">
-              <input
-                value={uid}
-                onChange={(e) => setUid(e.target.value)}
-                required
-                placeholder="e.g. 3XkQ9Z... (pick above or paste)"
-                style={{ flex: 1 }}
-              />
-            </div>
-            <div className="row-gap" style={{ marginTop: 6 }}>
-              <button type="button" className="btn btn-sm btn-ghost" disabled={!uid.trim()} onClick={lookupUid}>Check UID</button>
-              <button type="button" className="btn btn-sm btn-ghost" disabled={!uid.trim()} onClick={copyUid}>Copy UID</button>
-            </div>
-            {preview && (
-              <p className="muted small" style={{ margin: '6px 0 0' }}>
-                Found: <strong>{preview.name || '—'}</strong> · {preview.email || 'no email'} · {preview.phone || 'no phone'} · role: {preview.role || 'customer'}
-              </p>
-            )}
-          </label>
-          <label>
-            Role
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              {STAFF_ROLE_CHOICES.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className="row-gap">
-          <button className="btn btn-gold" type="submit">Save role</button>
-        </div>
-        {msg && <p className="ok">{msg}</p>}
-        {err && <p className="error">{err}</p>}
-      </form>
-    </>
-  );
-}
-
-// ── Per-variant stock matrix (admin) ──────────────────
-// One number input per Colour × Size cell, e.g. Orange/S = 5.
-// Empty cell = falls back to the main Stock above. Renames follow the
-// colour/size names (keyed case-insensitively), so editing names keeps numbers.
-function StockMatrix({ form, setForm }) {
-  const colorNames = (form.colors || [])
-    .map((c) => String(c?.name || '').trim())
-    .filter(Boolean);
-  const sizeNames = (form.sizes || [])
-    .map((s) => String(s || '').trim().toUpperCase())
-    .filter(Boolean);
-  if (colorNames.length === 0 && sizeNames.length === 0) return null;
-
-  const map = form.stockByVariant && typeof form.stockByVariant === 'object'
-    ? form.stockByVariant
-    : {};
-  const key = (c, s) =>
-    `${String(c || '').trim().toUpperCase()}::${String(s || '').trim().toUpperCase()}`;
-
-  const setCell = (c, s, raw) => {
-    const k = key(c, s);
-    setForm((f) => {
-      const prev = f.stockByVariant && typeof f.stockByVariant === 'object'
-        ? { ...f.stockByVariant }
-        : {};
-      if (raw === '' || raw === null || raw === undefined) {
-        delete prev[k]; // blank = use main Stock
-      } else {
-        const n = Math.floor(Number(raw));
-        if (!Number.isFinite(n) || n < 0) return f;
-        prev[k] = n;
-      }
-      return { ...f, stockByVariant: prev };
-    });
-  };
-
-  const cellVal = (c, s) => {
-    const k = key(c, s);
-    return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : '';
-  };
-
-  const rows = colorNames.length > 0 ? colorNames : [''];
-  const cols = sizeNames.length > 0 ? sizeNames : [''];
-
-  return (
-    <div className="sizes-box">
-      <label style={{ display: 'block', marginBottom: 4 }}>Stock per colour × size</label>
-      <div className="table-scroll">
-        <table className="table stock-matrix">
-          <thead>
-            <tr>
-              <th>Colour \ Size</th>
-              {cols.map((s) => <th key={s || 'free'}>{s || 'Free size'}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c || 'nocolor'}>
-                <td><strong>{c || '(no colour)'}</strong></td>
-                {cols.map((s) => (
-                  <td key={(c || 'nocolor') + '::' + (s || 'free')}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder={String(form.stock ?? '')}
-                      value={cellVal(c, s)}
-                      onChange={(e) => setCell(c, s, e.target.value)}
-                      aria-label={`Stock for ${c || 'no colour'} size ${s || 'free size'}`}
-                    />
-                  </td>
-                ))}
-              </tr>
+        <label>
+          Role
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            {STAFF_ROLE_CHOICES.map((r) => (
+              <option key={r} value={r}>{r}</option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </label>
       </div>
-      <span className="muted tiny">
-        Example: Orange / S = 5. Leave a cell blank to use the main Stock value above.
-      </span>
-    </div>
+      <div className="row-gap">
+        <button className="btn btn-gold" type="submit">Save role</button>
+      </div>
+      {msg && <p className="ok">{msg}</p>}
+      {err && <p className="error">{err}</p>}
+    </form>
   );
 }
 
 export default function Admin() {
-  const { user, isAdmin, isStaff, setUserRole, searchUsers, fetchUserByUid } = useAuth();
-  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, reviews } = useData();
-  const { payments, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
-  const { deleteRecords, messages } = useData();
-  // The active tab lives in the URL (?tab=payments) so a page refresh,
-  // browser back/forward or a shared link keeps the admin on the same section.
-  const [params, setParams] = useSearchParams();
-  const DEFAULT_TAB = isAdmin ? 'products' : 'orders';
-  const TABS = isAdmin
-    ? ['products', 'orders', 'reviews', 'customers', 'settings', 'coupons', 'payments', 'sales', 'staff']
-    : ['orders'];
-  const tabParam = params.get('tab');
-  const tab = TABS.includes(tabParam) ? tabParam : DEFAULT_TAB;
-  // Per-tab "delete mode": when ON, each row shows a tick box; clicking a tick deletes that record.
-  const [delMode, setDelMode] = useState({});
-  const setTab = (t) => {
-    const next = new URLSearchParams(params);
-    if (t && t !== DEFAULT_TAB) next.set('tab', t);
-    else next.delete('tab');
-    setParams(next, { replace: true });
-  };
+  const { user, isAdmin, isStaff, setUserRole } = useAuth();
+  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
+  const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
+  const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState(null);
-  const [slipOrder, setSlipOrder] = useState(null);
   const [s, setS] = useState(settings);
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
-  const [payQ, setPayQ] = useState('');
-  const [payPage, setPayPage] = useState(1);
-  const [payPageSize, setPayPageSize] = useState(10);
-  const [refPage, setRefPage] = useState(1);
-  const [refPageSize, setRefPageSize] = useState(10);
-  const [payView, setPayView] = useState('latest');
-  const [delKind, setDelKind] = useState('orders');
-  const [delIds, setDelIds] = useState([]);
-  const [delConfirm, setDelConfirm] = useState('');
-  const [delMsg, setDelMsg] = useState('');
-  const [delPage, setDelPage] = useState(1);
-  const [delPageSize, setDelPageSize] = useState(10);
-  const setDelKindSafe = (k) => { setDelKind(k); setDelIds([]); setDelMsg(''); setDelPage(1); };
-  // Raw records for the selected type — DelRow styles each like its own page.
-  const delRows =
-    delKind === 'orders' ? orders
-      : delKind === 'payments' ? payments
-      : delKind === 'sales' ? sales
-      : delKind === 'coupons' ? coupons
-      : delKind === 'reviews' ? reviews
-      : messages;
-  const delTotal = delRows.length;
-  const delPages = Math.max(1, Math.ceil(delTotal / delPageSize));
-  const delCur = Math.min(delPage, delPages);
-  const delPaged = delRows.slice((delCur - 1) * delPageSize, delCur * delPageSize);
-  const toggleDelId = (id) =>
-    setDelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const toggleDelPageAll = () => {
-    const pageIds = delPaged.map((r) => r.id);
-    const allOn = pageIds.length > 0 && pageIds.every((id) => delIds.includes(id));
-    setDelIds((prev) => (allOn ? prev.filter((id) => !pageIds.includes(id)) : [...new Set([...prev, ...pageIds])]));
-  };
-  const runDel = () => {
-    if (!delIds.length || delConfirm !== 'DELETE') return;
-    if (!window.confirm(`Delete ${delIds.length} record(s) from "${delKind}"? This cannot be undone.`)) return;
-    const n = deleteRecords(delKind, delIds);
-    setDelMsg(`✓ Deleted ${n} record(s) from "${delKind}".`);
-    setDelIds([]);
-    setDelConfirm('');
-  };
-  // Pagination for the "All products" table.
-  const [prodPage, setProdPage] = useState(1);
-  const [prodPageSize, setProdPageSize] = useState(10);
-  const prodPages = Math.max(1, Math.ceil(products.length / prodPageSize));
-  const prodCurrent = Math.min(prodPage, prodPages);
-  const pagedProducts = products.slice((prodCurrent - 1) * prodPageSize, prodCurrent * prodPageSize);
+  const [params] = useSearchParams();
   const orderParam = params.get('order');
-
-  // ------ Payments tab: search + refunds joined from the order book ------
-  const payQuery = payQ.trim().toLowerCase();
-  const orderById = new Map(orders.map((o) => [o.id, o]));
-  const payHay = (p, o) =>
-    [p.orderId, p.ref, p.gateway, p.mode, p.status,
- o?.customer?.name, o?.customer?.phone, o?.customer?.email, o?.shipping?.city]
-      .join(' ').toLowerCase();
-  const filteredPayments = payQuery
-    ? payments.filter((p) => payHay(p, orderById.get(p.orderId)).includes(payQuery))
-    : payments;
-  const refundRows = orders
-    .filter((o) => o.refundInfo)
-    .map((o) => ({ o, r: o.refundInfo }))
-    .filter(({ o, r }) =>
-      !payQuery ||
-      [o.id, r.refundId, r.type, r.refundStatus, r.by,
-       o.customer?.name, o.customer?.phone, o.customer?.email]
-        .join(' ').toLowerCase().includes(payQuery))
-    .sort((a, b) =>
-      String(b.r.refundedAt || b.r.cancelledAt || b.o.orderDate || '')
-        .localeCompare(String(a.r.refundedAt || a.r.cancelledAt || a.o.orderDate || '')));
-  const payPages = Math.max(1, Math.ceil(filteredPayments.length / payPageSize));
-  const payCur = Math.min(payPage, payPages);
-  const pagedPayments = filteredPayments.slice((payCur - 1) * payPageSize, payCur * payPageSize);
-  const refPages = Math.max(1, Math.ceil(refundRows.length / refPageSize));
-  const refCur = Math.min(refPage, refPages);
-  const pagedRefunds = refundRows.slice((refCur - 1) * refPageSize, refCur * refPageSize);
 
   React.useEffect(() => {
     if (autoOpened || !orderParam) return;
@@ -571,7 +250,6 @@ export default function Admin() {
   }
 
     const setSField = (k) => (e) => setS({ ...s, [k]: e.target.value });
-
 
   const readAsDataURL = async (file) => {
     const buf = await file.arrayBuffer();
@@ -672,32 +350,16 @@ export default function Admin() {
       return;
     }
     const customImgs = form.customImages.filter((img) => img && img.trim() !== '');
-    // Colour variants: keep only rows with a name; drop blank image slots.
-    const colors = (form.colors || [])
-      .map((c) => ({
-        name: String(c?.name || '').trim(),
-        hex: c?.hex || '#9b1c3d',
-        images: Array.isArray(c?.images) ? c.images.filter((u) => u && String(u).trim() !== '') : [],
-      }))
-      .filter((c) => c.name !== '');
     const data = {
       ...form,
       price: Number(form.price),
       mrp: Number(form.mrp) || Math.round(Number(form.price) * 1.25 / 10) * 10,
       sizes: (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean),
-      colors,
-      stockByVariant: (() => {
-        const out = {};
-        const src = form.stockByVariant && typeof form.stockByVariant === 'object' ? form.stockByVariant : {};
-        for (const k of Object.keys(src)) {
-          const n = Number(src[k]);
-          if (Number.isFinite(n) && n >= 0) out[k] = Math.floor(n);
-        }
-        return out;
-      })(),
-      image: customImgs.length > 0 ? customImgs[0] : '',
-      images: customImgs.length > 0 ? customImgs : [],
+      image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
+      images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
       shippingCost: Number(form.shippingCost) || 0,
+      returnsAccepted: Boolean(form.returnsAccepted),
+      returnDays: form.returnsAccepted ? Math.max(0, Number(form.returnDays) || 0) : 0,
     };
     if (editingId) {
       updateProduct(editingId, data);
@@ -724,88 +386,12 @@ export default function Admin() {
       color: p.color,
       shippingCost: p.shippingCost ?? 99,
       paymentMethods: p.paymentMethods || ['upi', 'card', 'cod'],
+      returnsAccepted: p.returnsAccepted ?? true,
+      returnDays: p.returnDays ?? 7,
       sizes: p.sizes || [],
       customImages: p.images || (p.image ? [p.image] : []),
-      stockByVariant: p.stockByVariant && typeof p.stockByVariant === 'object' ? { ...p.stockByVariant } : {},
-      colors: Array.isArray(p.colors)
-        ? p.colors.map((c) => ({
-            name: c?.name || '',
-            hex: c?.hex || '#9b1c3d',
-            images: Array.isArray(c?.images) ? [...c.images] : [],
-          }))
-        : [],
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // ── Colour-variant editor helpers ──────────────────────────
-  const addColorRow = () => {
-    setForm((f) => ({
-      ...f,
-      colors: [...(f.colors || []), { name: '', hex: '#9b1c3d', images: [] }],
-    }));
-  };
-
-  const setColorField = (idx, field, value) => {
-    setForm((f) => ({
-      ...f,
-      colors: (f.colors || []).map((c, i) => (i === idx ? { ...c, [field]: value } : c)),
-    }));
-  };
-
-  const removeColorRow = (idx) => {
-    setForm((f) => ({ ...f, colors: (f.colors || []).filter((_, i) => i !== idx) }));
-  };
-
-  const handleColorImageUpload = (idx, e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const accepted = files.filter(
-      (file) => file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024
-    );
-    if (accepted.length === 0) {
-      setMsg('Only image files under 5MB are allowed.');
-      setTimeout(() => setMsg(''), 2500);
-      e.target.value = '';
-      return;
-    }
-    Promise.all(accepted.map(readAsDataURL))
-      .then((urls) => {
-        setForm((f) => ({
-          ...f,
-          colors: (f.colors || []).map((c, i) =>
-            i === idx ? { ...c, images: [...(c.images || []), ...urls] } : c
-          ),
-        }));
-      })
-      .catch(() => {
-        setMsg('Failed to read the selected image file(s).');
-        setTimeout(() => setMsg(''), 2500);
-      });
-    e.target.value = '';
-  };
-
-  const removeColorImage = (colorIdx, imgIdx) => {
-    setForm((f) => ({
-      ...f,
-      colors: (f.colors || []).map((c, i) =>
-        i === colorIdx
-          ? { ...c, images: (c.images || []).filter((_, j) => j !== imgIdx) }
-          : c
-      ),
-    }));
-  };
-
-  const addColorImageUrl = (idx, url) => {
-    const clean = String(url || '').trim();
-    if (!clean || !(clean.startsWith('http') || clean.startsWith('data:'))) return false;
-    setForm((f) => ({
-      ...f,
-      colors: (f.colors || []).map((c, i) =>
-        i === idx ? { ...c, images: [...(c.images || []), clean] } : c
-      ),
-    }));
-    return true;
   };
 
   const togglePayMethod = (id) => {
@@ -834,16 +420,6 @@ export default function Admin() {
           Orders ({orders.length})
         </button>
         {isAdmin && (
-          <button className={tab === 'reviews' ? 'chip active' : 'chip'} onClick={() => setTab('reviews')}>
-            Reviews {reviews.length ? `(${reviews.length})` : ''}
-          </button>
-        )}
-        {isAdmin && (
-          <button className={tab === 'customers' ? 'chip active' : 'chip'} onClick={() => setTab('customers')}>
-            Customers
-          </button>
-        )}
-        {isAdmin && (
           <button className={tab === 'settings' ? 'chip active' : 'chip'} onClick={() => setTab('settings')}>
             Settings
           </button>
@@ -851,6 +427,11 @@ export default function Admin() {
         {isAdmin && (
           <button className={tab === 'coupons' ? 'chip active' : 'chip'} onClick={() => setTab('coupons')}>
             Coupons {coupons.length ? `(${coupons.length})` : ''}
+          </button>
+        )}
+        {isAdmin && (
+          <button className={tab === 'returns' ? 'chip active' : 'chip'} onClick={() => setTab('returns')}>
+            Returns {returns.length ? `(${returns.length})` : ''}
           </button>
         )}
         {isAdmin && (
@@ -936,8 +517,6 @@ export default function Admin() {
                 <label>MRP (₹)<input type="number" min="0" value={form.mrp} onChange={set('mrp')} placeholder="Optional" /></label>
                 <label>Stock<input type="number" min="0" value={form.stock} onChange={set('stock')} /></label>
               </div>
-              {/* ── Stock per colour × size ─────────────── */}
-              <StockMatrix form={form} setForm={setForm} />
               <div className="grid2">
                 <label>Image tint<input type="color" value={form.color} onChange={set('color')} /></label>
                 <label className="inline-check">
@@ -990,89 +569,28 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* ── Colour variants (per-colour photos) ─────────────── */}
-              <div className="sizes-box">
-                <label style={{ display: 'block', marginBottom: 4 }}>Colours for this product</label>
-                {(form.colors || []).length > 0 ? (
-                  (form.colors || []).map((c, idx) => (
-                    <div key={idx} className="color-row">
-                      <div className="color-row-top">
-                        <label>Colour name
-                          <input
-                            value={c.name || ''}
-                            onChange={(e) => setColorField(idx, 'name', e.target.value)}
-                            placeholder="e.g. Orange"
-                          />
-                        </label>
-                        <label className="color-swatch-pick">Swatch
-                          <input
-                            type="color"
-                            value={c.hex || '#9b1c3d'}
-                            onChange={(e) => setColorField(idx, 'hex', e.target.value)}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          className="btn btn-sm danger"
-                          onClick={() => removeColorRow(idx)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                      <label className="color-upload">Upload {c.name ? `${c.name} ` : ''}photos
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={(e) => handleColorImageUpload(idx, e)}
-                        />
-                      </label>
-                      {(c.images || []).length > 0 && (
-                        <div className="img-preview-grid">
-                          {(c.images || []).map((img, j) => (
-                            <div key={j} className="img-preview-item">
-                              <img src={img} alt={`${c.name || 'Colour'} ${j + 1}`} />
-                              {j === 0 && <span className="img-badge">Main</span>}
-                              <button
-                                type="button"
-                                className="btn btn-sm danger remove-img"
-                                onClick={() => removeColorImage(idx, j)}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <label>Paste {c.name ? `${c.name} ` : ''}image URL
-                        <input
-                          onBlur={(e) => {
-                            if (addColorImageUrl(idx, e.target.value)) e.target.value = '';
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              e.target.blur();
-                            }
-                          }}
-                          placeholder="https://example.com/orange-1.jpg — press Enter to add"
-                        />
-                      </label>
-                    </div>
-                  ))
-                ) : (
-                  <p className="muted tiny">No colours set — the product will sell without a colour picker.</p>
+              {/* ── Returns ───────────────────────────────── */}
+              <div className="return-box">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={form.returnsAccepted}
+                    onChange={(e) => setForm({ ...form, returnsAccepted: e.target.checked })}
+                  />
+                  Returns accepted
+                </label>
+                {form.returnsAccepted && (
+                  <label className="return-days">
+                    Return window (days)
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.returnDays}
+                      onChange={(e) => setForm({ ...form, returnDays: e.target.value })}
+                      placeholder="7"
+                    />
+                  </label>
                 )}
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={addColorRow}
-                >
-                  ＋ Add colour
-                </button>
-                <span className="muted tiny">
-                  Add one row per colour (e.g. Orange, Red), then upload that colour's photos. Customers pick a colour and only see its photos.
-                </span>
               </div>
 
               {/* ── Sizes (opens the editable size guide) ─────────── */}
@@ -1113,30 +631,18 @@ export default function Admin() {
 
           <section className="card-box">
             <h2>All products</h2>
-            <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, products: !delMode.products }))} title="Delete mode">
-              {delMode.products ? '✓ Done' : '🗑️'}
-            </button>
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>{delMode.products ? '' : 'Name'}</th><th>{delMode.products ? '' : 'Category'}</th><th>{delMode.products ? '' : 'Price'}</th><th>{delMode.products ? '' : 'Stock'}</th><th>{delMode.products ? '' : 'Featured'}</th><th>{delMode.products ? '' : 'Actions'}</th>{delMode.products && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
+                  <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {pagedProducts.map((p) => (
+                  {products.map((p) => (
                     <tr key={p.id}>
-                      {delMode.products && (
-                        <td style={{ width: 44, textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            onChange={(e) => { e.stopPropagation(); deleteRecords('products', [p.id]); }}
-                            aria-label={`Select ${p.name}`}
-                          />
-                        </td>
-                      )}
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
                       <td>{formatINR(p.price)}</td>
-                      <td>{p.stock}{p.stockByVariant && Object.keys(p.stockByVariant).length > 0 ? ' *' : ''}</td>
+                      <td>{p.stock}</td>
                       <td>{p.featured ? '★' : '—'}</td>
                       <td className="row-gap">
                         <button className="btn btn-sm" onClick={() => startEdit(p)}>Edit</button>
@@ -1147,21 +653,12 @@ export default function Admin() {
                 </tbody>
               </table>
             </div>
-            <Paginator
-              total={products.length}
-              page={prodCurrent}
-              pageSize={prodPageSize}
-              onPageChange={setProdPage}
-              onPageSizeChange={(n) => { setProdPageSize(n); setProdPage(1); }}
-              unit="products"
-            />
           </section>
         </>
       )}
       {tab === 'orders' && (
         <section className="card-box">
           <h2>Orders queue</h2>
-          <OrdersReport orders={orders} settings={settings} />
           {orders.length === 0 ? (
             <p className="muted">No orders yet. Orders placed by customers will appear here.</p>
           ) : (
@@ -1171,25 +668,21 @@ export default function Admin() {
               user={user}
               onUpdate={(o, status, opts) => updateOrderStatus(o.id, status, statusMeta(status).label, opts)}
               onInvoice={(o) => setInvoiceOrder(o)}
-              onPackSlip={(o) => setSlipOrder(o)}
+              onPackSlip={(o) => downloadPackingSlip(o, settings)}
             />
           )}
         </section>
       )}
 
-      {tab === 'reviews' && <ReviewsAdmin />}
-      {tab === 'customers' && <CustomersAdmin />}
-
       {tab === 'staff' && (
         <section className="card-box">
           <h2>Staff roles</h2>
           <p className="muted small">
-            Promote a registered user to a staff role. Search the user by name,
-            email or phone below to find their UID — or paste the UID directly
-            (Firebase console &gt; Authentication &gt; Users). The new role
+            Promote a registered user to a staff role. The UID is visible in the Firebase console
+            (Authentication &gt; Users) after the person logs in on the site once. The new role
             applies on their next login or page reload.
           </p>
-          <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} fetchUserByUid={fetchUserByUid} />
+          <StaffRoleForm setUserRole={setUserRole} />
         </section>
       )}
 
@@ -1206,29 +699,17 @@ export default function Admin() {
 
           <section className="card-box">
             <h2>All coupons</h2>
-            <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, coupons: !delMode.coupons }))} title="Delete mode">
-              {delMode.coupons ? '✓ Done' : '🗑️'}
-            </button>
             {coupons.length === 0 ? (
               <p className="muted">No coupons yet. Create your first one above.</p>
             ) : (
               <div className="table-scroll">
                 <table className="table">
                   <thead>
-                    <tr><th>{delMode.coupons ? '' : 'Code'}</th><th>{delMode.coupons ? '' : 'Discount'}</th><th>{delMode.coupons ? '' : 'Min order'}</th><th>{delMode.coupons ? '' : 'Used'}</th><th>{delMode.coupons ? '' : 'Status'}</th><th>{delMode.coupons ? '' : 'Actions'}</th>{delMode.coupons && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
+                    <tr><th>Code</th><th>Discount</th><th>Min order</th><th>Used</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
                     {coupons.map((c) => (
                       <tr key={c.id}>
-                        {delMode.coupons && (
-                          <td style={{ width: 44, textAlign: 'center' }}>
-                            <input
-                              type="checkbox"
-                              onChange={(e) => { e.stopPropagation(); deleteRecords('coupons', [c.id]); }}
-                              aria-label={`Select ${c.code}`}
-                            />
-                          </td>
-                        )}
                         <td><strong>{c.code}</strong></td>
                         <td>{c.type === 'percent' ? `${c.value}% off` : `${formatINR(c.value)} off`}</td>
                         <td>{c.minOrder ? formatINR(c.minOrder) : '—'}</td>
@@ -1263,164 +744,86 @@ export default function Admin() {
         </>
       )}
 
+    {tab === 'returns' && (
+        <section className="card-box">
+          <h2>Return requests</h2>
+          {returns.length === 0 ? (
+            <p className="muted">
+              No returns yet. Customers request returns from their order page; reverse pickup is booked with Delhivery automatically.
+            </p>
+          ) : (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr><th>Return</th><th>Order</th><th>Customer</th><th>Items</th><th>Reason</th><th>Status / AWB</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {returns.map((r) => (
+                    <tr key={r.id}>
+                      <td><strong>{r.id}</strong><br /><span className="muted tiny">{formatDateTime(r.requestDate)}</span></td>
+                      <td>{r.orderId}</td>
+                      <td>{r.customerName}<br /><span className="muted tiny">{r.phone}</span></td>
+                      <td><span className="muted tiny">{r.items.map((it) => `${it.name}${it.size ? ` (${it.size})` : ''} ×${it.qty}`).join(', ')}</span></td>
+                      <td>{r.reason}{r.note ? <span className="muted tiny"><br />{r.note}</span> : null}</td>
+                      <td>
+                        <span className={`status-badge ${r.status}`}>{r.status.toUpperCase()}</span>
+                        {r.pickupAwb ? <span className="muted tiny"><br />AWB {r.pickupAwb}</span> : null}
+                      </td>
+                      <td className="row-gap">
+                        {r.status === 'requested' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'approved')}>Approve pickup</button>}
+                        {r.status === 'approved' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'picked')}>Mark picked</button>}
+                        {r.status === 'picked' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'received')}>Mark received</button>}
+                        {r.status === 'received' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'refunded')}>Mark refunded</button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
       {tab === 'payments' && (
         <section className="card-box">
-          <h2>Payments & refunds</h2>
-          <button className="btn btn-sm danger" onClick={() => setDelMode((d) => ({ ...d, payments: !delMode.payments }))} title="Delete mode">
-            {delMode.payments ? '✓ Done' : '🗑️'}
-          </button>
-          <p className="muted tiny">
-            Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side. Use the dropdown below to switch between the latest payments and refunds — the search applies to whichever is shown.
+          <h2>Payment log</h2>
+          <p className="muted small">
+            Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side.
           </p>
-          <div className="row-gap" style={{ margin: '10px 0 14px' }}>
-            <input
-              value={payQ}
-              onChange={(e) => setPayQ(e.target.value)}
-              placeholder="Search order ID, payment ref, customer, gateway…"
-              aria-label="Search payments"
-              style={{ maxWidth: 380 }}
-            />
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              Show
-              <select value={payView} onChange={(e) => setPayView(e.target.value)} aria-label="Choose payments or refunds">
-                <option value="latest">Latest payments</option>
-                <option value="refunds">Refunds</option>
-              </select>
-            </label>
-          </div>
-          {payView === 'latest' && (
-            <>
           {payments.length === 0 ? (
             <p className="muted">No payments recorded yet.</p>
-          ) : filteredPayments.length === 0 ? (
-            <p className="muted">No payments match "{payQ}".</p>
           ) : (
-            <>
             <div className="table-scroll">
               <table className="table">
                 <thead>
-                  <tr><th>{delMode.payments ? '' : 'Date'}</th><th>{delMode.payments ? '' : 'Order'}</th><th>{delMode.payments ? '' : 'Payment'}</th><th>{delMode.payments ? '' : 'Verified'}</th><th>{delMode.payments ? '' : 'Refund'}</th><th>{delMode.payments ? '' : 'Amount'}</th>{delMode.payments && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}</tr>
+                  <tr><th>When</th><th>Order</th><th>Gateway</th><th>Mode</th><th>Ref</th><th>Verified</th><th>Amount</th></tr>
                 </thead>
                 <tbody>
-                  {pagedPayments.map((p) => {
-                    const linked = orderById.get(p.orderId);
-                    const rr = linked && linked.refundInfo;
-                    const amt = Number(p.amount) || Number(linked && linked.total) || 0;
-                    return (
-                      <tr key={p.id}>
-                        {delMode.payments && (
-                          <td style={{ width: 44, textAlign: 'center' }}>
-                            <input
-                              type="checkbox"
-                              onChange={(e) => { e.stopPropagation(); deleteRecords('payments', [p.id]); }}
-                              aria-label={`Select payment ${p.id}`}
-                            />
-                          </td>
-                        )}
-                        <td>{formatDateTime(p.at)}</td>
-                        <td>
-                          {p.orderId ? (
-                            <Link to={`/order-manage/${p.orderId}`}>{p.orderId}</Link>
-                          ) : (
-                            <span className="muted">—</span>
-                          )}
-                        </td>
-                        <td>{p.gateway || 'Razorpay'}{p.mode ? ` (${p.mode})` : ''}</td>
-                        <td>{p.verified ? '✓' : <span className="muted">n/a</span>}</td>
-                        <td>
-                          {rr && rr.refundStatus === 'refunded' && <span className="refund-badge refunded">Refunded</span>}
-                          {rr && rr.refundStatus === 'refunding' && <span className="refund-badge refunding">Refunding</span>}
-                          {rr && rr.refundStatus === 'failed' && <span className="refund-badge failed">Refund failed</span>}
-                          {rr && !rr.refundStatus && rr.type === 'razorpay_refund' && <span className="refund-badge refunded">Refunded</span>}
-                          {(!rr || (!rr.refundStatus && rr.type !== 'razorpay_refund')) && <span className="muted">—</span>}
-                        </td>
-                        <td>{amt > 0 ? formatINR(amt) : '—'}</td>
-                      </tr>
-                    );
-                  })}
+                  {payments.map((p) => (
+                    <tr key={p.id}>
+                      <td>{formatDateTime(p.at)}</td>
+                      <td>{p.orderId || '—'}</td>
+                      <td>{p.gateway || p.method || '—'}</td>
+                      <td>{p.mode || '—'}</td>
+                      <td>{String(p.ref || '').slice(0, 22)}</td>
+                      <td>
+                        {p.gateway === 'Razorpay'
+                          ? (p.verified ? <span className="ok">✓ verified</span> : <span className="muted">not verified</span>)
+                          : <span className="muted">n/a</span>}
+                      </td>
+                      <td>{p.amount ? formatINR(p.amount) : '—'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-              <Paginator
-                total={filteredPayments.length}
-                page={payCur}
-                pageSize={payPageSize}
-                onPageChange={setPayPage}
-                onPageSizeChange={(n) => { setPayPageSize(n); setPayPage(1); }}
-                unit="payments"
-              />
-            </>
-          )}
-
-            </>
-          )}
-          {payView === 'refunds' && (
-            <>
-          <p className="muted tiny">
-            Orders with a refund record. Razorpay refunds go back to the customer's original payment method; cancellations without an online payment are marked "no money moved".
-          </p>
-          {refundRows.length === 0 ? (
-            <p className="muted">{payQuery ? `No refunds match "${payQ}".` : 'No refunds recorded yet.'}</p>
-          ) : (
-            <>
-            <div className="table-scroll">
-              <table className="table">
-                <thead>
-                  <tr>{delMode.payments && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}<th>Date</th><th>Order</th><th>Customer</th><th>Refund ID</th><th>Initiated by</th><th>Status</th><th>Amount</th></tr>
-                </thead>
-                <tbody>
-                  {pagedRefunds.map(({ o, r }) => {
-                    const moneyBack = r.type === 'razorpay_refund';
-                    const cls = r.refundStatus === 'failed' ? 'failed' : r.refundStatus === 'refunding' ? 'refunding' : 'refunded';
-                    const lbl = r.refundStatus === 'failed' ? 'Refund failed' : r.refundStatus === 'refunding' ? 'Refunding in process' : moneyBack ? 'Refunded' : 'No money moved';
-                    return (
-                      <tr key={o.id}>
-                        {delMode.payments && (
-                          <td style={{ width: 44, textAlign: 'center' }}>
-                            <input
-                              type="checkbox"
-                              onChange={(e) => { e.stopPropagation(); deleteRecords('payments', [o.id]); }}
-                              aria-label={`Delete refund ${o.id}`}
-                            />
-                          </td>
-                        )}
-                        <td>{formatDateTime(r.refundedAt || r.cancelledAt || o.orderDate)}</td>
-                        <td><Link to={`/order-manage/${o.id}`}>{o.id}</Link></td>
-                        <td>{o.customer?.name || '—'}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}</td>
-                        <td>{r.refundId ? <code>{r.refundId}</code> : <span className="muted">—</span>}</td>
-                        <td>{r.by || 'customer'}</td>
-                        <td>
-                          {moneyBack ? (
-                            <span className={`refund-badge ${cls}`}>{lbl}</span>
-                          ) : (
-                            <span className="muted tiny">{lbl}</span>
-                          )}
-                        </td>
-                        <td>{formatINR(Number(o.total) || 0)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-                <Paginator
-                  total={refundRows.length}
-                  page={refCur}
-                  pageSize={refPageSize}
-                  onPageChange={setRefPage}
-                  onPageSizeChange={(n) => { setRefPageSize(n); setRefPage(1); }}
-                  unit="refunds"
-                />
-            </>
-          )}
-            </>
           )}
         </section>
       )}
 
       {tab === 'sales' && (
         <>
-          <SalesDashboard orders={orders} payments={payments} />
+          <SalesDashboard orders={orders} payments={payments} returns={returns} />
           <SalesManager
             sales={sales}
             products={products}
@@ -1433,7 +836,6 @@ export default function Admin() {
       )}
 
       {tab === 'settings' && (
-        <>
         <section className="card-box">
           <h2>Store settings</h2>
           <p className="muted">These changes are applied across the site instantly.</p>
@@ -1532,7 +934,6 @@ export default function Admin() {
                   placeholder="e.g. TEEJ SALE — flat 20% off everything!"
                   maxLength={120}
                 />
-                <span className="muted tiny">Required — the banner appears only when this message has text (and a future end time), so a switched-on-but-empty promotion never shows up on the site.</span>
               </label>
               <label>Sale ends at
                 <input
@@ -1545,7 +946,16 @@ export default function Admin() {
             </div>
 
             <div className="flash-sale-settings">
-              <h3 style={{ margin: '6px 0 10px' }}>🚚 Delivery promise</h3>
+              <h3 style={{ margin: '6px 0 10px' }}>🚚 Delivery & pincodes</h3>
+              <label>Serviceable pincodes (one per line, 6-digit)
+                <textarea
+                  rows="4"
+                  value={(s.serviceablePincodes || []).join('\n')}
+                  onChange={(e) => setS({ ...s, serviceablePincodes: e.target.value.split(/[\s,]+/).map((x) => x.trim()).filter((x) => /^\d{6}$/.test(x)) })}
+                  placeholder={'124507\n110001\n560001'}
+                />
+                <span className="muted tiny">Checkout blocks pincodes not listed here. Empty = deliver everywhere in India.</span>
+              </label>
               <div className="grid2">
                 <label>Earliest delivery (days from today)
                   <input type="number" min="1" value={s.deliveryMinDays || 4} onChange={setSField('deliveryMinDays')} />
@@ -1592,13 +1002,15 @@ export default function Admin() {
               <label style={{ display: 'block', marginBottom: 4 }}>Payment mode</label>
               <div className="pay-mode-options">
                 {[
+                  { id: 'demo', label: 'Demo', desc: 'Simulated payments — no real money' },
+                  { id: 'auto', label: 'Auto', desc: 'Try Razorpay, fall back to demo' },
                   { id: 'live', label: 'Live', desc: 'Real payments only — no fallback' },
                 ].map((opt) => (
-                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'live') === opt.id ? 'active' : ''}`}>
+                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'demo') === opt.id ? 'active' : ''}`}>
                     <input
                       type="radio"
                       name="paymentMode"
-                      checked={(s.paymentMode || 'live') === opt.id}
+                      checked={(s.paymentMode || 'demo') === opt.id}
                       onChange={() => setS({ ...s, paymentMode: opt.id })}
                     />
                     <div>
@@ -1613,91 +1025,6 @@ export default function Admin() {
             <button className="btn btn-gold" type="submit">Save settings</button>
           </form>
         </section>
-
-        <section className="card-box" style={{ borderColor: '#e11d48' }}>
-          <h2 style={{ color: '#e11d48' }}>🗑️ Delete records</h2>
-          <p className="muted tiny">
-            Pick a record type, tick exactly the records you want to remove, then type DELETE and confirm.
-            Products, settings and staff accounts are never touched.
-          </p>
-          <div className="row-gap" style={{ margin: '10px 0' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              Record type
-              <select value={delKind} onChange={(e) => setDelKindSafe(e.target.value)} aria-label="Record type">
-                {CLEAR_OPTS.map((o) => (
-                  <option key={o.id} value={o.id}>{o.label}</option>
-                ))}
-              </select>
-            </label>
-            <span className="muted tiny">{delTotal} record(s) · {delIds.length} selected</span>
-          </div>
-
-          {delTotal === 0 ? (
-            <p className="muted">No records to delete here.</p>
-          ) : (
-            <>
-              <div className="del-list">
-                <label className="chip" style={{ cursor: 'pointer', marginBottom: 8, display: 'inline-flex', alignItems: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={delPaged.length > 0 && delPaged.every((r) => delIds.includes(r.id))}
-                    onChange={toggleDelPageAll}
-                    style={{ marginRight: 6 }}
-                  />
-                  Select page ({delPaged.length})
-                </label>
-              <div className="table-scroll">
-                <table className="table">
-                  <thead>
-                    {delKind === 'orders' && <tr><th></th><th>Order</th><th>Date</th><th>Status</th><th>Payment</th><th>Total</th></tr>}
-                    {delKind === 'payments' && <tr><th></th><th>Date</th><th>Order</th><th>Payment</th><th>Verified</th><th>Amount</th></tr>}
-                    {delKind === 'coupons' && <tr><th></th><th>Code</th><th>Discount</th><th>Min order</th><th>Status</th></tr>}
-                    {delKind === 'reviews' && <tr><th></th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th></tr>}
-                    {delKind === 'sales' && <tr><th></th><th>Type</th><th>Sale</th><th>Status</th></tr>}
-                    {delKind === 'messages' && <tr><th></th><th>Name</th><th>Email</th><th>Message</th><th>Status</th><th>Date</th></tr>}
-                  </thead>
-                  <tbody>
-                    {delPaged.map((r) => (
-                      <DelRow key={r.id} kind={delKind} item={r} checked={delIds.includes(r.id)} onToggle={toggleDelId} orderById={orderById} />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              </div>
-              <Paginator
-                total={delTotal}
-                page={delCur}
-                pageSize={delPageSize}
-                onPageChange={setDelPage}
-                onPageSizeChange={(n) => { setDelPageSize(n); setDelPage(1); }}
-                unit="records"
-              />
-            </>
-          )}
-
-          <div className="row-gap" style={{ margin: '10px 0' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              Type DELETE to confirm
-              <input
-                value={delConfirm}
-                onChange={(e) => setDelConfirm(e.target.value)}
-                placeholder="DELETE"
-                aria-label="Type DELETE to confirm"
-                style={{ maxWidth: 180 }}
-              />
-            </label>
-            <button
-              type="button"
-              className="btn btn-dark"
-              disabled={!delIds.length || delConfirm !== 'DELETE'}
-              onClick={runDel}
-            >
-              Delete selected ({delIds.length})
-            </button>
-          </div>
-          {delMsg && <p className="ok">{delMsg}</p>}
-        </section>
-        </>
       )}
 
       {invoiceOrder && (
@@ -1705,14 +1032,6 @@ export default function Admin() {
           order={invoiceOrder}
           settings={settings}
           onClose={() => setInvoiceOrder(null)}
-        />
-      )}
-
-      {slipOrder && (
-        <PackSlipPreviewModal
-          order={slipOrder}
-          settings={settings}
-          onClose={() => setSlipOrder(null)}
         />
       )}
 
@@ -1730,7 +1049,7 @@ export default function Admin() {
   );
 }
 
-function SalesDashboard({ orders, payments }) {
+function SalesDashboard({ orders, payments, returns }) {
   const [range, setRange] = useState('all');
   const now = new Date();
 
@@ -1754,6 +1073,8 @@ function SalesDashboard({ orders, payments }) {
   const orderCount = completed.length;
   const avgOrder = orderCount > 0 ? revenue / orderCount : 0;
   const cancelledCount = filtered.filter((o) => o.status === 'cancelled').length;
+  const returnCount = returns.length;
+  const returnRate = orderCount > 0 ? ((returnCount / orderCount) * 100).toFixed(1) : '0.0';
 
   // Top products
   const productSales = {};
@@ -1812,6 +1133,10 @@ function SalesDashboard({ orders, payments }) {
           <div className="sales-card">
             <span className="sales-label">Cancelled</span>
             <span className="sales-value">{cancelledCount}</span>
+          </div>
+          <div className="sales-card">
+            <span className="sales-label">Return rate</span>
+            <span className="sales-value">{returnRate}%</span>
           </div>
         </div>
       </section>
@@ -1984,6 +1309,7 @@ function ReviewsAdmin() {
   const [draft, setDraft] = useState({});
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [reviewDelMode, setReviewDelMode] = useState(false);
 
   const nameFor = (pid) => products.find((p) => p.id === pid)?.name || pid;
 
@@ -2021,6 +1347,13 @@ function ReviewsAdmin() {
     <>
       <section className="card-box">
         <h2>Review moderation</h2>
+        <button
+          className={`btn btn-sm danger ${reviewDelMode ? 'active' : ''}`}
+          onClick={() => setReviewDelMode((m) => !m)}
+          title={reviewDelMode ? 'Done' : 'Delete mode'}
+        >
+          {reviewDelMode ? '✓ Done' : '🗑️'}
+        </button>
         <p className="muted small">
           Search across customer name, email or product name. Edit a review in place, or delete it. Changes are permanent and sync to every device.
         </p>
@@ -2043,11 +1376,28 @@ function ReviewsAdmin() {
           <div className="table-scroll">
             <table className="table">
               <thead>
-                <tr><th>Product</th><th>Reviewer</th><th>Rating</th><th>Comment</th><th>Date</th><th>Actions</th></tr>
+                <tr>
+                  {reviewDelMode && <th style={{ width: 44, textAlign: 'center' }}>Select</th>}
+                  <th>Product</th>
+                  <th>Reviewer</th>
+                  <th>Rating</th>
+                  <th>Comment</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
               </thead>
               <tbody>
                 {paged.map((r) => (
                   <tr key={r.id}>
+                    {reviewDelMode && (
+                      <td style={{ width: 44, textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          onChange={(e) => { e.stopPropagation(); deleteReview(r.id); }}
+                          aria-label={`Delete review by ${r.userName || 'customer'}`}
+                        />
+                      </td>
+                    )}
                     <td>{nameFor(r.productId)}</td>
                     <td>
                       {r.userName || '—'}
@@ -2089,17 +1439,19 @@ function ReviewsAdmin() {
                       ) : (
                         <button className="btn btn-sm" onClick={() => startEdit(r)}>Edit</button>
                       )}
-                      <button
-                        className="btn btn-sm danger"
-                        style={{ marginLeft: 8 }}
-                        onClick={() => {
-                          if (window.confirm(`Delete this review by ${r.userName || 'this customer'}?\n\nThis cannot be undone.`)) {
-                            deleteReview(r.id);
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
+                      {!reviewDelMode && (
+                        <button
+                          className="btn btn-sm danger"
+                          style={{ marginLeft: 8 }}
+                          onClick={() => {
+                            if (window.confirm(`Delete this review by ${r.userName || 'this customer'}?\n\nThis cannot be undone.`)) {
+                              deleteReview(r.id);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )
                     </td>
                   </tr>
                 ))}
@@ -2362,105 +1714,3 @@ function CustomersAdmin() {
   );
 }
 
-
-
-/**
- * Row inside Admin → Delete records, styled like the record’s own page:
- * order-queue cards, payments/coupons/reviews tables, sale cards and
- * message cards — each with a selection checkbox on the left.
- */
-function DelRow({ kind, item: r, checked, onToggle, orderById }) {
-  // Click anywhere on the row (except the checkbox) to select/deselect it.
-  const rowProps = {
-    style: { cursor: 'pointer' },
-    onClick: (e) => {
-      if (e.target.tagName === 'INPUT') return;
-      onToggle(r.id);
-    },
-  };
-  if (kind === 'orders') {
-    const pay = payMeta(r);
-    return (
-      <tr {...rowProps}>
-        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-        <td><strong>{r.id}</strong></td>
-        <td style={{ whiteSpace: 'nowrap' }}>{formatDateTime(r.orderDate)}</td>
-        <td><span className={`status-badge ${r.status}`}>{r.status}</span></td>
-        <td><span className={`pay-badge ${pay.cls}`}>{pay.label}</span></td>
-        <td style={{ whiteSpace: 'nowrap' }}>{formatINR(r.total)}</td>
-      </tr>
-    );
-  }
-  if (kind === 'payments') {
-    return (
-      <tr {...rowProps}>
-        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-        <td>{formatDateTime(r.at)}</td>
-        <td>{r.orderId || '—'}</td>
-        <td>{r.gateway || 'Razorpay'}{r.mode ? ` (${r.mode})` : ''}</td>
-        <td>{r.verified ? '✓' : <span className="muted">n/a</span>}</td>
-        <td style={{ whiteSpace: 'nowrap' }}>{r.amount ? formatINR(r.amount) : ((orderById && Number(orderById.get(r.orderId)?.total)) > 0 ? formatINR(orderById.get(r.orderId).total) : '—')}</td>
-      </tr>
-    );
-  }
-  if (kind === 'coupons') {
-    return (
-      <tr {...rowProps}>
-        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-        <td><strong>{r.code}</strong></td>
-        <td>{r.type === 'percent' ? `${r.value}% off` : `${formatINR(r.value)} off`}</td>
-        <td>{r.minOrder ? formatINR(r.minOrder) : '—'}</td>
-        <td>
-          <span className={`status-badge ${r.active ? 'confirmed' : 'cancelled'}`}>
-            {r.active ? 'Active' : 'Paused'}
-          </span>
-        </td>
-      </tr>
-    );
-  }
-  if (kind === 'reviews') {
-    return (
-      <tr {...rowProps}>
-        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-        <td>{r.userName || '—'}{r.email && <span className="muted small" style={{ display: 'block' }}>{r.email}</span>}</td>
-        <td style={{ color: '#c9a24b', whiteSpace: 'nowrap' }}>
-          {'★'.repeat(r.rating || 0)}{'☆'.repeat(Math.max(0, 5 - (r.rating || 0)))}
-        </td>
-        <td className="muted" style={{ maxWidth: 340 }}>{r.comment || r.text || '—'}</td>
-        <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
-      </tr>
-    );
-  }
-  if (kind === 'sales') {
-    const scope =
-      r.type === 'product'
-        ? 'Product sale'
-        : r.type === 'category'
-          ? `${r.category || ''} category`
-          : r.type === 'flash'
-            ? 'Flash sale (all products)'
-            : 'Entire store';
-    return (
-      <tr {...rowProps}>
-        <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-        <td><span className="sale-badge">{r.type}</span></td>
-        <td>
-          <strong>{r.name || 'Unnamed sale'}</strong>
-          <span className="muted small" style={{ display: 'block' }}>{scope}{r.active === false ? ' · inactive' : ''}</span>
-        </td>
-        <td><span className={`status-badge ${r.active ? 'confirmed' : 'cancelled'}`}>{r.active ? 'Active' : 'Paused'}</span></td>
-      </tr>
-    );
-  }
-  // messages
-  return (
-    <tr {...rowProps}>
-      <td><input type="checkbox" checked={checked} onChange={() => onToggle(r.id)} /></td>
-      <td>{r.name || 'Customer'}</td>
-      <td className="muted">{r.email || '—'}</td>
-      <td className="muted" style={{ maxWidth: 340 }}>{r.message || r.text || '—'}</td>
-      <td><span className={`status-badge ${r.status === 'pending' ? 'cancelled' : 'confirmed'}`}>{r.status || 'pending'}</span></td>
-      <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(r.date)}</td>
-    </tr>
-  );
-}
