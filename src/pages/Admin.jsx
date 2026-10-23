@@ -1021,19 +1021,7 @@ export default function Admin() {
               </label>
             </div>
 
-            <div className="flash-sale-settings">
-              <h3 style={{ margin: '6px 0 10px' }}>🚚 Delivery settings</h3>
-              <div className="grid2">
-                <label>Earliest delivery (days from today)
-                  <input type="number" min="1" value={s.deliveryMinDays || 4} onChange={setSField('deliveryMinDays')} />
-                </label>
-                <label>Latest delivery (days from today)
-                  <input type="number" min="1" value={s.deliveryMaxDays || 7} onChange={setSField('deliveryMaxDays')} />
-                </label>
-              </div>
-              <p className="muted tiny">The checkout shows e.g. <strong>"Expected delivery Mon, 15 Sep – Thu, 18 Sep"</strong> once a valid, serviceable pincode is entered.</p>
-            </div>
-               <div className="grid2">
+            <div className="grid2">
                  <label>Shipping cost source
                    <select value={s.shippingSource || 'product'} onChange={(e) => setSField('shippingSource')(e)}>
                      <option value="product">Per-product shipping cost (current)</option>
