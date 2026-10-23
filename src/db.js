@@ -19,7 +19,8 @@ const KEYS = {
   coupons: 'houselaxmicloth_coupons',
   payments: 'houselaxmicloth_payments',
   sales: 'houselaxmicloth_sales',
-
+  pdfs: 'houselaxmicloth_pdfs',
+  notifications: 'houselaxmicloth_notifications',
 };
 
 // Initialize Firebase (non-blocking)
@@ -295,6 +296,24 @@ export const db = {
   saveSales(s) {
     write(KEYS.sales, s);
     syncToFirestore(KEYS.sales, s);
+  },
+
+  // archived PDF reports
+  getPdfs() {
+    return read(KEYS.pdfs, []);
+  },
+  savePdfs(p) {
+    write(KEYS.pdfs, p);
+    syncToFirestore(KEYS.pdfs, p);
+  },
+
+  // admin activity notifications
+  getNotifications() {
+    return read(KEYS.notifications, []);
+  },
+  saveNotifications(n) {
+    write(KEYS.notifications, n);
+    syncToFirestore(KEYS.notifications, n);
   },
 
   uid,

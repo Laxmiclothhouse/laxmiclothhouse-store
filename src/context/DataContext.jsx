@@ -15,6 +15,8 @@ export function DataProvider({ children }) {
   const [payments, setPayments] = useState(db.getPayments());
   const [sales, setSales] = useState(db.getSales());
   const [users, setUsers] = useState(db.getUsers());
+  const [pdfs, setPdfs] = useState(db.getPdfs());
+  const [notifications, setNotifications] = useState(db.getNotifications());
 
   const updateSettings = (patch) => {
     const next = { ...settings, ...patch };
@@ -34,6 +36,8 @@ export function DataProvider({ children }) {
       else if (e.key === 'houselaxmicloth_coupons') setCoupons(db.getCoupons());
       else if (e.key === 'houselaxmicloth_payments') setPayments(db.getPayments());
       else if (e.key === 'houselaxmicloth_sales') setSales(db.getSales());
+      else if (e.key === 'houselaxmicloth_pdfs') setPdfs(db.getPdfs());
+      else if (e.key === 'houselaxmicloth_notifications') setNotifications(db.getNotifications());
       else if (e.key === 'houselaxmicloth_users') setUsers(db.getUsers());
     };
     window.addEventListener('storage', onStorage);
@@ -51,6 +55,8 @@ export function DataProvider({ children }) {
     const unsubPayments = listenFromFirestore('houselaxmicloth_payments', setPayments);
     const unsubSales = listenFromFirestore('houselaxmicloth_sales', setSales);
     const unsubUsers = listenFromFirestore('houselaxmicloth_users', setUsers);
+    const unsubPdfs = listenFromFirestore('houselaxmicloth_pdfs', setPdfs);
+    const unsubNotifications = listenFromFirestore('houselaxmicloth_notifications', setNotifications);
 
     return () => {
       unsubProducts();
@@ -62,6 +68,8 @@ export function DataProvider({ children }) {
       unsubPayments();
       unsubSales();
       unsubUsers();
+      unsubPdfs();
+      unsubNotifications();
     };
   }, []);
 
@@ -777,6 +785,31 @@ const resolveRefund = (orderId, patch = {}) => {
     return removed;
   };
 
+  const addPdfRecord = (record) => {
+    const next = [record, ...pdfs];
+    setPdfs(next);
+    db.savePdfs(next);
+  };
+
+  const deletePdfRecord = (id) => {
+    const next = pdfs.filter((p) => String(p.id) !== String(id));
+    setPdfs(next);
+    db.savePdfs(next);
+  };
+
+  const logActivity = (action, details = {}, by = '') => {
+    const entry = {
+      id: db.uid('ACT'),
+      time: Date.now(),
+      action: String(action || ''),
+      details: details || {},
+      by: String(by || ''),
+    };
+    const next = [entry, ...notifications].slice(0, 500);
+    setNotifications(next);
+    db.saveNotifications(next);
+  };
+
   // Best-effort calls to the Vercel API functions. Never blocks the store.
   // Returns the fetch Response so callers can inspect success/failure.
   const postApi = async (path, body) => {
@@ -833,6 +866,11 @@ const resolveRefund = (orderId, patch = {}) => {
       payments,
       logPayment,
       deleteRecords,
+      pdfs,
+      addPdfRecord,
+      deletePdfRecord,
+      notifications,
+      logActivity,
       sales,
       addSale,
       updateSale,
@@ -841,7 +879,7 @@ const resolveRefund = (orderId, patch = {}) => {
       getSalePrice,
       users,
     }),
-    [products, orders, settings, reviews, messages, coupons, payments, sales, users]
+    [products, orders, settings, reviews, messages, coupons, payments, sales, users, pdfs, notifications]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

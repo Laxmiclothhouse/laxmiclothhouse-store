@@ -9,6 +9,7 @@ import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
 import { statusMeta } from '../orderFlow.js';
+import { buildOrdersReportPdf, triggerBlobDownload, ordersReportFileName, ordersReportPdfUrl, downloadOrdersReportPdf, printOrdersReportPdf, filterOrdersByRange } from '../utils/ordersReportPdf.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
 const ALL_PAY = [
@@ -197,13 +198,13 @@ function StaffRoleForm({ setUserRole }) {
 
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole } = useAuth();
-  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
-  const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
+  const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, deleteRecords } = useData();
+  const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale, pdfs = [], addPdfRecord, deletePdfRecord, notifications = [], logActivity } = useData();
   const [tab, setTabState] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_tab');
       const allowed = isAdmin
-        ? ['products', 'orders', 'settings', 'coupons', 'payments', 'sales', 'staff']
+        ? ['products', 'orders', 'settings', 'coupons', 'payments', 'sales', 'staff', 'pdfs', 'notifications']
         : ['orders'];
       if (saved && allowed.includes(saved)) return saved;
     } catch {}
@@ -212,6 +213,60 @@ export default function Admin() {
   const setTab = (next) => {
     setTabState(next);
     try { localStorage.setItem('admin_tab', next); } catch {}
+  const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+  const monthYearName = (dateStr) => {
+    const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+    const m = d.toLocaleString('en-US', { month: 'long' });
+    return `${m}_${d.getFullYear()}.pdf`;
+  };
+
+  const archiveOrdersToPdf = async (filtered, opts) => {
+    if (!filtered || !filtered.length) return;
+    try {
+      const { blob, fileName } = buildOrdersReportPdf(filtered, opts || {});
+      // name as month_year per requirement
+      const name = monthYearName(opts?.to || opts?.from);
+      const downloadName = name;
+      triggerBlobDownload(blob, downloadName);
+      const base64 = await blobToBase64(blob);
+      const revenue = filtered.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + (o.total || 0), 0);
+      addPdfRecord({
+        id: `PDF${Date.now().toString(36)}`,
+        name: downloadName,
+        createdAt: Date.now(),
+        by: user?.email || 'admin',
+        from: opts?.from || '',
+        to: opts?.to || '',
+        orderCount: filtered.length,
+        revenue,
+        base64,
+      });
+      const ids = filtered.map((o) => o.id);
+      // delete via DataContext deleteRecords
+      deleteRecords('orders', ids);
+      logActivity('Exported orders to PDF and deleted', { count: filtered.length, name: downloadName }, user?.email);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to export/delete orders: ' + (e?.message || e));
+    }
+  };
+
+  const downloadArchivedPdf = (record) => {
+    if (!record?.base64) return;
+    const byteChars = atob(record.base64);
+    const byteNums = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNums)], { type: 'application/pdf' });
+    triggerBlobDownload(blob, record.name || 'archive.pdf');
+  };
+
+
   };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -421,13 +476,18 @@ export default function Admin() {
           </button>
         )}
         {isAdmin && (
-          <button className={tab === 'payments' ? 'chip active' : 'chip'} onClick={() => setTab('payments')}>
-            Payments
+          <button className={tab === 'pdfs' ? 'chip active' : 'chip'} onClick={() => setTab('pdfs')}>
+            PDFs {pdfs.length ? `(${pdfs.length})` : ''}
           </button>
         )}
         {isAdmin && (
-          <button className={tab === 'sales' ? 'chip active' : 'chip'} onClick={() => setTab('sales')}>
-            Sales
+          <button className={tab === 'notifications' ? 'chip active' : 'chip'} onClick={() => setTab('notifications')}>
+            Notifications {notifications.length ? `(${notifications.length})` : ''}
+          </button>
+        )}
+        {isAdmin && (
+          <button className={tab === 'payments' ? 'chip active' : 'chip'} onClick={() => setTab('payments')}>
+            Payments
           </button>
         )}
         {isAdmin && (
@@ -632,7 +692,7 @@ export default function Admin() {
                       <td>{p.featured ? '★' : '—'}</td>
                       <td className="row-gap">
                         <button className="btn btn-sm" onClick={() => startEdit(p)}>Edit</button>
-                        <button className="btn btn-sm danger" onClick={() => deleteProduct(p.id)}>Delete</button>
+                        <button className="btn btn-sm danger" onClick={() => { deleteProduct(p.id); logActivity('Deleted product', { id: p.id, name: p.name }, user?.email); }}>Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -648,13 +708,18 @@ export default function Admin() {
           {orders.length === 0 ? (
             <p className="muted">No orders yet. Orders placed by customers will appear here.</p>
           ) : (
-            <OrdersQueue
-              orders={orders}
-              role={user?.role || 'admin'}
-              user={user}
-              onUpdate={(o, status, opts) => updateOrderStatus(o.id, status, statusMeta(status).label, opts)}
-              onInvoice={(o) => setInvoiceOrder(o)}
-            />
+            <>
+              <OrdersQueue
+                orders={orders}
+                role={user?.role || 'admin'}
+                user={user}
+                onUpdate={(o, status, opts) => { logActivity('Order status updated', { orderId: o.id, status }, user?.email); return updateOrderStatus(o.id, status, statusMeta(status).label, opts); }}
+                onInvoice={(o) => setInvoiceOrder(o)}
+              />
+              <div style={{ marginTop: 16 }}>
+                <OrdersReport orders={orders} settings={settings} onArchive={archiveOrdersToPdf} />
+              </div>
+            </>
           )}
         </section>
       )}
@@ -770,6 +835,67 @@ export default function Admin() {
           )}
         </section>
       )}
+
+      {tab === 'pdfs' && (
+        <section className="card-box">
+          <h2>Archived PDF reports</h2>
+          <p className="muted small">PDFs generated when exporting & deleting old orders. Download or remove them here.</p>
+          {pdfs.length === 0 ? (
+            <p className="muted">No archived PDFs yet.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr><th>Name</th><th>Created</th><th>Orders</th><th>Revenue</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {pdfs.map((p) => (
+                    <tr key={p.id}>
+                      <td>{p.name}</td>
+                      <td>{formatDateTime(p.createdAt)}</td>
+                      <td>{p.orderCount ?? '—'}</td>
+                      <td>{p.revenue != null ? formatINR(p.revenue) : '—'}</td>
+                      <td>
+                        <button className="btn btn-ghost btn-sm" onClick={() => downloadArchivedPdf(p)}>⬇ Download</button>
+                        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 6 }} onClick={() => { if (window.confirm('Delete this PDF?')) { deletePdfRecord(p.id); logActivity('Deleted archived PDF', { name: p.name }, user?.email); } }}>🗑 Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === 'notifications' && (
+        <section className="card-box">
+          <h2>Admin activity log</h2>
+          <p className="muted small">Recent actions performed in the admin panel.</p>
+          {notifications.length === 0 ? (
+            <p className="muted">No activity recorded yet.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr><th>When</th><th>Action</th><th>By</th><th>Details</th></tr>
+                </thead>
+                <tbody>
+                  {notifications.map((n) => (
+                    <tr key={n.id}>
+                      <td>{formatDateTime(n.time)}</td>
+                      <td>{n.action}</td>
+                      <td>{n.by || '—'}</td>
+                      <td><span className="muted tiny">{JSON.stringify(n.details || {})}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
 
       {tab === 'sales' && (
         <>
@@ -1139,7 +1265,7 @@ function SalesDashboard({ orders, payments, returns }) {
 }
 
 // ── Orders report: date-range filter + PDF download ──────────
-function OrdersReport({ orders, settings }) {
+function OrdersReport({ orders, settings, onArchive }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1204,6 +1330,7 @@ function OrdersReport({ orders, settings }) {
           <button className="chip" onClick={() => applyPreset(0)}>Today</button>
           <button className="chip" onClick={() => applyPreset(7)}>Last 7 days</button>
           <button className="chip" onClick={() => applyPreset(30)}>Last 30 days</button>
+          <button className="chip" onClick={() => applyPreset(60)}>Last 60 days</button>
           <button className="chip" onClick={() => applyPreset(null)}>All time</button>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
@@ -1228,6 +1355,15 @@ function OrdersReport({ orders, settings }) {
             title={filtered.length ? 'Download the orders report as PDF' : 'No orders in this date range'}
           >
             {busy ? 'Preparing…' : '⬇ Download PDF'}
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            style={{ marginTop: 6, marginLeft: 8 }}
+            disabled={busy || !filtered.length || !onArchive}
+            onClick={() => { if (window.confirm(`Export ${filtered.length} orders to PDF and delete them from the site?`)) onArchive(filtered, reportOpts()); }}
+            title="Export selected orders to PDF, download it, archive it, then delete them"
+          >
+            🗑 Export & delete
           </button>
         </div>
       </div>
