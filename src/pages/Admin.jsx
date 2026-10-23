@@ -203,7 +203,7 @@ export default function Admin() {
     try {
       const saved = localStorage.getItem('admin_tab');
       const allowed = isAdmin
-        ? ['products', 'orders', 'settings', 'coupons', 'returns', 'payments', 'sales', 'staff']
+        ? ['products', 'orders', 'settings', 'coupons', 'payments', 'sales', 'staff']
         : ['orders'];
       if (saved && allowed.includes(saved)) return saved;
     } catch {}
@@ -418,11 +418,6 @@ export default function Admin() {
         {isAdmin && (
           <button className={tab === 'coupons' ? 'chip active' : 'chip'} onClick={() => setTab('coupons')}>
             Coupons {coupons.length ? `(${coupons.length})` : ''}
-          </button>
-        )}
-        {isAdmin && (
-          <button className={tab === 'returns' ? 'chip active' : 'chip'} onClick={() => setTab('returns')}>
-            Returns {returns.length ? `(${returns.length})` : ''}
           </button>
         )}
         {isAdmin && (
@@ -732,46 +727,6 @@ export default function Admin() {
             )}
           </section>
         </>
-      )}
-
-    {tab === 'returns' && (
-        <section className="card-box">
-          <h2>Return requests</h2>
-          {returns.length === 0 ? (
-            <p className="muted">
-              No returns yet. Customers request returns from their order page; reverse pickup is booked with Delhivery automatically.
-            </p>
-          ) : (
-            <div className="table-scroll">
-              <table className="table">
-                <thead>
-                  <tr><th>Return</th><th>Order</th><th>Customer</th><th>Items</th><th>Reason</th><th>Status / AWB</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {returns.map((r) => (
-                    <tr key={r.id}>
-                      <td><strong>{r.id}</strong><br /><span className="muted tiny">{formatDateTime(r.requestDate)}</span></td>
-                      <td>{r.orderId}</td>
-                      <td>{r.customerName}<br /><span className="muted tiny">{r.phone}</span></td>
-                      <td><span className="muted tiny">{r.items.map((it) => `${it.name}${it.size ? ` (${it.size})` : ''} ×${it.qty}`).join(', ')}</span></td>
-                      <td>{r.reason}{r.note ? <span className="muted tiny"><br />{r.note}</span> : null}</td>
-                      <td>
-                        <span className={`status-badge ${r.status}`}>{r.status.toUpperCase()}</span>
-                        {r.pickupAwb ? <span className="muted tiny"><br />AWB {r.pickupAwb}</span> : null}
-                      </td>
-                      <td className="row-gap">
-                        {r.status === 'requested' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'approved')}>Approve pickup</button>}
-                        {r.status === 'approved' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'picked')}>Mark picked</button>}
-                        {r.status === 'picked' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'received')}>Mark received</button>}
-                        {r.status === 'received' && <button className="btn btn-sm" onClick={() => updateReturnStatus(r.id, 'refunded')}>Mark refunded</button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
       )}
 
       {tab === 'payments' && (
