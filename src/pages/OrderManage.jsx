@@ -383,6 +383,9 @@ export default function OrderManage() {
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => setInvoiceOrder(order)}>
                 🧾 View Invoice
               </button>
+              <button type="button" className="btn btn-sm" style={{ marginLeft: 8 }} onClick={() => downloadInvoicePdf(order, settings)}>
+                ⬇ Download Invoice
+              </button>
             </div>
           )}
 
@@ -448,6 +451,8 @@ export default function OrderManage() {
           <div className="ord-body" style={{ marginTop: 14 }}>
             <div>
               <p className="muted">{order.customer?.name} · {order.customer?.phone}</p>
+              {order.customer?.email && <p className="muted tiny">{order.customer.email}</p>}
+              {order.customerEmail && order.customerEmail !== order.customer?.email && <p className="muted tiny">{order.customerEmail}</p>}
               <p className="muted">
                 {order.shipping?.address}, {order.shipping?.city}, {order.shipping?.state} — {order.shipping?.pincode}
               </p>
@@ -459,6 +464,11 @@ export default function OrderManage() {
                   </li>
                 ))}
               </ul>
+              {(order.discount > 0 || order.couponCode) && (
+                <div className="sum-lines" style={{ marginTop: 8 }}>
+                  {order.discount > 0 && <div><span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span><span>-{formatINR(order.discount)}</span></div>}
+                </div>
+              )}
             </div>
             <div className="card-box inner">
               <h3>Payment</h3>
@@ -467,6 +477,7 @@ export default function OrderManage() {
                 {order.payment?.status === 'paid' ? 'Paid' : 'Pending (COD)'}
               </p>
               {order.payment?.gateway && <p className="muted tiny">{order.payment.gateway}</p>}
+              {order.payment?.ref && <p className="muted tiny">Ref: {order.payment.ref}</p>}
               <div className="sum-lines">
                 <div><span>Subtotal</span><span>{formatINR(order.subtotal)}</span></div>
                 <div><span>Shipping</span><span>{order.shippingFee > 0 ? formatINR(order.shippingFee) : 'FREE'}</span></div>
