@@ -34,6 +34,11 @@ export function invoiceLines(order, settings) {
     date: fmtDt(order?.orderDate),
     status: (order?.status || "placed").toUpperCase(),
     payment: order?.payment?.mode?.toUpperCase() || "—",
+    paymentStatus: (order?.payment?.status || "pending").toUpperCase(),
+    paymentRef: order?.payment?.ref || order?.payment?.gateway || "",
+    paymentGateway: order?.payment?.gateway || "",
+    trackingNo: order?.trackingNo || "",
+    courier: order?.courier || "",
     customer: order?.customer || {},
     shippingAddr: order?.shipping || {},
     items,
@@ -101,7 +106,10 @@ export async function buildInvoicePdf(order, settings) {
     { label: "Date", value: L.date },
     { label: "Status", value: L.status },
     { label: "Payment", value: L.payment },
+    { label: "Pay Status", value: L.paymentStatus },
   ];
+  if (L.paymentRef) metaLines.push({ label: "Pay Ref", value: L.paymentRef });
+  if (L.trackingNo) metaLines.push({ label: "Tracking", value: L.trackingNo });
   for (const m of metaLines) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -162,7 +170,8 @@ export async function buildInvoicePdf(order, settings) {
   let zebraLine = true;
   for (const it of L.items) {
     n += 1;
-    const nameLines = wraps(doc, it.name, 84, 9);
+    const displayName = it.size ? it.name + " (" + it.size + ")" : it.name;
+    const nameLines = wraps(doc, displayName, 84, 9);
     const rowH = Math.max(th, nameLines.length * 4.2 + 2);
     if (y + rowH > H - 46) {
       doc.addPage();
