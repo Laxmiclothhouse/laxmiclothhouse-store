@@ -219,7 +219,7 @@ function StaffRoleForm({ setUserRole }) {
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
-  const { payments, returns, updateReturnStatus, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
+  const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
   const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
