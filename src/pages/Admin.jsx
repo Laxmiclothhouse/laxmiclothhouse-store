@@ -279,6 +279,7 @@ export default function Admin() {
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
+  const [variantDrafts, setVariantDrafts] = useState({});
   const [params] = useSearchParams();
   const orderParam = params.get('order');
 
@@ -476,6 +477,26 @@ export default function Admin() {
       colors[colorIdx] = { ...c, images: (c.images || []).filter((_, i) => i !== imgIdx) };
       return { ...f, colors };
     });
+  };
+  const addVariantSize = (ci, colorName) => {
+    const draft = variantDrafts[ci] || {};
+    const size = String(draft.size || '').trim().toUpperCase();
+    if (!size) {
+      setMsg('Enter a size for this colour.');
+      setTimeout(() => setMsg(''), 2500);
+      return;
+    }
+    const stockRaw = draft.stock;
+    const stockNum = stockRaw === '' || stockRaw === undefined || stockRaw === null ? null : Number(stockRaw);
+    setForm((f) => {
+      const sizes = Array.from(new Set([...(f.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean), size]));
+      const stockByVariant = { ...(f.stockByVariant || {}) };
+      const key = variantKey(colorName, size);
+      if (stockNum !== null && Number.isFinite(stockNum) && stockNum >= 0) stockByVariant[key] = stockNum;
+      else if (!(key in stockByVariant)) stockByVariant[key] = 0;
+      return { ...f, sizes, stockByVariant };
+    });
+    setVariantDrafts((d) => ({ ...d, [ci]: { size: '', stock: '' } }));
   };
   const setColorStock = (colorName, size, value) => {
     const key = variantKey(colorName, size);
@@ -793,6 +814,27 @@ export default function Admin() {
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
                           placeholder="Or paste image URL — press Enter to add"
                         />
+                      </div>
+
+                      {/* add size + stock for this colour */}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                        <input
+                          placeholder="Add size (e.g. M)"
+                          style={{ width: 120 }}
+                          value={(variantDrafts[ci]?.size) || ''}
+                          onChange={(e) => setVariantDrafts((d) => ({ ...d, [ci]: { ...(d[ci] || {}), size: e.target.value } }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addVariantSize(ci, colorName); } }}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Stock"
+                          style={{ width: 90 }}
+                          value={(variantDrafts[ci]?.stock) || ''}
+                          onChange={(e) => setVariantDrafts((d) => ({ ...d, [ci]: { ...(d[ci] || {}), stock: e.target.value } }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addVariantSize(ci, colorName); } }}
+                        />
+                        <button type="button" className="btn btn-sm btn-ghost" onClick={() => addVariantSize(ci, colorName)}>+ Add size & stock</button>
                       </div>
 
                       {/* per-variant stock */}
