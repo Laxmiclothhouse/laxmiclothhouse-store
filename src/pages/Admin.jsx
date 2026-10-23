@@ -150,11 +150,40 @@ function CouponForm({ addCoupon }) {
   );
 }
 
-function StaffRoleForm({ setUserRole }) {
+function StaffRoleForm({ setUserRole, searchUsers }) {
   const [uid, setUid] = useState('');
   const [role, setRole] = useState('packer');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+
+  // Find a user's UID by name / email / phone so the admin never has to
+  // open the Firebase console.
+  const [search, setSearch] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState([]);
+  const [searchErr, setSearchErr] = useState('');
+
+  const runSearch = async (e) => {
+    if (e) e.preventDefault();
+    const text = search.trim();
+    if (text.length < 2) {
+      setSearchErr('Type at least 2 characters to search.');
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    setSearchErr('');
+    setResults([]);
+    try {
+      const hits = typeof searchUsers === 'function' ? await searchUsers(text) : [];
+      setResults(Array.isArray(hits) ? hits : []);
+      if (!hits || !hits.length) setSearchErr('No users found matching that search.');
+    } catch (ex) {
+      setSearchErr(ex?.message || 'Search failed.');
+    } finally {
+      setSearching(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -171,6 +200,56 @@ function StaffRoleForm({ setUserRole }) {
 
   return (
     <form onSubmit={submit} className="form">
+      <div className="card-box" style={{ marginBottom: 12, padding: 12 }}>
+        <h3 style={{ marginTop: 0 }}>Find a user's UID</h3>
+        <p className="muted small">
+          Type a name, email or phone number and search — then click “Use UID” to fill the field below.
+        </p>
+        <div className="row-gap" style={{ alignItems: 'center' }}>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } }}
+            placeholder="e.g. Rahul, rahul@example.com, 9876543210"
+            style={{ flex: 1, minWidth: 220 }}
+          />
+          <button type="button" className="btn btn-sm" onClick={runSearch} disabled={searching}>
+            {searching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+        {searchErr && <p className="muted small" style={{ marginTop: 6 }}>{searchErr}</p>}
+        {results.length > 0 && (
+          <div className="table-scroll" style={{ marginTop: 8 }}>
+            <table className="table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>UID</th><th></th></tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={r.uid || i}>
+                    <td>{r.name || '—'}</td>
+                    <td>{r.email || '—'}</td>
+                    <td>{r.phone || '—'}</td>
+                    <td>{r.role || '—'}</td>
+                    <td><code style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>{r.uid}</code></td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => { setUid(r.uid || ''); setMsg(''); setErr(''); }}
+                      >
+                        Use UID
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="grid2">
         <label>
           Firebase UID
@@ -200,7 +279,7 @@ function StaffRoleForm({ setUserRole }) {
 }
 
 export default function Admin() {
-  const { user, isAdmin, isStaff, setUserRole } = useAuth();
+  const { user, isAdmin, isStaff, setUserRole, searchUsers } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, deleteRecords } = useData();
   const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale, pdfs = [], addPdfRecord, deletePdfRecord, notifications = [], logActivity } = useData();
   const [tab, setTabState] = useState(() => {
@@ -992,11 +1071,12 @@ export default function Admin() {
         <section className="card-box">
           <h2>Staff roles</h2>
           <p className="muted small">
-            Promote a registered user to a staff role. The UID is visible in the Firebase console
+            Promote a registered user to a staff role. Search by name, email or phone below to find
+            their UID automatically, or paste it manually from the Firebase console
             (Authentication &gt; Users) after the person logs in on the site once. The new role
             applies on their next login or page reload.
           </p>
-          <StaffRoleForm setUserRole={setUserRole} />
+          <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} />
         </section>
       )}
 
