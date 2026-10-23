@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
-import { productImage } from '../db.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
@@ -355,8 +354,8 @@ export default function Admin() {
       price: Number(form.price),
       mrp: Number(form.mrp) || Math.round(Number(form.price) * 1.25 / 10) * 10,
       sizes: (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean),
-      image: customImgs.length > 0 ? customImgs[0] : productImage(form.name.toUpperCase(), form.color),
-      images: customImgs.length > 0 ? customImgs : [productImage(form.name.toUpperCase(), form.color)],
+       image: customImgs.length > 0 ? customImgs[0] : '',
+       images: customImgs.length > 0 ? customImgs : [],
       shippingCost: Number(form.shippingCost) || 0,
       returnsAccepted: Boolean(form.returnsAccepted),
       returnDays: form.returnsAccepted ? Math.max(0, Number(form.returnDays) || 0) : 0,
@@ -1451,7 +1450,7 @@ function ReviewsAdmin() {
                         >
                           Delete
                         </button>
-                      )
+                      )}
                     </td>
                   </tr>
                 ))}

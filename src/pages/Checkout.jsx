@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
 import { useCartWeightGrams } from '../context/CartContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getVariantStock } from '../utils/stock.js';
 import { formatINR } from '../utils/format.js';
 import { payWithRazorpay } from '../utils/razorpay.js';
 
+// Razorpay only — live card/UPI payments.
 const ALL_PAY_METHODS = [
   { id: 'upi', label: 'UPI', hint: 'GPay / PhonePe / Paytm / BHIM' },
   { id: 'card', label: 'Credit / Debit Card', hint: 'Visa, Mastercard, RuPay' },
@@ -17,8 +19,38 @@ export default function Checkout() {
   const { placeOrder, settings, products, validateCoupon, logPayment } = useData();
   const { user } = useAuth();
   const nav = useNavigate();
-const [params] = useSearchParams();
-const buyNowOrderId = params.get('order');
+  const [params] = useSearchParams();
+
+  // ── Buy Now ──────────────────────────────────────────────
+  // A Buy Now purchase is stored in sessionStorage by the product page and
+  // checked out in isolation: the regular cart is left untouched and the
+  // summary shows only the Buy Now item. '?buy=now' activates it.
+  const buyNowItem = useMemo(() => {
+    if (params.get('buy') !== 'now') return null;
+    try {
+      const raw = sessionStorage.getItem('buynow_item');
+      if (!raw) return null;
+      const it = JSON.parse(raw);
+      if (!it || !it.id || !Number.isFinite(Number(it.qty)) || Number(it.qty) < 1) return null;
+      return {
+        key: `buynow::${it.id}::${String(it.size || '').toUpperCase()}::${String(it.colorName || '').toUpperCase()}`,
+        id: it.id,
+        name: it.name || 'Product',
+        price: Number(it.price) || 0,
+        image: it.image || '',
+        color: it.colorName || '',
+        colorName: it.colorName || '',
+        size: String(it.size || ''),
+        weightGrams: Number(it.weightGrams) || 500,
+        qty: Math.floor(Number(it.qty)),
+      };
+    } catch {
+      return null;
+    }
+  }, [params]);
+  // Effective checkout contents: Buy Now item alone, or the whole cart.
+  const effCart = buyNowItem ? [buyNowItem] : cart;
+  const effSubtotal = buyNowItem ? buyNowItem.price * buyNowItem.qty : subtotal;
 
   const [shipping, setShipping] = useState({
     name: user?.name || '',
@@ -33,19 +65,25 @@ const buyNowOrderId = params.get('order');
   const [paying, setPaying] = useState(false);
   const [placed, setPlaced] = useState(null);
   const [err, setErr] = useState('');
-  const [gatewayNotice, setGatewayNotice] = useState('');
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null); // coupon CODE string
   const [couponMsg, setCouponMsg] = useState('');
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showPinList, setShowPinList] = useState(false);
-  const [filterPin, setFilterPin] = useState('');
-  const [filteredPins, setFilteredPins] = useState([]);
   const cartWeightGrams = useCartWeightGrams();
+  // Buy Now parcels quote their own weight (regular cart hook reads the cart).
+  const buyWeightGrams = buyNowItem
+    ? (Number(buyNowItem.weightGrams) > 0 ? Number(buyNowItem.weightGrams) : 500) * buyNowItem.qty
+    : cartWeightGrams;
   const [liveShipping, setLiveShipping] = useState(null);
   const [liveShippingLoading, setLiveShippingLoading] = useState(false);
   const [liveShippingError, setLiveShippingError] = useState(null);
+  // Pincode → city / district / state details (/api/pincode, free India Post data)
+  const [pinLookup, setPinLookup] = useState({ status: 'idle' });
+  // City/state filled by a lookup may be refreshed by a later lookup; as
+  // soon as the customer types in those fields by hand, we stop touching them.
+  const autoCity = React.useRef(false);
+  const autoState = React.useRef(false);
 
 
   const shippingSource = settings.shippingSource || 'product';
@@ -54,7 +92,7 @@ const buyNowOrderId = params.get('order');
   const rateCardKey = JSON.stringify(settings.rateCard || null);
   let shippingFee = 0;
   if (shippingSource === 'delhivery') {
-    const fb = cart.reduce((sum, c) => {
+    const fb = effCart.reduce((sum, c) => {
       const p = products.find((x) => x.id === c.id);
       const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
       return sum + pu * c.qty;
@@ -62,7 +100,7 @@ const buyNowOrderId = params.get('order');
     shippingFee = liveShipping && liveShipping.serviceable && Number.isFinite(liveShipping.shippingCost)
       ? Math.max(0, liveShipping.shippingCost) : fb;
   } else {
-    shippingFee = cart.reduce((sum, c) => {
+    shippingFee = effCart.reduce((sum, c) => {
       const p = products.find((x) => x.id === c.id);
       const pu = p && typeof p.shippingCost === 'number' ? p.shippingCost : 99;
       return sum + pu * c.qty;
@@ -71,9 +109,9 @@ const buyNowOrderId = params.get('order');
 
   // Discount is re-derived on every render so it stays correct if the
   // cart changes after a coupon is applied.
-  const couponRes = appliedCoupon ? validateCoupon(appliedCoupon, subtotal) : null;
+  const couponRes = appliedCoupon ? validateCoupon(appliedCoupon, effSubtotal) : null;
   const discount = couponRes?.ok ? couponRes.discount : 0;
-  const total = Math.max(0, subtotal + shippingFee - discount);
+  const total = Math.max(0, effSubtotal + shippingFee - discount);
 
   // If the coupon stops qualifying (e.g. qty dropped below min order), drop it.
   React.useEffect(() => {
@@ -82,7 +120,7 @@ const buyNowOrderId = params.get('order');
       setCouponMsg(couponRes.error + ' Coupon removed.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedCoupon, subtotal]);
+  }, [appliedCoupon, effSubtotal]);
 
   // ── Live Delhivery serviceability + shipping cost ───────────
   // Runs whenever the pincode or the cart weight changes (debounced).
@@ -116,11 +154,11 @@ const buyNowOrderId = params.get('order');
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             pincode: pin,
-            weightGrams: cartWeightGrams > 0 ? cartWeightGrams : 500,
+            weightGrams: buyWeightGrams > 0 ? buyWeightGrams : 500,
             state: shipping.state || '',
             // COD carries a courier surcharge, so the quote must know the mode.
             paymentMode: String(method || '').toLowerCase() === 'cod' ? 'cod' : 'prepaid',
-            orderValue: subtotal,
+            orderValue: effSubtotal,
             rateCard: settings.rateCard || null,
             deliveryMinDays: settings.deliveryMinDays,
             deliveryMaxDays: settings.deliveryMaxDays,
@@ -159,18 +197,85 @@ const buyNowOrderId = params.get('order');
   }, [
     shipping.pincode,
     shipping.state,
-    cartWeightGrams,
+    buyWeightGrams,
     shippingSource,
     method,
-    subtotal,
+    effSubtotal,
     rateCardKey,
   ]);
+
+  // ── Pincode → city / district / state ───────────────────────
+  // /api/pincode wraps the free Department of Posts lookup. It fills the
+  // city + state the customer has not typed yet and shows which areas the
+  // pincode covers. Every failure stays silent — typing the address by
+  // hand must always keep working.
+  const pinLookupDetails = (details, pin) => {
+    const areas = (Array.isArray(details.areas) ? details.areas : []).filter(Boolean);
+    const head = details.headArea || details.area || '';
+    return {
+      status: 'ok',
+      pincode: pin,
+      city: details.city || details.district || '',
+      district: details.district || details.city || '',
+      state: details.state || '',
+      areas: head ? [head, ...areas.filter((a) => a !== head)] : areas,
+      officeCount: Number(details.officeCount) || 0,
+    };
+  };
+
+  const fillFromPinDetails = (details) => {
+    if (!details || details.status !== 'ok') return;
+    const fillCity = Boolean(details.city) && (autoCity.current || !shipping.city.trim());
+    const fillState = Boolean(details.state) && (autoState.current || !shipping.state.trim());
+    if (!fillCity && !fillState) return;
+    if (fillCity) autoCity.current = true;
+    if (fillState) autoState.current = true;
+    setShipping((prev) => ({
+      ...prev,
+      city: fillCity ? details.city : prev.city,
+      state: fillState ? details.state : prev.state,
+    }));
+  };
+
+  const lookupPinDetails = async (pin) => {
+    setPinLookup({ status: 'loading', pincode: pin });
+    try {
+      const res = await fetch(`/api/pincode?pin=${encodeURIComponent(pin)}`);
+      const data = await res.json().catch(() => null);
+      if (!data || data.ok !== true) {
+        setPinLookup({ status: 'error', pincode: pin });
+        return;
+      }
+      if (!data.found) {
+        setPinLookup({ status: 'none', pincode: pin });
+        return;
+      }
+      const details = pinLookupDetails(data, pin);
+      setPinLookup(details);
+      fillFromPinDetails(details);
+    } catch {
+      setPinLookup({ status: 'error', pincode: pin });
+    }
+  };
+
+  // Look the pincode up shortly after the customer finishes typing it.
+  React.useEffect(() => {
+    const pin = String(shipping.pincode || '').trim();
+    if (!/^\d{6}$/.test(pin)) {
+      setPinLookup((prev) => (prev.status === 'idle' ? prev : { status: 'idle' }));
+      return undefined;
+    }
+    const timer = setTimeout(() => { lookupPinDetails(pin); }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shipping.pincode]);
+
 
   const applyCoupon = () => {
     setCouponMsg('');
     const code = couponInput.trim();
     if (!code) return;
-    const res = validateCoupon(code, subtotal);
+    const res = validateCoupon(code, effSubtotal);
     if (!res.ok) {
       setAppliedCoupon(null);
       setCouponMsg(res.error);
@@ -224,16 +329,20 @@ const buyNowOrderId = params.get('order');
     : { state: 'empty' };
 
   const availableMethods = ALL_PAY_METHODS.filter((m) =>
-    cart.every((c) => {
+    effCart.every((c) => {
       const p = products.find((x) => x.id === c.id);
-      const accepted = p && Array.isArray(p.paymentMethods) ? p.paymentMethods : ['upi', 'card', 'cod'];
+      const raw = p && Array.isArray(p.paymentMethods) ? p.paymentMethods : ['upi', 'card', 'cod'];
+      // COD is no longer supported — ignore it in a product's accepted list.
+      const accepted = raw.filter((x) => x !== 'cod');
       return accepted.includes(m.id);
     })
   );
 
   const gatewayConfigured = Boolean(settings.razorpayKeyId);
   const activeMethod = availableMethods.find((m) => m.id === method) ? method : (availableMethods[0]?.id || '');
-  const pmode = 'live'; // Razorpay only — COD / demo / auto payment removed
+  // Live Razorpay payments only - demo/auto payment modes were removed.
+  const pmode = 'live';
+  const canPay = gatewayConfigured;
 
   const payText = (p) => {
     if (p?.method === 'cod') return 'Cash on Delivery';
@@ -242,29 +351,7 @@ const buyNowOrderId = params.get('order');
     return p ? 'Paid online via ' + (p.gateway || 'Razorpay') + (p.mode ? ' (' + p.mode + ')' : '') : '';
   };
 
-  if (buyNowOrderId) {
-    const order = findOrder(buyNowOrderId);
-    if (order) {
-      return (
-        <main className="page center">
-          <div className="card-box">
-            <div className="ok" style={{ fontSize: 48 }}>OK</div>
-            <h2>Order placed successfully!</h2>
-            <p><strong>Order ID:</strong> {order.id}</p>
-            <p><strong>Payment:</strong> {payText(order.payment)}</p>
-            <p><strong>Total paid:</strong> {formatINR(order.total)}</p>
-            <div className="pay-methods">
-              <button className="btn btn-dark" onClick={() => nav('/')}>Continue shopping</button>
-              <button className="btn btn-gold" onClick={() => nav('/track')}>Track order</button>
-            </div>
-          </div>
-        </main>
-      );
-    }
-  }
-
-  if (cart.length === 0 && !placed) {
-  if (cart.length === 0 && !placed) {
+  if (effCart.length === 0 && !placed) {
     return (
       <main className="page center">
         <p>Your cart is empty.</p>
@@ -282,7 +369,6 @@ const buyNowOrderId = params.get('order');
           <p><strong>Order ID:</strong> {placed.id}</p>
           <p><strong>Payment:</strong> {payText(placed.payment)}</p>
           <p><strong>Total paid:</strong> {formatINR(placed.total)}</p>
-          {gatewayNotice && <p className="error" style={{ marginTop: 10 }}>{gatewayNotice}</p>}
           <div className="pay-methods">
             <button className="btn btn-dark" onClick={() => nav('/')}>Continue shopping</button>
             <button className="btn btn-gold" onClick={() => nav('/track')}>Track order</button>
@@ -311,20 +397,23 @@ const buyNowOrderId = params.get('order');
     if (submitting) return; // double-click / replay guard
     setSubmitting(true);
     setErr('');
-    setGatewayNotice('');
     try {
     const v = validate();
     if (v) return setErr(v);
 
-    // Hard stock guard: block the order when any cart qty exceeds available stock.
-    const stockIssue = cart.find((c) => {
+    // Hard stock guard: block the order when any checkout qty exceeds available stock.
+    const stockIssue = effCart.find((c) => {
       const p = products.find((x) => x.id === c.id);
-      return p && typeof p.stock === 'number' && c.qty > p.stock;
+      if (!p) return false;
+      const left = getVariantStock(p, c.colorName || c.color, c.size);
+      return c.qty > left;
     });
     if (stockIssue) {
-      const left = products.find((x) => x.id === stockIssue.id)?.stock || 0;
+      const p = products.find((x) => x.id === stockIssue.id);
+      const left = p ? getVariantStock(p, stockIssue.colorName || stockIssue.color, stockIssue.size) : 0;
+      const variant = [stockIssue.colorName || stockIssue.color, stockIssue.size ? `Size ${stockIssue.size}` : ''].filter(Boolean).join(' · ');
       return setErr(
-        `Only ${left} left in stock of "${stockIssue.name}" (you have ${stockIssue.qty} in the cart). Please reduce the quantity or remove it.`
+        `Only ${left} left in stock of "${stockIssue.name}"${variant ? ` (${variant})` : ''} (you have ${stockIssue.qty} in the cart). Please reduce the quantity or remove it.`
       );
     }
 
@@ -333,16 +422,23 @@ const buyNowOrderId = params.get('order');
     const baseOrder = {
       clientToken,
       userId: user?.id || null,
-      items: cart,
+      items: effCart,
       customer: { name: shipping.name, phone: shipping.phone, email: shipping.email },
       shipping: { address: shipping.address, city: shipping.city, state: shipping.state, pincode: shipping.pincode },
       phone: shipping.phone,
       whatsappOptIn,
-      subtotal, shippingFee,
+      subtotal: effSubtotal, shippingFee,
       discount,
-      couponCode: appliedCoupon?.code || null,
+      couponCode: appliedCoupon || null,
       total,
     };
+
+
+    // Live mode needs the Razorpay key — without it no payment is possible.
+    if (pmode === 'live' && !gatewayConfigured) {
+      setErr('Online payment is not available right now. Please try again later.');
+      return;
+    }
 
     setPaying(true);
     try {
@@ -363,6 +459,7 @@ const buyNowOrderId = params.get('order');
       const order = placeOrder({ ...baseOrder, payment });
       logPayment({
         orderId: order.id,
+        amount: total,
         method: 'online',
         gateway: 'Razorpay',
         mode: activeMethod === 'upi' ? 'UPI' : 'Card',
@@ -372,17 +469,23 @@ const buyNowOrderId = params.get('order');
         rzOrderId: response?.razorpay_order_id || '',
         signaturePresent: Boolean(response && response.razorpay_signature),
       });
-      clearCart();
+      if (!buyNowItem) clearCart();
+      else sessionStorage.removeItem('buynow_item');
       setPlaced(order);
     } catch (ex) {
-      setErr(ex.message || 'Payment failed. Please try again.');
+      const msg = String(ex?.message || '');
+      if (/cancel/i.test(msg)) {
+        setErr('Payment was cancelled. Your order was not placed — please try again when you are ready to pay.');
+      } else {
+        setErr(msg || 'Payment could not be completed. Please try again.');
+      }
     } finally {
       setPaying(false);
     }
-  } finally {
-    setSubmitting(false);
-  }
-};
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main className="page checkout">
@@ -404,71 +507,34 @@ const buyNowOrderId = params.get('order');
           </label>
           <label>Address<input value={shipping.address} onChange={setShip('address')} placeholder="House no, street, area" /></label>
           <div className="grid3">
-            <label>City<input value={shipping.city} onChange={setShip('city')} /></label>
-            <label>State<input value={shipping.state} onChange={setShip('state')} /></label>
-            <label>Pincode
+            <label>City
               <input
+                value={shipping.city}
+                onChange={(e) => { autoCity.current = false; setShip('city')(e); }}
+              />
+            </label>
+            <label>State
+              <input
+                value={shipping.state}
+                onChange={(e) => { autoState.current = false; setShip('state')(e); }}
+              />
+            </label>
+            <div className="pin-field">
+            <label htmlFor="co-pincode">Pincode</label>
+            <div className="pin-input-wrap">
+              <input
+                id="co-pincode"
                 value={shipping.pincode}
+                inputMode="numeric"
+                autoComplete="postal-code"
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                   setShip('pincode')({ target: { value: val } });
-                  // Re-filter dropdown while typing if it's open
-                  if (showPinList) {
-                    const p = Array.isArray(settings.serviceablePincodes)
-                      ? settings.serviceablePincodes
-                      : [];
-                    setFilterPin(val);
-                    setFilteredPins(
-                      p.length === 0
-                        ? []
-                        : val
-                          ? p.filter((x) => x.startsWith(val))
-                          : p
-                    );
-                  }
-                }}
-                onFocus={() => {
-                  const p = Array.isArray(settings.serviceablePincodes)
-                    ? settings.serviceablePincodes
-                    : [];
-                  setShowPinList(true);
-                  setFilterPin(shipping.pincode);
-                  setFilteredPins(
-                    p.length === 0
-                      ? []
-                      : shipping.pincode
-                        ? p.filter((x) => x.startsWith(shipping.pincode))
-                        : p
-                  );
-                }}
-                onBlur={() => setTimeout(() => setShowPinList(false), 180)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && filteredPins.length === 1) {
-                    setShip('pincode')({ target: { value: filteredPins[0] } });
-                    setShowPinList(false);
-                  }
                 }}
                 maxLength={6}
-                placeholder="Type or select pincode"
+                placeholder="Type 6-digit pincode"
                 aria-label="Pincode"
               />
-              {showPinList && filteredPins.length > 0 && (
-                <ul className="pin-dropdown">
-                  {filteredPins.map((pin) => (
-                    <li
-                      key={pin}
-                      className={shipping.pincode === pin ? 'selected' : ''}
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        setShip('pincode')({ target: { value: pin } });
-                        setShowPinList(false);
-                      }}
-                    >
-                      {pin}
-                    </li>
-                  ))}
-                </ul>
-              )}
 
               {/* ── Live shipping info ─────────────────────────── */}
               {shippingSource === "delhivery" && liveShipping && (
@@ -490,9 +556,30 @@ const buyNowOrderId = params.get('order');
                 </div>
               )}
 
+              {pinLookup.status === 'loading' && <span className="pin-msg muted">Looking up pincode…</span>}
+              {pinLookup.status === 'ok' && (
+                <span className="pin-msg ok">
+                  ✓ {pinLookup.district || pinLookup.city}
+                  {pinLookup.state ? `, ${pinLookup.state}` : ''}
+                  {pinLookup.areas.length > 0 && (
+                    <span className="pin-areas">
+                      {' '}· areas: {pinLookup.areas.slice(0, 3).join(', ')}
+                      {pinLookup.areas.length > 3 ? ` +${pinLookup.areas.length - 3}` : ''}
+                    </span>
+                  )}
+                </span>
+              )}
+              {pinLookup.status === 'none' && (
+                <span className="pin-msg error">✕ Pincode {pinLookup.pincode} was not found — please check it.</span>
+              )}
+              {pinLookup.status === 'error' && (
+                <span className="pin-msg muted">City/state could not be fetched — you can type them by hand.</span>
+              )}
+
               {pinInfo.state === 'ok' && <span className="pin-msg ok">✓ {pinInfo.label}</span>}
               {pinInfo.state === 'no' && <span className="pin-msg error">✕ {pinInfo.label}</span>}
-            </label>
+            </div>
+            </div>
           </div>
 
           <label className="whatsapp-opt">
@@ -507,13 +594,6 @@ const buyNowOrderId = params.get('order');
 
         <section className="card-box">
           <h2>2. Payment method</h2>
-          {activeMethod !== 'cod' && (
-            <div className={"mode-badge " + pmode}>
-              {pmode === 'demo' && 'DEMO MODE — simulated payment, no money charged'}
-              {pmode === 'auto' && 'AUTO MODE — tries Razorpay, falls back to demo'}
-              {pmode === 'live' && 'LIVE MODE — real Razorpay payment'}
-            </div>
-          )}
           <div className="pay-methods">
             {availableMethods.map((m) => (
               <label key={m.id} className={"pay-opt " + (activeMethod === m.id ? "active" : "")}>
@@ -523,33 +603,32 @@ const buyNowOrderId = params.get('order');
               </label>
             ))}
           </div>
-          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM).</p>}
-          {activeMethod === 'card' && <p className="muted">Pay securely via card inside the Razorpay window.</p>}
-          {activeMethod === 'cod' && <p className="muted">Keep exact change ready at delivery.</p>}
-          {activeMethod !== 'cod' && pmode === 'demo' && <p className="muted">Demo mode is ON - online payment is simulated, no real money is charged.</p>}
-          {activeMethod !== 'cod' && pmode === 'auto' && <p className="muted">Auto mode: tries Razorpay first, falls back to a demo payment if it fails.</p>}
-          {activeMethod !== 'cod' && pmode === 'live' && !gatewayConfigured && <p className="error">Payment gateway not configured.</p>}
-          {activeMethod !== 'cod' && pmode === 'live' && gatewayConfigured && <p className="ok tiny">Secure online payment via Razorpay.</p>}
+          {activeMethod === 'upi' && <p className="muted">Pay securely via UPI (GPay, PhonePe, Paytm, BHIM) in the Razorpay window.</p>}
+          {activeMethod === 'card' && <p className="muted">Pay securely by card inside the Razorpay window.</p>}
+          {!canPay
+            ? <p className="error">Online payment is temporarily unavailable. Please try again shortly.</p>
+            : <p className="ok tiny">Secure online payment via Razorpay (UPI, card, netbanking &amp; wallets).</p>}
         </section>
       </form>
 
       <aside className="co-right">
         <div className="card-box sticky">
-          <h2>Order summary</h2>
+          <h2>Order summary{buyNowItem ? ' — Buy Now' : ''}</h2>
+          {buyNowItem && <p className="muted tiny">Checking out this item only — your cart is untouched.</p>}
           <ul className="sum-items">
-            {cart.map((c) => (
+            {effCart.map((c) => (
               <li key={c.key}>
-                <span>{c.name}{c.size ? ` (Size ${c.size})` : ''} x {c.qty}</span>
+                <span>{c.name}{(c.colorName || c.color) ? ` (${c.colorName || c.color})` : ''}{c.size ? ` (Size ${c.size})` : ''} x {c.qty}</span>
                 <span>{formatINR(c.price * c.qty)}</span>
               </li>
             ))}
           </ul>
           <div className="sum-lines">
-            <div><span>Subtotal</span><span>{formatINR(subtotal)}</span></div>
+            <div><span>Subtotal</span><span>{formatINR(effSubtotal)}</span></div>
             <div><span>Shipping</span><span>{shippingFee === 0 ? 'FREE' : formatINR(shippingFee)}</span></div>
             {discount > 0 && (
               <div className="discount-line">
-                <span>Coupon ({appliedCoupon.code})</span>
+                <span>Coupon ({appliedCoupon})</span>
                 <span>− {formatINR(discount)}</span>
               </div>
             )}
@@ -565,7 +644,7 @@ const buyNowOrderId = params.get('order');
           <div className="coupon-box">
             {appliedCoupon ? (
               <div className="coupon-applied">
-                <span>🎟️ <strong>{appliedCoupon.code}</strong> — saved {formatINR(appliedCoupon.discount)}</span>
+                <span>🎟️ <strong>{appliedCoupon}</strong> — saved {formatINR(discount)}</span>
                 <button type="button" className="linklike" onClick={removeCoupon}>Remove</button>
               </div>
             ) : (
@@ -585,8 +664,8 @@ const buyNowOrderId = params.get('order');
           </div>
 
           {err && <p className="error">{err}</p>}
-          <button form="checkout-form" className="btn btn-gold btn-block" type="submit" disabled={paying || submitting || !activeMethod}>
-            {paying ? 'Processing...' : submitting ? 'Placing order...' : activeMethod === 'cod' ? 'Place order - COD' : 'Pay & place order'}
+          <button form="checkout-form" className="btn btn-gold btn-block" type="submit" disabled={paying || submitting || !activeMethod || !canPay}>
+            {paying ? 'Processing...' : submitting ? 'Placing order...' : buyNowItem ? 'Pay & buy now' : 'Pay & place order'}
           </button>
         </div>
       </aside>

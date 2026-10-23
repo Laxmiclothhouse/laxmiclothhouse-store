@@ -140,63 +140,6 @@ export default function ProductDetail() {
     setToast(saved ? '✓ Removed from wishlist' : '♥ Added to wishlist');
     setTimeout(() => setToast(''), 1800);
   };
-  const onBuyNow = async () => {
-    if (!user) {
-      nav('/login');
-      return;
-    }
-    if (sizeOptions.length > 0 && !size) {
-      setToast('Please select a size first');
-      setTimeout(() => setToast(''), 1800);
-      return;
-    }
-    if (colorOptions.length > 0 && !color) {
-      setToast('Please select a colour first');
-      setTimeout(() => setToast(''), 1800);
-      return;
-    }
-    if (qty > selectedStock) {
-      setToast(`Only ${selectedStock} left in stock${color ? ` (${color}${size ? `, Size ${size}` : ''})` : ''}`);
-      setTimeout(() => setToast(''), 1800);
-      return;
-    }
-
-    const price = onSale ? sale.price : product.price;
-    const subtotal = price * qty;
-    const shippingCost = typeof product.shippingCost === 'number' ? product.shippingCost : 99;
-    const shippingFee = shippingCost * qty;
-    const total = Math.max(0, subtotal + shippingFee);
-
-    const productForCart = color
-      ? { ...product, image: firstImageForColor(product, color), color }
-      : product;
-
-    const item = {
-      ...product,
-      qty,
-      key: `${product.id}::${String(size || '').toUpperCase()}::${String(color || '').toUpperCase()}`,
-      price: onSale ? sale.price : product.price,
-    };
-
-    const order = placeOrder({
-      clientToken: Date.now().toString(36) + Math.random().toString(36).slice(2, 12).toUpperCase(),
-      userId: user.id,
-      items: [item],
-      customer: { name: user.name, phone: user.phone, email: user.email },
-      shipping: { address: user.address || '', city: user.city || '', state: user.state || '', pincode: user.pincode || '' },
-      phone: user.phone,
-      whatsappOptIn: true,
-      subtotal,
-      shippingFee,
-      discount: 0,
-      couponCode: null,
-      total,
-    });
-
-    nav(`/checkout?order=${order.id}`);
-  };
-
-
   // ── Buy Now: skip the cart and check out this variant immediately ──
   // The item is staged in sessionStorage; checkout reads it with ?buy=now.
   const onBuyNow = () => {
