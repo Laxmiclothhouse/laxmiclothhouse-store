@@ -65,7 +65,27 @@ export function DataProvider({ children }) {
     };
   }, []);
 
-  // ----- reviews -----
+  // Backfill missing payment amounts from the matching order so the admin
+  // Payments tab always shows a value (legacy records may lack `amount`).
+  useEffect(() => {
+    if (!orders.length || !payments.length) return;
+    let changed = false;
+    const next = payments.map((p) => {
+      if (p && p.amount != null) return p;
+      const orderId = p?.orderId || p?.order_id || p?.orderId;
+      const order = orders.find((o) => o.id === orderId);
+      if (order && order.total != null) {
+        changed = true;
+        return { ...p, amount: order.total };
+      }
+      return p;
+    });
+    if (changed) {
+      setPayments(next);
+      db.savePayments(next);
+    }
+  }, [orders, payments]);
+
   const addReview = ({ productId, userId, userName, rating, comment, userEmail }) => {
     const rev = {
       id: db.uid('R-'),

@@ -823,7 +823,12 @@ export default function Admin() {
                           ? (p.verified ? <span className="ok">✓ verified</span> : <span className="muted">not verified</span>)
                           : <span className="muted">n/a</span>}
                       </td>
-                      <td>{p.amount ? formatINR(p.amount) : '—'}</td>
+                      <td>{(() => {
+                        const amt = p.amount != null
+                          ? p.amount
+                          : (orders.find((o) => o.id === (p.orderId || p.order_id))?.total);
+                        return amt != null ? formatINR(amt) : '—';
+                      })()}</td>
                     </tr>
                   ))}
                 </tbody>
