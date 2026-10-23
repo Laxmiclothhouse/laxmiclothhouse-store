@@ -564,7 +564,6 @@ export default function Admin() {
                 <label>Stock<input type="number" min="0" value={form.stock} onChange={set('stock')} /></label>
               </div>
               <div className="grid2">
-                <label>Image tint<input type="color" value={form.color} onChange={set('color')} /></label>
                 <label className="inline-check">
                   <input type="checkbox" checked={form.featured} onChange={set('featured')} />
                   Show as featured product
@@ -597,46 +596,6 @@ export default function Admin() {
                   />
                   <span className="muted tiny">Set to 0 for free shipping on this product.</span>
                 </label>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4 }}>Accepted payment methods</label>
-                  <div className="pay-checks">
-                    {ALL_PAY.map((m) => (
-                      <label key={m.id} className="check">
-                        <input
-                          type="checkbox"
-                          checked={form.paymentMethods.includes(m.id)}
-                          onChange={() => togglePayMethod(m.id)}
-                        />
-                        {m.label}
-                      </label>
-                    ))}
-                  </div>
-                  <span className="muted tiny">Uncheck to disable a method for this product.</span>
-                </div>
-              </div>
-
-              {/* ── Returns ───────────────────────────────── */}
-              <div className="return-box">
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    checked={form.returnsAccepted}
-                    onChange={(e) => setForm({ ...form, returnsAccepted: e.target.checked })}
-                  />
-                  Returns accepted
-                </label>
-                {form.returnsAccepted && (
-                  <label className="return-days">
-                    Return window (days)
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.returnDays}
-                      onChange={(e) => setForm({ ...form, returnDays: e.target.value })}
-                      placeholder="7"
-                    />
-                  </label>
-                )}
               </div>
 
               {/* ── Sizes (opens the editable size guide) ─────────── */}
