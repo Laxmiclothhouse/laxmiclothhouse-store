@@ -1022,16 +1022,7 @@ export default function Admin() {
             </div>
 
             <div className="flash-sale-settings">
-              <h3 style={{ margin: '6px 0 10px' }}>🚚 Delivery & pincodes</h3>
-              <label>Serviceable pincodes (one per line, 6-digit)
-                <textarea
-                  rows="4"
-                  value={(s.serviceablePincodes || []).join('\n')}
-                  onChange={(e) => setS({ ...s, serviceablePincodes: e.target.value.split(/[\s,]+/).map((x) => x.trim()).filter((x) => /^\d{6}$/.test(x)) })}
-                  placeholder={'124507\n110001\n560001'}
-                />
-                <span className="muted tiny">Checkout blocks pincodes not listed here. Empty = deliver everywhere in India.</span>
-              </label>
+              <h3 style={{ margin: '6px 0 10px' }}>🚚 Delivery settings</h3>
               <div className="grid2">
                 <label>Earliest delivery (days from today)
                   <input type="number" min="1" value={s.deliveryMinDays || 4} onChange={setSField('deliveryMinDays')} />
@@ -1078,15 +1069,13 @@ export default function Admin() {
               <label style={{ display: 'block', marginBottom: 4 }}>Payment mode</label>
               <div className="pay-mode-options">
                 {[
-                  { id: 'demo', label: 'Demo', desc: 'Simulated payments — no real money' },
-                  { id: 'auto', label: 'Auto', desc: 'Try Razorpay, fall back to demo' },
                   { id: 'live', label: 'Live', desc: 'Real payments only — no fallback' },
                 ].map((opt) => (
-                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'demo') === opt.id ? 'active' : ''}`}>
+                  <label key={opt.id} className={`pay-mode-opt ${(s.paymentMode || 'live') === opt.id ? 'active' : ''}`}>
                     <input
                       type="radio"
                       name="paymentMode"
-                      checked={(s.paymentMode || 'demo') === opt.id}
+                      checked={(s.paymentMode || 'live') === opt.id}
                       onChange={() => setS({ ...s, paymentMode: opt.id })}
                     />
                     <div>
