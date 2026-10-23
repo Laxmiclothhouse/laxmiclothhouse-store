@@ -271,10 +271,128 @@ export async function buildInvoicePdf(order, settings) {
   doc.setFontSize(8);
   doc.text(M, fo + 12, "This is a system-generated invoice. For order support, contact " + (L.phone || L.email || "the store"));
 
+  // ---------- Packing details (same document) ----------
+  doc.addPage();
+  doc.setFillColor(250, 240, 243);
+  doc.rect(0, 0, W, 16, "F");
+  doc.setDrawColor(brandR, brandG, brandB);
+  doc.setLineWidth(0.8);
+  doc.line(M, 16, W - M, 16);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(brandR, brandG, brandB);
+  doc.text(M, 11, L.brand + " — PACKING DETAILS");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(inkR, inkG, inkB);
+  doc.text(W - M, 11, L.invoiceNo + " · " + L.date, { align: "right" });
+
+  y = 24;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(M, y, "SHIP TO");
+  doc.setFont("helvetica", "normal");
+  y += 5.5;
+  const shipAddr = L.shippingAddr;
+  const shipLines = [
+    L.customer?.name,
+    L.customer?.phone,
+    [shipAddr.address, shipAddr.city, shipAddr.state, shipAddr.pincode].filter(Boolean).join(", "),
+  ].filter(Boolean);
+  for (const ln of shipLines) {
+    doc.text(M, y, ln);
+    y += 5.5;
+  }
+  y += 4;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setFillColor(brandR, brandG, brandB);
+  doc.setTextColor(255, 255, 255);
+  doc.rect(M, y, CW, 7, "F");
+  doc.text(M + 2, y + 4.6, "ITEM");
+  doc.text(M + 108, y + 4.6, "SIZE");
+  doc.text(M + 138, y + 4.6, "QTY", { align: "right" });
+  doc.text(M + 158, y + 4.6, "PACKED", { align: "right" });
+  y += 7;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(inkR, inkG, inkB);
+  const drawBox = (bx, by) => {
+    doc.setDrawColor(inkR, inkG, inkB);
+    doc.setLineWidth(0.3);
+    doc.rect(bx, by, 3.6, 3.6);
+    doc.setDrawColor(220, 214, 219);
+    doc.setLineWidth(0.2);
+  };
+  let pn = 0;
+  for (const it of L.items) {
+    pn += 1;
+    const nameLines = wraps(doc, it.name, 100, 9);
+    const sizeText = it.size ? String(it.size) : "—";
+    const rowH = Math.max(8, nameLines.length * 4.2 + 3);
+    if (y + rowH > H - 46) {
+      doc.addPage();
+      y = M + 6;
+    }
+    doc.setDrawColor(220, 214, 219);
+    doc.setLineWidth(0.2);
+    doc.line(M, y, W - M, y);
+    doc.text(M + 2, y + 4.6, String(pn));
+    doc.text(M + 8, y + 4.6, nameLines[0]);
+    if (nameLines.length > 1) {
+      for (let li = 1; li < nameLines.length; li++) doc.text(M + 8, y + 4.6 + li * 4.2, nameLines[li]);
+    }
+    doc.text(M + 108, y + 4.6, sizeText);
+    doc.text(M + 138, y + 4.6, String(it.qty), { align: "right" });
+    drawBox(M + 148, y + 2.4);
+    y += rowH;
+  }
+  doc.line(M, y, W - M, y);
+  y += 6;
+
+  const totalQty = L.items.reduce((a, b) => a + b.qty, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(brandR, brandG, brandB);
+  doc.text(M, y, "Total items: " + L.items.length + "   ·   Total qty: " + totalQty);
+  y += 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(inkR, inkG, inkB);
+  doc.text(M, y, "Packer checklist — tick each piece as it goes in:");
+  y += 6;
+  for (const it of L.items) {
+    const sizeText = it.size ? ` (${it.size})` : "";
+    const label = `☐  ${it.name}${sizeText} × ${it.qty}`;
+    const labelLines = wraps(doc, label, CW - 6, 9);
+    if (y + labelLines.length * 4.2 > H - 40) {
+      doc.addPage();
+      y = M + 6;
+    }
+    labelLines.forEach((ln, li) => doc.text(M + 2, y + li * 4.2, ln));
+    y += labelLines.length * 4.2 + 1.4;
+  }
+  y += 2;
+  doc.text(M, y, "☐  Invoice slip included in the package");
+  y += 6;
+  doc.text(M, y, "☐  Package sealed and dispatched");
+
+  const fo2 = H - 24;
+  doc.setDrawColor(lineR, lineG, lineB);
+  doc.setLineWidth(0.3);
+  doc.line(M, fo2, W - M, fo2);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(10);
+  doc.setTextColor(inkR, inkG, inkB);
+  doc.text(M, fo2 + 6, "Thank you for shopping with " + L.brand + "!");
+  doc.setFontSize(8);
+  doc.text(M, fo2 + 12, "This is a system-generated invoice & packing slip. For order support, contact " + (L.phone || L.email || "the store"));
+
   const buf = doc.output("arraybuffer");
   return new Blob([buf], { type: "application/pdf" });
 }
-/** Returns an object URL for in-browser preview (async). Caller must revoke it. */
+
 export async function invoicePdfUrl(order, settings) {
   const blob = await buildInvoicePdf(order, settings);
   return URL.createObjectURL(blob);

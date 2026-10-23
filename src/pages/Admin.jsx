@@ -3,7 +3,7 @@ import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf, downloadPackingSlip } from '../utils/invoicePdf.js';
+import { invoicePdfUrl, downloadInvoicePdf } from '../utils/invoicePdf.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
@@ -680,7 +680,6 @@ export default function Admin() {
               user={user}
               onUpdate={(o, status, opts) => updateOrderStatus(o.id, status, statusMeta(status).label, opts)}
               onInvoice={(o) => setInvoiceOrder(o)}
-              onPackSlip={(o) => downloadPackingSlip(o, settings)}
             />
           )}
         </section>

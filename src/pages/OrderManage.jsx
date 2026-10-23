@@ -3,7 +3,7 @@ import { useParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf, packingSlipUrl, downloadPackingSlip, printPackingSlip } from '../utils/invoicePdf.js';
+import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf } from '../utils/invoicePdf.js';
 import { FLOW, statusMeta, payMeta, nextStatuses, flowStepIndex, ROLE_LABELS, REQUIRED_FIELDS } from '../orderFlow.js';
 import { bookDelhiveryShipment, fetchDelhiveryTrack, isDelhiveryOrder, scansStale } from '../utils/delhivery.js';
 import PdfViewer from '../components/PdfViewer.jsx';
@@ -13,7 +13,6 @@ export default function OrderManage() {
   const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, settings } = useData();
   const { id } = useParams();
   const [invoiceOrder, setInvoiceOrder] = useState(null);
-  const [slipOrder, setSlipOrder] = useState(null);
   const [tracking, setTracking] = useState({ courier: '', trackingNo: '', open: false, labelUrl: '' });
   const [noteText, setNoteText] = useState('');
   const [dhlBusy, setDhlBusy] = useState(false);
@@ -384,9 +383,6 @@ export default function OrderManage() {
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => setInvoiceOrder(order)}>
                 🧾 View Invoice
               </button>
-              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSlipOrder(order)}>
-                📦 Packing Slip
-              </button>
             </div>
           )}
 
@@ -516,13 +512,11 @@ export default function OrderManage() {
       {invoiceOrder && (
         <ManageInvoiceModal order={invoiceOrder} settings={settings} onClose={() => setInvoiceOrder(null)} />
       )}
-
-      {slipOrder && (
-        <PackSlipModal order={slipOrder} settings={settings} onClose={() => setSlipOrder(null)} />
-      )}
     </main>
   );
-}function ManageInvoiceModal({ order, settings, onClose }) {
+}
+
+function ManageInvoiceModal({ order, settings, onClose }) {
   const [url, setUrl] = useState('');
   React.useEffect(() => {
     let u = null;
@@ -546,35 +540,6 @@ export default function OrderManage() {
       fileName={`invoice-${order.id || 'download'}.pdf`}
       onDownload={() => downloadInvoicePdf(order, settings)}
       onPrint={() => printInvoicePdf(order, settings)}
-      onClose={onClose}
-    />
-  );
-}
-
-function PackSlipModal({ order, settings, onClose }) {
-  const [url, setUrl] = useState('');
-  React.useEffect(() => {
-    let u = null;
-    let alive = true;
-    packingSlipUrl(order, settings).then((v) => {
-      if (!alive) { URL.revokeObjectURL(v); return; }
-      u = v;
-      setUrl(v);
-    });
-    return () => {
-      alive = false;
-      if (u) URL.revokeObjectURL(u);
-    };
-  }, [order, settings]);
-  if (!order) return null;
-  return (
-    <PdfViewer
-      title={`Packing slip — ${order.id}`}
-      subtitle="Pick list for the warehouse"
-      url={url}
-      fileName={`packing-slip-${order.id || 'download'}.pdf`}
-      onDownload={() => downloadPackingSlip(order, settings)}
-      onPrint={() => printPackingSlip(order, settings)}
       onClose={onClose}
     />
   );
