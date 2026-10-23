@@ -213,6 +213,7 @@ export default function Admin() {
   const setTab = (next) => {
     setTabState(next);
     try { localStorage.setItem('admin_tab', next); } catch {}
+  };
   const blobToBase64 = (blob) => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(String(reader.result || '').split(',')[1] || '');
@@ -267,7 +268,6 @@ export default function Admin() {
   };
 
 
-  };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
