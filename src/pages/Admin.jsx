@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -280,12 +280,25 @@ export default function Admin() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
   const [variantDrafts, setVariantDrafts] = useState({});
-  const [extraCats, setExtraCats] = useState([]);
+  const [extraCats, setExtraCats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('laxmiclothhouse_extra_cats') || '[]'); } catch { return []; }
+  });
+  const [deletedCats, setDeletedCats] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('laxmiclothhouse_deleted_cats') || '[]'); } catch { return []; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('laxmiclothhouse_extra_cats', JSON.stringify(extraCats)); } catch {}
+  }, [extraCats]);
+  useEffect(() => {
+    try { localStorage.setItem('laxmiclothhouse_deleted_cats', JSON.stringify(deletedCats)); } catch {}
+  }, [deletedCats]);
   const categories = useMemo(() => {
     const base = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
     const fromProducts = (products || []).map((p) => p?.category).filter(Boolean);
-    return Array.from(new Set([...base, ...fromProducts, ...extraCats]));
-  }, [products, extraCats]);
+    const set = new Set([...base, ...fromProducts, ...extraCats]);
+    (deletedCats || []).forEach((c) => set.delete(c));
+    return Array.from(set);
+  }, [products, extraCats, deletedCats]);
   const [params] = useSearchParams();
   const orderParam = params.get('order');
 
@@ -655,14 +668,34 @@ export default function Admin() {
                     const name = window.prompt('Enter new category name');
                     const trimmed = String(name || '').trim();
                     if (!trimmed) return;
-                    if (!categories.includes(trimmed)) setExtraCats((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+                    setExtraCats((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+                    setDeletedCats((prev) => prev.filter((c) => c !== trimmed));
                     setForm((f) => ({ ...f, category: trimmed }));
+                    return;
+                  }
+                  if (v === '__delete__') {
+                    const name = window.prompt('Enter category name to delete');
+                    const trimmed = String(name || '').trim();
+                    if (!trimmed) return;
+                    if (!categories.includes(trimmed)) {
+                      window.alert('Category not found.');
+                      return;
+                    }
+                    const inUse = (products || []).some((p) => p?.category === trimmed);
+                    if (inUse && !window.confirm('This category is used by products. Delete anyway?')) return;
+                    setExtraCats((prev) => prev.filter((c) => c !== trimmed));
+                    setDeletedCats((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+                    if (form.category === trimmed) {
+                      const next = categories.find((c) => c !== trimmed) || 'Suits';
+                      setForm((f) => ({ ...f, category: next }));
+                    }
                     return;
                   }
                   set('category')(e);
                 }}>
                   {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                   <option value="__add__">+ Add category</option>
+                  <option value="__delete__">− Delete category</option>
                 </select></label>
               </div>
               <label>Description<textarea rows="2" value={form.description} onChange={set('description')} required /></label>
