@@ -30,7 +30,6 @@ export default function OrderManage() {
   const nexts = order && isStaff ? nextStatuses(order.status, user.role) : [];
   const stepIdx = order ? flowStepIndex(order.status) : -1;
   const meta = order ? statusMeta(order.status) : { label: '' };
-  const pay = order ? payMeta(order) : { label: '', cls: '' };
   const history = order?.statusHistory || [];
   const notes = order?.notes || [];
 
@@ -239,7 +238,6 @@ export default function OrderManage() {
             <strong style={{ fontSize: '1.05rem' }}>Order {order.id}</strong>
             <span className="muted">{formatDateTime(order.orderDate)}</span>
             <span className={`status-badge ${order.status}`}>{meta.label}</span>
-            <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
             <span className="ord-total">{formatINR(order.total)}</span>
           </div>
 
@@ -473,8 +471,7 @@ export default function OrderManage() {
             <div className="card-box inner">
               <h3>Payment</h3>
               <p>
-                <strong>{order.payment?.mode}</strong> ·{' '}
-                {order.payment?.status === 'paid' ? 'Paid' : 'Pending (COD)'}
+                <strong>{order.payment?.mode}</strong>
               </p>
               {order.payment?.gateway && <p className="muted tiny">{order.payment.gateway}</p>}
               {order.payment?.ref && <p className="muted tiny">Ref: {order.payment.ref}</p>}

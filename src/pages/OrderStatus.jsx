@@ -361,7 +361,7 @@ export default function OrderStatus() {
               </div>
               <div className="shipping-meta">
                 <span>📦 {order.items?.length} item{(order.items?.length || 0) > 1 ? 's' : ''}</span>
-                <span>💰 {order.payment?.mode === 'cod' ? 'Cash on Delivery' : `Paid via ${order.payment?.mode?.toUpperCase() || '—'}`}</span>
+                <span>💳 {order.payment?.mode === 'cod' ? 'Cash on Delivery' : order.payment?.mode?.toUpperCase() || '—'}</span>
                 <span>📋 {formatINR(order.total)}</span>
               </div>
               {order.status === 'packed' && (
@@ -452,7 +452,7 @@ export default function OrderStatus() {
             </div>
             <div className="card-box inner">
               <h3>Payment</h3>
-              <p><strong>{order.payment.mode}</strong> · {order.payment.status === 'paid' ? 'Paid' : 'Pending (COD)'}</p>
+              <p><strong>{order.payment.mode}</strong></p>
             </div>
 
             {/* ── Shipping details ── */}

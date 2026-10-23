@@ -250,7 +250,6 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
           <div className="orders-list">
           {paged.map((o) => {
             const meta = statusMeta(o.status);
-            const pay = payMeta(o);
             const nexts = nextsFor(o);
             return (
               <div className="order-row" key={o.id}>
@@ -260,7 +259,6 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                   </Link>
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
                   <span className={`status-badge ${o.status}`}>{meta.label}</span>
-                  <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
                   {(() => {
                     const rs = refundState(o);
                     return (
