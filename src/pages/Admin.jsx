@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -280,6 +280,12 @@ export default function Admin() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
   const [variantDrafts, setVariantDrafts] = useState({});
+  const [extraCats, setExtraCats] = useState([]);
+  const categories = useMemo(() => {
+    const base = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
+    const fromProducts = (products || []).map((p) => p?.category).filter(Boolean);
+    return Array.from(new Set([...base, ...fromProducts, ...extraCats]));
+  }, [products, extraCats]);
   const [params] = useSearchParams();
   const orderParam = params.get('order');
 
@@ -643,8 +649,20 @@ export default function Admin() {
             <form onSubmit={submit} className="form">
               <div className="grid2">
                 <label>Name<input value={form.name} onChange={set('name')} required /></label>
-                <label>Category<select value={form.category} onChange={set('category')}>
-                  {CATS.map((c) => <option key={c}>{c}</option>)}
+                <label>Category<select value={form.category} onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '__add__') {
+                    const name = window.prompt('Enter new category name');
+                    const trimmed = String(name || '').trim();
+                    if (!trimmed) return;
+                    if (!categories.includes(trimmed)) setExtraCats((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+                    setForm((f) => ({ ...f, category: trimmed }));
+                    return;
+                  }
+                  set('category')(e);
+                }}>
+                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="__add__">+ Add category</option>
                 </select></label>
               </div>
               <label>Description<textarea rows="2" value={form.description} onChange={set('description')} required /></label>

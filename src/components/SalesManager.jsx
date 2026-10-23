@@ -121,6 +121,7 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
   const [imageMsg, setImageMsg] = useState('');
   const [notifyState, setNotifyState] = useState({ busyId: '', message: '' });
   const [saleDelMode, setSaleDelMode] = useState(false);
+  const cats = Array.from(new Set(['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear', ...(products || []).map((p) => p?.category).filter(Boolean)]));
 
   const notifyCustomers = async (sale, ask = true) => {
     if (!sale?.id || notifyState.busyId) return;
@@ -237,7 +238,7 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
           {form.type === 'category' && (
             <label>Category
               <select value={form.category} onChange={setF('category')}>
-                {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {cats.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
           )}
