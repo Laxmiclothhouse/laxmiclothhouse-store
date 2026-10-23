@@ -87,7 +87,7 @@ export default async function handler(req, res) {
   }
 
   const event = String(payload.event || '');
-  const refundStatus = EVENT_STATUS[event];
+  let refundStatus = EVENT_STATUS[event];
   if (!refundStatus) {
     // Not an event we act on — acknowledge so Razorpay stops retrying.
     return res.status(200).json({ ok: true, ignored: event });
@@ -98,6 +98,14 @@ export default async function handler(req, res) {
   const refundId = refundEntity.id || null;
   if (!paymentId) {
     return res.status(200).json({ ok: true, ignored: 'no payment_id' });
+  }
+
+  // Razorpay may deliver a refund.created event even when the refund is
+  // already processed (instant refunds). Prefer the entity's own status
+  // so we don't leave an already-refunded amount stuck on "refunding".
+  const entityStatus = String(refundEntity.status || '').toLowerCase();
+  if (event !== 'refund.failed' && (entityStatus === 'processed' || entityStatus === 'refunded')) {
+    refundStatus = 'refunded';
   }
 
   // Orders live in a single Firestore document: store/orders → { data: [...] }.

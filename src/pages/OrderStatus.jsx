@@ -145,6 +145,22 @@ export default function OrderStatus() {
             throw new Error(data.error || data.message || 'Refund failed. Please contact support.');
           }
         } catch (refundErr) {
+          const msg = String(refundErr?.message || '');
+          // Razorpay reports "already refunded" when a previous attempt
+          // (or the dashboard) already completed the refund. In that case
+          // the order should be marked refunded, not failed.
+          if (/already.*refund/i.test(msg) || /refund.*already/i.test(msg)) {
+            refundInfo = {
+              type: 'razorpay_refund',
+              refundStatus: 'refunded',
+              refundId: order.refundInfo?.refundId || null,
+              refundedAt: new Date().toISOString(),
+              note: 'This order was already refunded to the original payment method.',
+            };
+            cancelOrder(order.id, refundInfo);
+            navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
+            return;
+          }
           // The refund could not be processed, but the order is still cancelled.
           // Record a "failed" refund so the customer is told to contact support
           // and the admin can retry the refund from the order page.
@@ -153,20 +169,24 @@ export default function OrderStatus() {
             refundStatus: 'failed',
             refundId: null,
             refundedAt: new Date().toISOString(),
-            cancellationNote: String(refundErr?.message || 'Refund could not be processed automatically.'),
+            cancellationNote: msg || 'Refund could not be processed automatically.',
             note: 'Your order was cancelled, but the refund could not be processed automatically. Please contact support with your order ID so we can complete your refund.',
           };
           cancelOrder(order.id, refundInfo);
           navigate('/orders', { state: { cancelledOrder: order.id, refundInfo } });
           return;
         }
+        const rzStatus = String(data.status || '').toLowerCase();
+        const refundStatus = (rzStatus === 'processed' || rzStatus === 'refunded') ? 'refunded' : 'refunding';
         refundInfo = {
           type: 'razorpay_refund',
-          refundStatus: 'refunding',
+          refundStatus,
           refundId: data.refundId || null,
           gatewayStatus: data.status || null,
           refundedAt: new Date().toISOString(),
-          note: 'Refund initiated — the money will be credited back to the same account or payment method you used for this order in 5-7 working days.',
+          note: refundStatus === 'refunded'
+            ? 'Refund completed — the money has been credited back to your original payment method.'
+            : 'Refund initiated — the money will be credited back to the same account or payment method you used for this order in 5-7 working days.',
         };
       } else {
         refundInfo = {

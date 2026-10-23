@@ -70,8 +70,7 @@ export default function OrderManage() {
     isStaff &&
     order.payment?.gateway === 'Razorpay' &&
     payRef.startsWith('pay_') &&
-    // Allow the first refund AND a retry after a failed one.
-    (!order.refundInfo || order.refundInfo.refundStatus !== 'refunded')
+    (!order.refundInfo || order.refundInfo.refundStatus === 'failed')
   );
 
   const refundPayment = async () => {
@@ -86,17 +85,42 @@ export default function OrderManage() {
         body: JSON.stringify({ orderId: order.id, paymentRef: payRef, amount: order.total }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.refunded) throw new Error(data.error || data.message || 'Refund failed.');
+      if (!res.ok || !data.refunded) {
+        const msg = data.error || data.message || 'Refund failed.';
+        // Razorpay reports "already refunded" when the money is already
+        // back with the customer. Mark the order refunded instead of
+        // surfacing a hard error so the UI stops showing "refunding".
+        if (/already.*refund/i.test(String(msg)) || /refund.*already/i.test(String(msg))) {
+          markOrderRefunded(order.id, {
+            type: 'razorpay_refund',
+            refundId: order.refundInfo?.refundId || null,
+            refundedAt: new Date().toISOString(),
+            by: user.name || user.email || 'staff',
+            refundStatus: 'refunded',
+            note: 'This order was already refunded to the original payment method.',
+            gatewayStatus: 'processed',
+          });
+          setRefundMsg('This order was already refunded to the customer.');
+          return;
+        }
+        throw new Error(msg);
+      }
+      const rzStatus = String(data.status || '').toLowerCase();
+      const refundStatus = (rzStatus === 'processed' || rzStatus === 'refunded') ? 'refunded' : 'refunding';
       markOrderRefunded(order.id, {
         type: 'razorpay_refund',
         refundId: data.refundId || null,
         refundedAt: new Date().toISOString(),
         by: user.name || user.email || 'staff',
-        refundStatus: 'refunded',
-        note: 'Amount refunded to the original payment method. It will be credited back to the same account in 5-7 working days.',
+        refundStatus,
+        note: refundStatus === 'refunded'
+          ? 'Amount refunded to the original payment method.'
+          : 'Refund initiated — the money will be credited back to the same account in 3-7 working days.',
         gatewayStatus: data.status || null,
       });
-      setRefundMsg(`Refund initiated (ID: ${data.refundId || 'pending'}). The customer receives the money in 3-7 working days.`);
+      setRefundMsg(refundStatus === 'refunded'
+        ? `Refund completed (ID: ${data.refundId || 'pending'}).`
+        : `Refund initiated (ID: ${data.refundId || 'pending'}). The customer receives the money in 3-7 working days.`);
     } catch (err) {
       setRefundMsg(err.message || 'Refund failed.');
     } finally {
