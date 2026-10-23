@@ -19,6 +19,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   const scope = roleQueueScope(role);
   const [filter, setFilter] = useState(initialFilter && initialFilter !== 'all' ? initialFilter : 'all');
   const [todayOnly, setTodayOnly] = useState(false);
+  const [range, setRange] = useState('90');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [q, setQ] = useState('');
@@ -29,6 +30,21 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   const all = [...(orders || [])].sort((a, b) => String(b.orderDate || '').localeCompare(String(a.orderDate || '')));
   // Locked scope for packer/shipper — they only ever see their own queue.
   const list = scope ? all.filter((o) => scope.statuses.includes(o.status)) : all;
+
+  // Date-range guard: by default only show recent orders so lakhs of historical
+  // records do not have to be rendered/filtered in the browser.
+  const rangeCutoff = range === 'all' ? null : (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - Number(range));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const inRange = (o) => {
+    if (!rangeCutoff) return true;
+    const d = new Date(o.orderDate || o.createdAt);
+    return !Number.isNaN(d.getTime()) && d >= rangeCutoff;
+  };
+  const rangedList = list.filter(inRange);
 
   // "Today" mode: each chip then answers "which orders reached THIS status
   // today?" — e.g. Today + Confirmed = orders confirmed today, Today +
@@ -48,8 +64,8 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
     return o.orderDate; // legacy orders: fall back to placement time
   };
   const dateScoped = todayOnly
-    ? list.filter((o) => dayKey(enteredStatusAt(o)) === todayKey)
-    : list;
+    ? rangedList.filter((o) => dayKey(enteredStatusAt(o)) === todayKey)
+    : rangedList;
 
   const counts = { all: dateScoped.length };
   dateScoped.forEach((o) => { counts[o.status] = (counts[o.status] || 0) + 1; });
@@ -81,7 +97,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   // Pagination: jump back to page 1 whenever the filters change, then slice.
   useEffect(() => {
     setPage(1);
-  }, [filter, q, todayOnly, pageSize]);
+  }, [filter, q, todayOnly, pageSize, range]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -125,6 +141,45 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
     setShippingId(null);
   };
 
+  const archiveOldOrders = () => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 90);
+    cutoff.setHours(0, 0, 0, 0);
+    const candidates = (orders || []).filter((o) => {
+      const d = new Date(o.orderDate || o.createdAt);
+      if (Number.isNaN(d.getTime()) || d >= cutoff) return false;
+      return ['delivered', 'cancelled', 'refunded'].includes(String(o.status || ''));
+    });
+    if (!candidates.length) {
+      window.alert('No delivered/cancelled/refunded orders older than 90 days to archive.');
+      return;
+    }
+    if (!window.confirm(`Archive ${candidates.length} old completed orders? A CSV backup will be downloaded first, then they are removed from the active queue.`)) return;
+
+    // Download CSV backup
+    const header = ['id', 'orderDate', 'status', 'customer', 'phone', 'total'];
+    const rows = candidates.map((o) => [
+      o.id,
+      o.orderDate || '',
+      o.status || '',
+      (o.customer?.name || o.customerName || '').replace(/,/g, ' '),
+      (o.customer?.phone || o.phone || '').replace(/,/g, ' '),
+      o.total ?? '',
+    ]);
+    const csv = [header.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders-archive-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    deleteRecords('orders', candidates.map((o) => o.id));
+  };
+
   const nextsFor = (o) => nextStatuses(o.status, role);
 
   return (
@@ -159,6 +214,26 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search order ID, name, phone, city…"
       />
+      <select
+        className="queue-range"
+        value={range}
+        onChange={(e) => setRange(e.target.value)}
+        title="Limit orders by date"
+        style={{ marginLeft: 8 }}
+      >
+        <option value="30">Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="365">Last 1 year</option>
+        <option value="all">All orders</option>
+      </select>
+      <button
+        className="btn btn-sm"
+        onClick={archiveOldOrders}
+        title="Export orders older than 90 days (delivered/cancelled/refunded) to CSV and remove from active queue"
+        style={{ marginLeft: 8 }}
+      >
+        🗃️ Archive old
+      </button>
       {filtered.length > 0 && (
         <button
           className={`btn btn-sm danger ${orderDelMode ? 'active' : ''}`}
