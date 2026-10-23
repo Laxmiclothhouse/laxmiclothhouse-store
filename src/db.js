@@ -35,9 +35,9 @@ function syncToFirestore(key, data) {
 
 // Listen for Firestore changes and update localStorage
 export function listenFromFirestore(key, callback) {
-  if (!isFirebaseReady()) return;
+  if (!isFirebaseReady()) return () => {};
   const collection = key.replace('houselaxmicloth_', '');
-  firestoreListen('store', collection, (docData) => {
+  return firestoreListen('store', collection, (docData) => {
     if (docData && docData.data) {
       localStorage.setItem(key, JSON.stringify(docData.data));
       callback(docData.data);
