@@ -73,7 +73,6 @@ export async function buildInvoicePdf(order, settings) {
     { label: "Date", value: L.date },
     { label: "Status", value: L.status },
     { label: "Payment", value: L.payment },
-    { label: "Pay Status", value: L.paymentStatus },
   ];
 
   doc.setFontSize(9);
