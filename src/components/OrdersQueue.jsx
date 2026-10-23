@@ -243,25 +243,6 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
         <option value="365">Last 1 year</option>
         <option value="all">All orders</option>
       </select>
-      <button
-        className="btn btn-sm"
-        onClick={archiveOldOrders}
-        title="Export orders older than 90 days (delivered/cancelled/refunded) to CSV and remove from active queue"
-        style={{ marginLeft: 8 }}
-      >
-        🗃️ Archive old
-      </button>
-      { (orders || []).length > 0 && (
-        <button
-          className="btn btn-sm danger"
-          onClick={deletePastOrders}
-          title="Delete orders older than a chosen date"
-          style={{ marginLeft: 10 }}
-        >
-          🗑️
-        </button>
-      )}
-
       {filtered.length === 0 ? (
         <p className="muted">{scope ? scope.empty : (todayOnly ? 'No orders reached this status today.' : 'No orders match this filter.')}</p>
       ) : (
