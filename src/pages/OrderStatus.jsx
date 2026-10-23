@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 import { formatINR, formatDateTime } from '../utils/format.js';
+import { refundState } from '../orderFlow.js';
 import { fetchDelhiveryTrack, isDelhiveryOrder } from '../utils/delhivery.js';
 import { whatsappShareLink } from '../utils/whatsappShare.js';
 const ORD_TIMELINE = [
@@ -117,7 +118,7 @@ export default function OrderStatus() {
       let refundInfo = null;
       if (isOnlinePayment) {
         // Don't attempt a duplicate refund if Razorpay already confirmed one.
-        if (order.refundInfo?.refundStatus === 'refunded') {
+        if (refundState(order) === 'refunded') {
           refundInfo = {
             type: 'razorpay_refund',
             refundStatus: 'refunded',
@@ -518,14 +519,14 @@ export default function OrderStatus() {
           ) : order.status === 'cancelled' ? (
             <div className="cancel-box cant">
               <h3>Order Cancelled</h3>
-              {order.refundInfo?.refundStatus === 'refunding' && (
+              {refundState(order) === 'refunding' && (
                 <>
                   <p><strong>Refund status:</strong> <span className="refund-state refunding">Refunding in process</span></p>
                   <p>We have initiated your refund to the original payment method. It will be credited back to the same account or card in 5-7 working days.</p>
                   {order.refundInfo.refundId && <p className="muted tiny">Refund ID: {order.refundInfo.refundId}</p>}
                 </>
               )}
-              {order.refundInfo?.refundStatus === 'refunded' && (
+              {refundState(order) === 'refunded' && (
                 <>
                   <p><strong>Refund status:</strong> <span className="refund-state refunded">Refunded</span></p>
                   <p>Your refund has been completed and the amount has been credited back to your original payment method.</p>

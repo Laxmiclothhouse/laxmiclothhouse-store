@@ -720,6 +720,22 @@ export function DataProvider({ children }) {
     db.saveOrders(next);
   };
 
+const resolveRefund = (orderId, patch = {}) => {
+    const next = orders.map((o) => {
+      if (o.id !== orderId) return o;
+      const merged = {
+        ...(o.refundInfo || {}),
+        ...patch,
+        refundStatus: 'refunded',
+        gatewayStatus: patch.gatewayStatus || o.refundInfo?.gatewayStatus || 'processed',
+        refundedAt: patch.refundedAt || o.refundInfo?.refundedAt || new Date().toISOString(),
+      };
+      return { ...o, refundInfo: merged };
+    });
+    setOrders(next);
+    db.saveOrders(next);
+  };
+
   // Attach a refund record to an order (used by the admin "Refund" action and
   // by customer cancellation). When Razorpay confirms the refund
   // (refundStatus === 'refunded'), the order status is automatically flipped
@@ -802,6 +818,7 @@ export function DataProvider({ children }) {
       canCancel,
       cancelOrder,
       markOrderRefunded,
+       resolveRefund,
       postApi,
       isOrderProcessing,
       hasProcessingOrdersForUser,

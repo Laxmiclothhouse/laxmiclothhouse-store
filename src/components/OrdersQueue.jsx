@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { FLOW, statusMeta, payMeta, nextStatuses, REQUIRED_FIELDS, roleQueueScope } from '../orderFlow.js';
+import { FLOW, statusMeta, payMeta, nextStatuses, REQUIRED_FIELDS, roleQueueScope, refundState } from '../orderFlow.js';
 import Paginator from './Paginator.jsx';
 
 /**
@@ -275,18 +275,25 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
                   <span className={`status-badge ${o.status}`}>{meta.label}</span>
                   <span className={`pay-badge ${pay.cls}`}>{pay.label}</span>
-                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunding' && (
-                    <span className="refund-badge refunding">Refunding in process</span>
-                  )}
-                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'refunded' && (
-                    <span className="refund-badge refunded">Refunded</span>
-                  )}
-                  {o.status === 'refunded' && (
-                    <span className="refund-badge refunded">Amount Refunded</span>
-                  )}
-                  {o.status === 'cancelled' && o.refundInfo?.refundStatus === 'failed' && (
-                    <span className="refund-badge failed">Refund failed — contact support</span>
-                  )}
+                  {(() => {
+                    const rs = refundState(o);
+                    return (
+                      <>
+                        {o.status === 'cancelled' && rs === 'refunding' && (
+                          <span className="refund-badge refunding">Refunding in process</span>
+                        )}
+                        {o.status === 'cancelled' && rs === 'refunded' && (
+                          <span className="refund-badge refunded">Refunded</span>
+                        )}
+                        {o.status === 'refunded' && (
+                          <span className="refund-badge refunded">Amount Refunded</span>
+                        )}
+                        {o.status === 'cancelled' && rs === 'failed' && (
+                          <span className="refund-badge failed">Refund failed — contact support</span>
+                        )}
+                      </>
+                    );
+                  })()}
                   <span className="ord-total">{formatINR(o.total)}</span>
                 </div>
 

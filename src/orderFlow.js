@@ -127,6 +127,19 @@ export function payMeta(order) {
   };
 }
 
+export function refundState(order) {
+  const o = order || {};
+  const rs = String(o?.refundInfo?.refundStatus || '').toLowerCase();
+  const gs = String(o?.refundInfo?.gatewayStatus || '').toLowerCase();
+  if (o.status === 'refunded' || rs === 'refunded' || gs === 'processed' || gs === 'refunded') {
+    return 'refunded';
+  }
+  if (rs === 'failed') return 'failed';
+  if (rs === 'refunding') return 'refunding';
+  if (rs === 'none') return 'none';
+  return rs || 'none';
+}
+
 /** Compact audit "who" record built from a session user. */
 export function auditBy(user) {
   if (!user) return null;

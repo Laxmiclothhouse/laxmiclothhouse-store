@@ -4,13 +4,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf } from '../utils/invoicePdf.js';
-import { FLOW, statusMeta, payMeta, nextStatuses, flowStepIndex, ROLE_LABELS, REQUIRED_FIELDS } from '../orderFlow.js';
+import { FLOW, statusMeta, payMeta, nextStatuses, flowStepIndex, ROLE_LABELS, REQUIRED_FIELDS, refundState } from '../orderFlow.js';
 import { bookDelhiveryShipment, fetchDelhiveryTrack, isDelhiveryOrder, scansStale } from '../utils/delhivery.js';
 import PdfViewer from '../components/PdfViewer.jsx';
 
 export default function OrderManage() {
   const { user, isStaff } = useAuth();
-  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, settings } = useData();
+  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, resolveRefund, settings } = useData();
   const { id } = useParams();
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [tracking, setTracking] = useState({ courier: '', trackingNo: '', open: false, labelUrl: '' });
@@ -483,6 +483,22 @@ export default function OrderManage() {
                   {refunding ? 'Refunding...' : `Refund ${formatINR(order.total)} to customer`}
                 </button>
               )}
+              {order.refundInfo && refundState(order) === 'refunding' && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  style={{ marginTop: 8, marginLeft: 8 }}
+                  onClick={() => {
+                    resolveRefund(order.id, {
+                      note: 'Manually marked as refunded by admin.',
+                      gatewayStatus: 'processed',
+                    });
+                    setRefundMsg('Order marked as refunded.');
+                  }}
+                >
+                  Mark as refunded
+                </button>
+              )}
               {refundMsg && (
                 <p
                   className={`tiny ${refundMsg.startsWith('Refund initiated') ? 'ok' : 'error'}`}
@@ -494,9 +510,9 @@ export default function OrderManage() {
               {order.refundInfo && (
                 <p className="muted tiny" style={{ marginTop: 6 }}>
                   Refund:{' '}
-                  {order.refundInfo.refundStatus === 'refunding'
+                  {refundState(order) === 'refunding'
                     ? 'Refunding in process'
-                    : order.refundInfo.refundStatus === 'refunded'
+                    : refundState(order) === 'refunded'
                     ? 'Refunded'
                     : order.refundInfo.refundStatus === 'failed'
                     ? 'Refund failed — contact support'
