@@ -282,12 +282,46 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                 </div>
 
                 <div className="ord-body">
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p className="muted">
                       {o.customer?.name}{o.customer?.phone ? ` · ${o.customer.phone}` : ''}
                     </p>
                     {o.trackingNo && (
                       <p className="muted tiny">📦 {o.courier || 'Courier'} · {o.trackingNo}</p>
+                    )}
+                    {/* Product images + details for this order */}
+                    {Array.isArray(o.items) && o.items.length > 0 && (
+                      <ul className="sum-items" style={{ marginTop: 8 }}>
+                        {o.items.map((it, idx) => (
+                          <li key={it.id || idx} style={{ alignItems: 'center' }}>
+                            {it.image ? (
+                              <img
+                                src={it.image}
+                                alt={it.name || 'Product'}
+                                style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                              />
+                            ) : (
+                              <div style={{ width: 44, height: 44, borderRadius: 6, background: '#f2e8ec', display: 'grid', placeItems: 'center', fontSize: '.7rem', color: '#999', flexShrink: 0 }}>
+                                No img
+                              </div>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                                {it.name || 'Product'}
+                              </div>
+                              <div className="muted tiny">
+                                {[it.colorName || it.color, it.size ? `Size ${it.size}` : '', it.sku ? `SKU ${it.sku}` : '']
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                                {it.qty ? ` · Qty ${it.qty}` : ''}
+                              </div>
+                            </div>
+                            <span className="muted" style={{ whiteSpace: 'nowrap' }}>
+                              {formatINR((Number(it.price) || 0) * (Number(it.qty) || 1))}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
 

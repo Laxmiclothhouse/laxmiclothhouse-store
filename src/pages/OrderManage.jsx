@@ -455,9 +455,18 @@ export default function OrderManage() {
                 {order.shipping?.address}, {order.shipping?.city}, {order.shipping?.state} — {order.shipping?.pincode}
               </p>
               <ul className="sum-items">
-                {order.items.map((it) => (
-                  <li key={it.id}>
-                    <span>{it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}</span>
+                {order.items.map((it, idx) => (
+                  <li key={it.id || idx} style={{ alignItems: 'center' }}>
+                    {it.image ? (
+                      <img
+                        src={it.image}
+                        alt={it.name || 'Product'}
+                        style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                      />
+                    ) : null}
+                    <span style={{ flex: 1 }}>
+                      {it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}
+                    </span>
                     <span className="muted">{formatINR(it.price * it.qty)}</span>
                   </li>
                 ))}
