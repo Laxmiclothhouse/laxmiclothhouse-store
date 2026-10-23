@@ -76,8 +76,14 @@ export async function buildInvoicePdf(order, settings) {
     { label: "Pay Status", value: L.paymentStatus },
   ];
 
+  doc.setFontSize(9);
+  const metaHeight = metaLines.reduce((sum, m) => {
+    const vl = wraps(doc, m.value, 44, 9).length;
+    return sum + Math.max(5, vl * 4.2 + 0.8);
+  }, 0);
+
   // ---------- Header band ----------
-  const bandH = Math.max(38, 21 + metaLines.length * 5 + 4);
+  const bandH = Math.max(38, 21 + metaHeight + 4);
   doc.setFillColor(250, 240, 243);
   doc.rect(0, 0, W, bandH, "F");
   doc.setDrawColor(brandR, brandG, brandB);
@@ -117,8 +123,9 @@ export async function buildInvoicePdf(order, settings) {
     doc.text(metaLX, my, m.label);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(brandR, brandG, brandB);
-    doc.text(W - M, my, m.value, { align: "right" });
-    my += 5;
+    const valLines = wraps(doc, m.value, 44, 9);
+    valLines.forEach((vl, i) => doc.text(metaLX + 22, my + i * 4.2, vl));
+    my += Math.max(5, valLines.length * 4.2 + 0.8);
   }
 
   // ---------- Bill To ----------
