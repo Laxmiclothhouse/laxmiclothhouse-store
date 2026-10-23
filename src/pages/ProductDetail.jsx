@@ -297,9 +297,6 @@ export default function ProductDetail() {
             <button className="btn btn-dark" disabled={soldOut || selectionOut} onClick={onBuyNow} title="Buy this item right away, without adding to cart">
               ⚡ Buy now
             </button>
-            <button className="btn btn-sm btn-primary" disabled={soldOut || selectionOut || !user} onClick={onBuyNow}>
-              {soldOut || selectionOut ? 'Sold out' : !user ? 'Log in to buy' : 'Buy now'}
-            </button>
             <button className={`btn btn-wish ${saved ? 'active' : ''}`} onClick={onWish}>
               {saved ? '♥ Saved' : '♡ Save'}
             </button>
