@@ -377,79 +377,72 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          <div className="perks">
-            {(product.paymentMethods || []).includes('cod') && (
-              <p>✔ Cash on Delivery available</p>
-            )}
-            {['upi', 'card'].filter((m) => (product.paymentMethods || []).includes(m)).length > 0 && (
-              <p>✔ Pay via {['upi', 'card'].filter((m) => (product.paymentMethods || []).includes(m)).map((m) => m === 'upi' ? 'UPI' : 'Card').join(' & ')} at checkout</p>
-            )}
-            <p>✔ Shipping: {product.shippingCost === 0 ? 'FREE' : `₹${product.shippingCost} per unit`}</p>
-          </div>
+           {/* ── Reviews & ratings (fills empty space on laptop) ── */}
+           <div className="rev-inline">
+             <div className="card-box rev-form">
+               <h2>Write a review</h2>
+               {user ? (
+                 <form onSubmit={onReview} className="form">
+                   <div className="rev-pick">
+                     <span>Your rating</span>
+                     <Stars value={rating} size={26} onChange={setRating} />
+                   </div>
+                   <textarea
+                     rows="3"
+                     value={comment}
+                     onChange={(e) => setComment(e.target.value)}
+                     placeholder="How was this product? (optional)"
+                   />
+                   {myReview && (
+                     <p className="muted tiny">
+                       You've already reviewed this product — submitting again will update it.
+                     </p>
+                   )}
+                   <button className="btn btn-gold" type="submit">Submit review</button>
+                   {ratingMsg && <p className="ok">{ratingMsg}</p>}
+                 </form>
+               ) : (
+                 <p className="muted">
+                   <Link to="/login">Log in</Link> to rate and review this product.
+                 </p>
+               )}
+             </div>
+
+             <div className="card-box rev-list">
+               <h2>Ratings &amp; reviews</h2>
+               {summary.count > 0 ? (
+                 <>
+                   <div className="rev-summary">
+                     <span className="rev-avg">{summary.avg.toFixed(1)}</span>
+                     <Stars value={summary.avg} size={18} />
+                     <span className="muted">&nbsp;based on {summary.count} review{summary.count > 1 ? 's' : ''}</span>
+                   </div>
+                   <div className="rev-scroll">
+                     <ul className="rev-items">
+                       {productReviews.map((r) => (
+                         <li key={r.id} className="rev-item">
+                           <div className="rev-avatar">{r.userName.trim()[0].toUpperCase()}</div>
+                           <div className="rev-body">
+                             <div className="rev-head">
+                               <strong>{r.userName}</strong>
+                               <Stars value={r.rating} size={13} />
+                               <span className="muted tiny">{formatDate(r.date)}</span>
+                             </div>
+                             {r.comment ? <p>{r.comment}</p> : <p className="muted tiny">No written review.</p>}
+                           </div>
+                         </li>
+                       ))}
+                     </ul>
+                   </div>
+                 </>
+               ) : (
+                 <p className="muted">No reviews yet. Be the first to review this product!</p>
+               )}
+             </div>
+           </div>
         </div>
       </div>
 
-      {/* ── Reviews & ratings ─────────────────────────────── */}
-      <div className="detail">
-        <div className="card-box rev-form">
-          <h2>Write a review</h2>
-          {user ? (
-            <form onSubmit={onReview} className="form">
-              <div className="rev-pick">
-                <span>Your rating</span>
-                <Stars value={rating} size={26} onChange={setRating} />
-              </div>
-              <textarea
-                rows="3"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="How was this product? (optional)"
-              />
-              {myReview && (
-                <p className="muted tiny">
-                  You've already reviewed this product — submitting again will update it.
-                </p>
-              )}
-              <button className="btn btn-gold" type="submit">Submit review</button>
-              {ratingMsg && <p className="ok">{ratingMsg}</p>}
-            </form>
-          ) : (
-            <p className="muted">
-              <Link to="/login">Log in</Link> to rate and review this product.
-            </p>
-          )}
-        </div>
-
-        <div className="card-box rev-list">
-          <h2>Ratings &amp; reviews</h2>
-          {summary.count > 0 ? (
-            <>
-              <div className="rev-summary">
-                <span className="rev-avg">{summary.avg.toFixed(1)}</span>
-                <Stars value={summary.avg} size={18} />
-                <span className="muted">&nbsp;based on {summary.count} review{summary.count > 1 ? 's' : ''}</span>
-              </div>
-              <ul className="rev-items">
-                {productReviews.map((r) => (
-                  <li key={r.id} className="rev-item">
-                    <div className="rev-avatar">{r.userName.trim()[0].toUpperCase()}</div>
-                    <div className="rev-body">
-                      <div className="rev-head">
-                        <strong>{r.userName}</strong>
-                        <Stars value={r.rating} size={13} />
-                        <span className="muted tiny">{formatDate(r.date)}</span>
-                      </div>
-                      {r.comment ? <p>{r.comment}</p> : <p className="muted tiny">No written review.</p>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="muted">No reviews yet. Be the first to review this product!</p>
-          )}
-        </div>
-      </div>
 
       {related.length > 0 && (
         <section className="section">
