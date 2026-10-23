@@ -3,10 +3,11 @@ import { Navigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
-import { invoicePdfUrl, downloadInvoicePdf } from '../utils/invoicePdf.js';
+import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf } from '../utils/invoicePdf.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import SalesManager from '../components/SalesManager.jsx';
+import PdfViewer from '../components/PdfViewer.jsx';
 import { statusMeta } from '../orderFlow.js';
 
 const CATS = ['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear'];
@@ -70,46 +71,24 @@ function InvoicePreviewModal({ order, settings, onClose }) {
   const [url, setUrl] = React.useState('');
   React.useEffect(() => {
     let u = null;
-    invoicePdfUrl(order, settings).then((url) => {
-      u = url;
-      setUrl(url);
+    invoicePdfUrl(order, settings).then((v) => {
+      u = v;
+      setUrl(v);
     });
     return () => {
       if (u) URL.revokeObjectURL(u);
     };
   }, [order, settings]);
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-card invoice-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 860 }}>
-        <div className="modal-head">
-          <h2>Invoice — {order.id}</h2>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div style={{ padding: 16 }}>
-          <div className="row-gap" style={{ marginBottom: 12 }}>
-            <span className="muted">{formatDateTime(order.orderDate)} · {formatINR(order.total)}</span>
-            <span style={{ flex: 1 }} />
-            <button
-              type="button"
-              className="btn btn-sm btn-gold"
-              onClick={() => downloadInvoicePdf(order, settings)}
-            >
-              ⬇ Download PDF
-            </button>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>Close</button>
-          </div>
-          {url ? (
-            <iframe
-              title={`Invoice ${order.id}`}
-              src={url}
-              style={{ width: '100%', height: 520, border: '1px solid var(--line)', borderRadius: 8, background: '#fff' }}
-            />
-          ) : (
-            <p className="muted">Preparing PDF…</p>
-          )}
-        </div>
-      </div>
-    </div>
+    <PdfViewer
+      title={`Invoice — ${order.id}`}
+      subtitle={`${formatDateTime(order.orderDate)} · ${formatINR(order.total)}`}
+      url={url}
+      fileName={`invoice-${order.id || 'download'}.pdf`}
+      onDownload={() => downloadInvoicePdf(order, settings)}
+      onPrint={() => printInvoicePdf(order, settings)}
+      onClose={onClose}
+    />
   );
 }
 
