@@ -67,8 +67,17 @@ export async function buildInvoicePdf(order, settings) {
   const inkR = 43, inkG = 34, inkB = 38;          // near-black
   const lineR = 220, lineG = 214, lineB = 219;    // light divider
 
+  // Right: meta lines (computed first so the header band grows to fit them)
+  const metaLines = [
+    { label: "Invoice No.", value: L.invoiceNo },
+    { label: "Date", value: L.date },
+    { label: "Status", value: L.status },
+    { label: "Payment", value: L.payment },
+    { label: "Pay Status", value: L.paymentStatus },
+  ];
+
   // ---------- Header band ----------
-  const bandH = 38;
+  const bandH = Math.max(38, 21 + metaLines.length * 5 + 4);
   doc.setFillColor(250, 240, 243);
   doc.rect(0, 0, W, bandH, "F");
   doc.setDrawColor(brandR, brandG, brandB);
@@ -101,15 +110,6 @@ export async function buildInvoicePdf(order, settings) {
   doc.text(W - M, 13, "TAX INVOICE", { align: "right" });
 
   let my = 21;
-  const metaLines = [
-    { label: "Invoice No.", value: L.invoiceNo },
-    { label: "Date", value: L.date },
-    { label: "Status", value: L.status },
-    { label: "Payment", value: L.payment },
-    { label: "Pay Status", value: L.paymentStatus },
-  ];
-  if (L.paymentRef) metaLines.push({ label: "Pay Ref", value: L.paymentRef });
-  if (L.trackingNo) metaLines.push({ label: "Tracking", value: L.trackingNo });
   for (const m of metaLines) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -122,7 +122,7 @@ export async function buildInvoicePdf(order, settings) {
   }
 
   // ---------- Bill To ----------
-  let y = 47;
+  let y = bandH + 9;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(inkR, inkG, inkB);
@@ -145,6 +145,16 @@ export async function buildInvoicePdf(order, settings) {
   for (const cl of cLines) {
     doc.text(M, y, cl);
     y += 5.2;
+  }
+  if (L.paymentRef) {
+    doc.setFontSize(9);
+    const refLines = wraps(doc, "Pay Ref: " + L.paymentRef, CW, 9);
+    for (const rl of refLines) { doc.text(M, y, rl); y += 4.6; }
+  }
+  if (L.trackingNo) {
+    doc.setFontSize(9);
+    const trLines = wraps(doc, "Tracking: " + L.trackingNo + (L.courier ? " (" + L.courier + ")" : ""), CW, 9);
+    for (const tl of trLines) { doc.text(M, y, tl); y += 4.6; }
   }
   y += 5;// ---------- Items table ----------
   const th = 7;
