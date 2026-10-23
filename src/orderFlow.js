@@ -16,10 +16,11 @@ export const FLOW = [
 /** Statuses that are not part of the forward flow. */
 export const EXTRA_STATUSES = [
   { status: 'cancelled', label: 'Cancelled', color: '#8a8a8a' },
+  { status: 'refunded', label: 'Amount Refunded', color: '#1f7a4d' },
 ];
 
 export const ALL_STATUSES = [...FLOW, ...EXTRA_STATUSES];
-export const TERMINAL_STATUSES = ['delivered', 'cancelled'];
+export const TERMINAL_STATUSES = ['delivered', 'cancelled', 'refunded'];
 
 /** Resolve label/colour for any stored status (incl. legacy "paid"). */
 export function statusMeta(status) {
@@ -58,6 +59,7 @@ export const TRANSITIONS = {
   shipped: ['delivered'],
   delivered: [],
   cancelled: [],
+  refunded: [],
 };
 
 /** Fields that MUST be provided before a status is applied. */
