@@ -220,7 +220,20 @@ export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon } = useData();
   const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale } = useData();
-  const [tab, setTab] = useState(isAdmin ? 'products' : 'orders');
+  const [tab, setTabState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('admin_tab');
+      const allowed = isAdmin
+        ? ['products', 'orders', 'settings', 'coupons', 'returns', 'payments', 'sales', 'staff']
+        : ['orders'];
+      if (saved && allowed.includes(saved)) return saved;
+    } catch {}
+    return isAdmin ? 'products' : 'orders';
+  });
+  const setTab = (next) => {
+    setTabState(next);
+    try { localStorage.setItem('admin_tab', next); } catch {}
+  };
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
