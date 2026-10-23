@@ -40,13 +40,23 @@ export const config = {
   api: { bodyParser: false },
 };
 
-// Razorpay gives us the raw body as a Buffer when the body parser is
-// disabled for this route; fall back to the stringified body.
-function rawBody(req) {
-  if (req.body == null) return '';
+// Read the raw request body as a UTF-8 string. Vercel may hand us a
+// Buffer, a string, an already-parsed object, or nothing at all (in
+// which case we drain the request stream ourselves). Draining the
+// stream is essential: otherwise the body is lost and signature
+// verification always fails.
+async function readRawBody(req) {
+  if (req.body == null) {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  }
   if (Buffer.isBuffer(req.body)) return req.body.toString('utf8');
   if (typeof req.body === 'string') return req.body;
-  return JSON.stringify(req.body);
+  // Already-parsed (shouldn't happen with bodyParser disabled, but be safe).
+  try { return JSON.stringify(req.body); } catch { return ''; }
 }
 
 function verifySignature(raw, signature) {
@@ -66,7 +76,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const raw = rawBody(req);
+  const raw = await readRawBody(req);
   const signature = req.headers['x-razorpay-signature'];
 
   if (!WEBHOOK_SECRET) {
@@ -96,7 +106,7 @@ export default async function handler(req, res) {
   const refundEntity = payload?.payload?.refund?.entity || {};
   const paymentId = String(refundEntity.payment_id || '');
   const refundId = refundEntity.id || null;
-  if (!paymentId) {
+  if (!paymentId && !refundEntity?.notes?.orderId && !refundEntity?.receipt) {
     return res.status(200).json({ ok: true, ignored: 'no payment_id' });
   }
 
@@ -116,8 +126,19 @@ export default async function handler(req, res) {
   }
 
   const orders = Array.isArray(doc.data) ? doc.data : [];
-  // Match by the captured Razorpay payment id stored on the order.
-  const target = orders.find((o) => String(o?.payment?.ref || '') === paymentId);
+  // Match by the captured Razorpay payment id stored on the order, with
+  // fallbacks to the orderId carried in the refund's notes/receipt.
+  let target = orders.find((o) => String(o?.payment?.ref || '') === paymentId);
+  if (!target) {
+    const notes = refundEntity?.notes || {};
+    const noteOrderId = notes.orderId || notes.order_id || notes.order;
+    if (noteOrderId) target = orders.find((o) => String(o?.id || '') === String(noteOrderId));
+  }
+  if (!target) {
+    const receipt = String(refundEntity?.receipt || '');
+    const m = receipt.match(/refund[_-]?(.+)$/i);
+    if (m && m[1]) target = orders.find((o) => String(o?.id || '') === String(m[1]));
+  }
   if (!target) {
     console.warn('[razorpay-webhook] no order for payment', paymentId);
     return res.status(200).json({ ok: true, matched: 0 });
@@ -132,20 +153,39 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, unchanged: true });
   }
 
-  const next = orders.map((o) =>
-    o.id === target.id
-      ? {
-          ...o,
-          refundInfo: {
-            ...(o.refundInfo || {}),
-            refundStatus,
-            refundId: refundId || o.refundInfo?.refundId || null,
-            gatewayStatus: refundEntity.status || null,
-            refundedAt: refundStatus === 'refunded' ? new Date().toISOString() : o.refundInfo?.refundedAt || new Date().toISOString(),
-          },
-        }
-      : o
-  );
+  const now = new Date().toISOString();
+
+  const next = orders.map((o) => {
+    if (o.id !== target.id) return o;
+
+    const mergedRefund = {
+      ...(o.refundInfo || {}),
+      refundStatus,
+      refundId: refundId || o.refundInfo?.refundId || null,
+      gatewayStatus: refundEntity.status || o.refundInfo?.gatewayStatus || null,
+      refundedAt: refundStatus === 'refunded'
+        ? (o.refundInfo?.refundedAt || now)
+        : (o.refundInfo?.refundedAt || now),
+    };
+
+    // When the refund is settled, flip the order to the terminal
+    // "Amount Refunded" state so every view shows the money as back.
+    const nextStatus = refundStatus === 'refunded' ? 'refunded' : o.status;
+    const nextHistory =
+      refundStatus === 'refunded' && o.status !== 'refunded'
+        ? [
+            ...(o.statusHistory || []),
+            { status: 'refunded', label: 'Amount Refunded', by: { name: 'Razorpay (auto)', role: 'system' }, note: 'Refund settled by Razorpay', at: now },
+          ]
+        : o.statusHistory;
+
+    return {
+      ...o,
+      status: nextStatus,
+      refundInfo: mergedRefund,
+      statusHistory: nextHistory,
+    };
+  });
 
   const written = await patchOrdersDoc(next);
   if (!written.ok) {
