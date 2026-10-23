@@ -25,7 +25,24 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
   const [q, setQ] = useState('');
   const [shippingId, setShippingId] = useState(null);
   const [tf, setTf] = useState({ courier: '', trackingNo: '' });
-  const [orderDelMode, setOrderDelMode] = useState(false);
+  const deletePastOrders = () => {
+    const dateStr = window.prompt('Delete all orders placed on or before this date (YYYY-MM-DD):');
+    if (!dateStr) return;
+    const cutoff = new Date(`${dateStr}T23:59:59.999`);
+    if (Number.isNaN(cutoff.getTime())) {
+      window.alert('Invalid date. Use YYYY-MM-DD.');
+      return;
+    }
+    const candidates = (orders || []).filter((o) => {
+      const d = new Date(o.orderDate || o.createdAt);
+      return !Number.isNaN(d.getTime()) && d <= cutoff;
+    });
+    if (!candidates.length) {
+      window.alert('No orders found on or before that date.');
+      return;
+    }
+    deleteRecords('orders', candidates.map((o) => o.id));
+  };
 
   const all = [...(orders || [])].sort((a, b) => String(b.orderDate || '').localeCompare(String(a.orderDate || '')));
   // Locked scope for packer/shipper — they only ever see their own queue.
@@ -234,14 +251,14 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
       >
         🗃️ Archive old
       </button>
-      {filtered.length > 0 && (
+      { (orders || []).length > 0 && (
         <button
-          className={`btn btn-sm danger ${orderDelMode ? 'active' : ''}`}
-          onClick={() => setOrderDelMode((m) => !m)}
-          title={orderDelMode ? 'Done' : 'Delete mode'}
+          className="btn btn-sm danger"
+          onClick={deletePastOrders}
+          title="Delete orders older than a chosen date"
           style={{ marginLeft: 10 }}
         >
-          {orderDelMode ? '✓ Done' : '🗑️'}
+          🗑️
         </button>
       )}
 
@@ -257,18 +274,6 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
             return (
               <div className="order-row" key={o.id}>
                 <div className="ord-head">
-                  {orderDelMode && (
-                    <label
-                      style={{ display: 'flex', alignItems: 'center', marginRight: 8 }}
-                      title={`Delete order ${o.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        onChange={(e) => { e.stopPropagation(); deleteRecords('orders', [o.id]); }}
-                        aria-label={`Delete order ${o.id}`}
-                      />
-                    </label>
-                  )}
                   <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }}>
                     {o.id}
                   </Link>
