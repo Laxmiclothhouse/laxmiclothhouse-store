@@ -6,6 +6,7 @@ import { formatINR, formatDateTime } from '../utils/format.js';
 import { invoicePdfUrl, downloadInvoicePdf, printInvoicePdf } from '../utils/invoicePdf.js';
 import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
+import { variantKey } from '../utils/stock.js';
 import SalesManager from '../components/SalesManager.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
 import { statusMeta } from '../orderFlow.js';
@@ -32,6 +33,8 @@ const emptyForm = {
   returnsAccepted: true,
   returnDays: 7,
   sizes: [],
+  colors: [],
+  stockByVariant: {},
   customImages: [],
 };
 
@@ -388,6 +391,102 @@ export default function Admin() {
     setForm({ ...form, customImages: newImages });
   };
 
+  const addColor = () => {
+    setForm((f) => ({ ...f, colors: [...(f.colors || []), { name: '', hex: '#9b1c3d', images: [] }] }));
+  };
+  const removeColor = (idx) => {
+    setForm((f) => {
+      const colors = (f.colors || []).filter((_, i) => i !== idx);
+      // drop stock cells for removed color
+      const removed = (f.colors || [])[idx];
+      const stockByVariant = { ...(f.stockByVariant || {}) };
+      if (removed?.name) {
+        const prefix = String(removed.name).trim().toUpperCase() + '::';
+        Object.keys(stockByVariant).forEach((k) => {
+          if (k.startsWith(prefix)) delete stockByVariant[k];
+        });
+      }
+      return { ...f, colors, stockByVariant };
+    });
+  };
+  const updateColor = (idx, patch) => {
+    setForm((f) => {
+      const colors = [...(f.colors || [])];
+      const prev = colors[idx] || {};
+      const next = { ...prev, ...patch };
+      // if name changed, migrate stock keys
+      if (patch.name !== undefined && String(patch.name).trim().toUpperCase() !== String(prev.name || '').trim().toUpperCase()) {
+        const oldPrefix = String(prev.name || '').trim().toUpperCase() + '::';
+        const newPrefix = String(patch.name || '').trim().toUpperCase() + '::';
+        const stockByVariant = { ...(f.stockByVariant || {}) };
+        Object.keys(stockByVariant).forEach((k) => {
+          if (k.startsWith(oldPrefix)) {
+            const suffix = k.slice(oldPrefix.length);
+            stockByVariant[newPrefix + suffix] = stockByVariant[k];
+            delete stockByVariant[k];
+          }
+        });
+        colors[idx] = next;
+        return { ...f, colors, stockByVariant };
+      }
+      colors[idx] = next;
+      return { ...f, colors };
+    });
+  };
+  const handleColorImageUpload = (colorIdx, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const MAX = 5;
+    const accepted = files.filter((file) => file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024);
+    if (accepted.length !== files.length) {
+      setMsg('Only image files under 5MB are allowed.');
+      setTimeout(() => setMsg(''), 2500);
+      if (accepted.length === 0) { e.target.value = ''; return; }
+    }
+    const readAsDataURL = async (file) => {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return 'data:' + file.type + ';base64,' + btoa(bin);
+    };
+    Promise.all(accepted.map(readAsDataURL)).then((urls) => {
+      setForm((f) => {
+        const colors = [...(f.colors || [])];
+        const c = colors[colorIdx] || { name: '', hex: '#9b1c3d', images: [] };
+        const room = Math.max(0, MAX - (c.images || []).length);
+        colors[colorIdx] = { ...c, images: [...(c.images || []), ...urls.slice(0, room)] };
+        return { ...f, colors };
+      });
+      if (urls.length > MAX) {
+        setMsg('Maximum 5 images per colour. Extra images were skipped.');
+        setTimeout(() => setMsg(''), 2500);
+      }
+    }).catch(() => {
+      setMsg('Failed to read the selected image file(s).');
+      setTimeout(() => setMsg(''), 2500);
+    });
+    e.target.value = '';
+  };
+  const removeColorImage = (colorIdx, imgIdx) => {
+    setForm((f) => {
+      const colors = [...(f.colors || [])];
+      const c = colors[colorIdx];
+      if (!c) return f;
+      colors[colorIdx] = { ...c, images: (c.images || []).filter((_, i) => i !== imgIdx) };
+      return { ...f, colors };
+    });
+  };
+  const setColorStock = (colorName, size, value) => {
+    const key = variantKey(colorName, size);
+    setForm((f) => {
+      const stockByVariant = { ...(f.stockByVariant || {}) };
+      if (value === '' || value === null) delete stockByVariant[key];
+      else stockByVariant[key] = value;
+      return { ...f, stockByVariant };
+    });
+  };
+
   const submit = (e) => {
     e.preventDefault();
     if (form.paymentMethods.length === 0) {
@@ -396,13 +495,27 @@ export default function Admin() {
       return;
     }
     const customImgs = form.customImages.filter((img) => img && img.trim() !== '');
+    const colors = (form.colors || [])
+      .map((c) => ({
+        name: String(c?.name || '').trim(),
+        hex: c?.hex || '#9b1c3d',
+        images: Array.isArray(c?.images) ? c.images.filter((u) => u && String(u).trim() !== '') : [],
+      }))
+      .filter((c) => c.name);
+    const stockByVariant = {};
+    Object.entries(form.stockByVariant || {}).forEach(([k, v]) => {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) stockByVariant[k] = n;
+    });
     const data = {
       ...form,
+      colors,
+      stockByVariant,
       price: Number(form.price),
       mrp: Number(form.mrp) || Math.round(Number(form.price) * 1.25 / 10) * 10,
       sizes: (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean),
-       image: customImgs.length > 0 ? customImgs[0] : '',
-       images: customImgs.length > 0 ? customImgs : [],
+       image: customImgs.length > 0 ? customImgs[0] : (colors[0]?.images?.[0] || ''),
+       images: customImgs.length > 0 ? customImgs : (colors[0]?.images || []),
       shippingCost: Number(form.shippingCost) || 0,
       returnsAccepted: Boolean(form.returnsAccepted),
       returnDays: form.returnsAccepted ? Math.max(0, Number(form.returnDays) || 0) : 0,
@@ -435,6 +548,8 @@ export default function Admin() {
       returnsAccepted: p.returnsAccepted ?? true,
       returnDays: p.returnDays ?? 7,
       sizes: p.sizes || [],
+      colors: Array.isArray(p.colors) ? p.colors.map((c) => ({ name: c?.name || '', hex: c?.hex || '#9b1c3d', images: Array.isArray(c?.images) ? c.images : [] })) : [],
+      stockByVariant: p.stockByVariant && typeof p.stockByVariant === 'object' ? { ...p.stockByVariant } : {},
       customImages: p.images || (p.image ? [p.image] : []),
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -618,6 +733,103 @@ export default function Admin() {
                 <span className="muted tiny">
                   Click to open the size guide — add/remove the sizes (S, M, L…) customers can choose.
                 </span>
+              </div>
+
+              {/* ── Colour variants & per-variant stock ─────────── */}
+              <div className="sizes-box" style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ margin: 0 }}>Colour variants (each with its own images & stock)</label>
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={addColor}>+ Add colour</button>
+                </div>
+                {(form.colors || []).length === 0 && (
+                  <p className="muted tiny">No colour variants — product will be sold in a single colour (legacy images above).</p>
+                )}
+                {(form.colors || []).map((c, ci) => {
+                  const colorName = c.name || '';
+                  const sizes = (form.sizes || []).map((s) => String(s).trim().toUpperCase()).filter(Boolean);
+                  const stockSizes = sizes.length > 0 ? sizes : [''];
+                  return (
+                    <div key={ci} style={{ border: '1px solid #e8dcd3', borderRadius: 8, padding: 10, marginBottom: 10, background: '#fff' }}>
+                      <div className="grid2" style={{ marginBottom: 8 }}>
+                        <label>Colour name
+                          <input value={c.name || ''} onChange={(e) => updateColor(ci, { name: e.target.value })} placeholder="e.g. Maroon" />
+                        </label>
+                        <label>Colour hex
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <input type="color" value={c.hex || '#9b1c3d'} onChange={(e) => updateColor(ci, { hex: e.target.value })} style={{ width: 44, height: 34, padding: 2 }} />
+                            <input value={c.hex || '#9b1c3d'} onChange={(e) => updateColor(ci, { hex: e.target.value })} placeholder="#9b1c3d" />
+                          </div>
+                        </label>
+                      </div>
+
+                      {/* images for this colour */}
+                      <div style={{ marginBottom: 8 }}>
+                        <label className="muted tiny" style={{ display: 'block', marginBottom: 4 }}>Images for this colour (up to 5)</label>
+                        <input type="file" accept="image/*" multiple onChange={(e) => handleColorImageUpload(ci, e)} disabled={(c.images || []).length >= 5} />
+                        {(c.images || []).length > 0 && (
+                          <div className="img-preview-grid" style={{ marginTop: 6 }}>
+                            {(c.images || []).map((img, ii) => (
+                              <div key={ii} className="img-preview-item">
+                                <img src={img} alt={`Colour ${ci + 1} image ${ii + 1}`} />
+                                <button type="button" className="btn btn-sm danger remove-img" onClick={() => removeColorImage(ci, ii)}>✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <input
+                          style={{ marginTop: 6 }}
+                          onBlur={(e) => {
+                            const url = e.target.value.trim();
+                            if (url && (url.startsWith('http') || url.startsWith('data:'))) {
+                              setForm((f) => {
+                                const colors = [...(f.colors || [])];
+                                const cc = colors[ci] || { name: '', hex: '#9b1c3d', images: [] };
+                                colors[ci] = { ...cc, images: [...(cc.images || []), url].slice(0, 5) };
+                                return { ...f, colors };
+                              });
+                              e.target.value = '';
+                            }
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }}
+                          placeholder="Or paste image URL — press Enter to add"
+                        />
+                      </div>
+
+                      {/* per-variant stock */}
+                      <div>
+                        <label className="muted tiny" style={{ display: 'block', marginBottom: 4 }}>Stock for this colour</label>
+                        {!colorName.trim() ? (
+                          <span className="muted tiny">Enter a colour name to set per-variant stock.</span>
+                        ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {stockSizes.map((sz) => {
+                            const key = variantKey(colorName, sz === '' ? '' : sz);
+                            const val = (form.stockByVariant || {})[key];
+                            return (
+                              <label key={sz || 'free'} style={{ fontSize: 12 }}>
+                                {sz ? `Size ${sz}` : 'Free size'}
+                                <input
+                                  type="number"
+                                  min="0"
+                                  style={{ width: 70, marginLeft: 6 }}
+                                  value={val === undefined ? '' : val}
+                                  placeholder="auto"
+                                  onChange={(e) => setColorStock(colorName, sz === '' ? '' : sz, e.target.value)}
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                        )}
+                        <span className="muted tiny">Leave blank to fall back to the product stock above.</span>
+                      </div>
+
+                      <div style={{ textAlign: 'right', marginTop: 8 }}>
+                        <button type="button" className="btn btn-sm danger" onClick={() => removeColor(ci)}>Remove colour</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="row-gap">
