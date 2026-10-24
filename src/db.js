@@ -19,6 +19,7 @@ const KEYS = {
   coupons: 'houselaxmicloth_coupons',
   payments: 'houselaxmicloth_payments',
   sales: 'houselaxmicloth_sales',
+  alerts: 'houselaxmicloth_alerts',
   pdfs: 'houselaxmicloth_pdfs',
   notifications: 'houselaxmicloth_notifications',
 };
@@ -296,6 +297,16 @@ export const db = {
   saveSales(s) {
     write(KEYS.sales, s);
     syncToFirestore(KEYS.sales, s);
+  },
+
+  // alerts: site-wide announcements created by admin
+  // { id, type: 'announcement'|'sale_start'|'flash_sale'|'maintenance'|'new_arrival', message, startsAt?, endsAt?, active, createdAt }
+  getAlerts() {
+    return read(KEYS.alerts, []);
+  },
+  saveAlerts(a) {
+    write(KEYS.alerts, a);
+    syncToFirestore(KEYS.alerts, a);
   },
 
   // archived PDF reports

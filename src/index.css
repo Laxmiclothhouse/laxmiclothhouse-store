@@ -1644,6 +1644,33 @@ p { margin: 0 0 .8em; }
   padding: 2px 10px;
   white-space: nowrap;
 }
+/* Site-wide typed alert banner (AlertBanner) */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #fff;
+  padding: 8px 14px;
+  font-size: .9rem;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+.alert-banner-msg { flex: 1; text-align: center; }
+.alert-banner-timer {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .alert-banner-msg { font-size: .8rem; }
+  .alert-banner-timer { font-size: .78rem; }
+}
+
 @media (max-width: 640px) {
   .sale-start-msg { font-size: .8rem; }
   .sale-start-timer { font-size: .78rem; }

@@ -8,6 +8,7 @@ import OrdersQueue from '../components/OrdersQueue.jsx';
 import SizeGuide from '../components/SizeGuide.jsx';
 import { variantKey } from '../utils/stock.js';
 import SalesManager from '../components/SalesManager.jsx';
+import AlertsManager from '../components/AlertsManager.jsx';
 import PdfViewer from '../components/PdfViewer.jsx';
 import { statusMeta } from '../orderFlow.js';
 import { buildOrdersReportPdf, triggerBlobDownload, ordersReportFileName, ordersReportPdfUrl, downloadOrdersReportPdf, printOrdersReportPdf, filterOrdersByRange } from '../utils/ordersReportPdf.js';
@@ -281,12 +282,12 @@ function StaffRoleForm({ setUserRole, searchUsers }) {
 export default function Admin() {
   const { user, isAdmin, isStaff, setUserRole, searchUsers } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, deleteRecords } = useData();
-  const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale, pdfs = [], addPdfRecord, deletePdfRecord, notifications = [], logActivity } = useData();
+  const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale, alerts = [], addAlert, updateAlert, deleteAlert, toggleAlert, pdfs = [], addPdfRecord, deletePdfRecord, notifications = [], logActivity } = useData();
   const [tab, setTabState] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_tab');
       const allowed = isAdmin
-        ? ['products', 'orders', 'settings', 'coupons', 'payments', 'sales', 'staff', 'pdfs', 'notifications']
+        ? ['products', 'orders', 'settings', 'coupons', 'payments', 'sales', 'alerts', 'staff', 'pdfs', 'notifications']
         : ['orders'];
       if (saved && allowed.includes(saved)) return saved;
     } catch {}
@@ -705,9 +706,14 @@ export default function Admin() {
           </button>
         )}
         {isAdmin && (
-          <button className={tab === 'sales' ? 'chip active' : 'chip'} onClick={() => setTab('sales')}>
-            Sales {sales.length ? `(${sales.length})` : ''}
-          </button>
+          <>
+            <button className={tab === 'sales' ? 'chip active' : 'chip'} onClick={() => setTab('sales')}>
+              Sales {sales.length ? `(${sales.length})` : ''}
+            </button>
+            <button className={tab === 'alerts' ? 'chip active' : 'chip'} onClick={() => setTab('alerts')}>
+              Alerts {alerts.length ? `(${alerts.length})` : ''}
+            </button>
+          </>
         )}
         {isAdmin && (
           <button className={tab === 'coupons' ? 'chip active' : 'chip'} onClick={() => setTab('coupons')}>
@@ -1258,6 +1264,16 @@ export default function Admin() {
             toggleSale={toggleSale}
           />
         </>
+      )}
+
+      {tab === 'alerts' && (
+        <AlertsManager
+          alerts={alerts}
+          addAlert={addAlert}
+          updateAlert={updateAlert}
+          deleteAlert={deleteAlert}
+          toggleAlert={toggleAlert}
+        />
       )}
 
       {tab === 'settings' && (

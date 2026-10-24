@@ -14,6 +14,7 @@ export function DataProvider({ children }) {
   const [coupons, setCoupons] = useState(db.getCoupons());
   const [payments, setPayments] = useState(db.getPayments());
   const [sales, setSales] = useState(db.getSales());
+  const [alerts, setAlerts] = useState(db.getAlerts());
   const [users, setUsers] = useState(db.getUsers());
   const [pdfs, setPdfs] = useState(db.getPdfs());
   const [notifications, setNotifications] = useState(db.getNotifications());
@@ -36,6 +37,7 @@ export function DataProvider({ children }) {
       else if (e.key === 'houselaxmicloth_coupons') setCoupons(db.getCoupons());
       else if (e.key === 'houselaxmicloth_payments') setPayments(db.getPayments());
       else if (e.key === 'houselaxmicloth_sales') setSales(db.getSales());
+      else if (e.key === 'houselaxmicloth_alerts') setAlerts(db.getAlerts());
       else if (e.key === 'houselaxmicloth_pdfs') setPdfs(db.getPdfs());
       else if (e.key === 'houselaxmicloth_notifications') setNotifications(db.getNotifications());
       else if (e.key === 'houselaxmicloth_users') setUsers(db.getUsers());
@@ -54,6 +56,7 @@ export function DataProvider({ children }) {
     const unsubCoupons = listenFromFirestore('houselaxmicloth_coupons', setCoupons);
     const unsubPayments = listenFromFirestore('houselaxmicloth_payments', setPayments);
     const unsubSales = listenFromFirestore('houselaxmicloth_sales', setSales);
+    const unsubAlerts = listenFromFirestore('houselaxmicloth_alerts', setAlerts);
     const unsubUsers = listenFromFirestore('houselaxmicloth_users', setUsers);
     const unsubPdfs = listenFromFirestore('houselaxmicloth_pdfs', setPdfs);
     const unsubNotifications = listenFromFirestore('houselaxmicloth_notifications', setNotifications);
@@ -67,6 +70,7 @@ export function DataProvider({ children }) {
       unsubCoupons();
       unsubPayments();
       unsubSales();
+      unsubAlerts();
       unsubUsers();
       unsubPdfs();
       unsubNotifications();
@@ -464,6 +468,30 @@ export function DataProvider({ children }) {
     const next = sales.map((s) => (s.id === id ? { ...s, active: !s.active } : s));
     setSales(next);
     db.saveSales(next);
+  };
+
+  // ----- alerts -----
+  const addAlert = (alert) => {
+    const created = { ...alert, id: alert.id || db.uid('A-'), active: alert.active !== false, createdAt: new Date().toISOString() };
+    const next = [...alerts, created];
+    setAlerts(next);
+    db.saveAlerts(next);
+    return created;
+  };
+  const updateAlert = (id, patch) => {
+    const next = alerts.map((a) => (a.id === id ? { ...a, ...patch } : a));
+    setAlerts(next);
+    db.saveAlerts(next);
+  };
+  const deleteAlert = (id) => {
+    const next = alerts.filter((a) => a.id !== id);
+    setAlerts(next);
+    db.saveAlerts(next);
+  };
+  const toggleAlert = (id) => {
+    const next = alerts.map((a) => (a.id === id ? { ...a, active: !a.active } : a));
+    setAlerts(next);
+    db.saveAlerts(next);
   };
 
   // Calculate the best sale price for a product.
@@ -876,10 +904,15 @@ const resolveRefund = (orderId, patch = {}) => {
       updateSale,
       deleteSale,
       toggleSale,
+      alerts,
+      addAlert,
+      updateAlert,
+      deleteAlert,
+      toggleAlert,
       getSalePrice,
       users,
     }),
-    [products, orders, settings, reviews, messages, coupons, payments, sales, users, pdfs, notifications]
+    [products, orders, settings, reviews, messages, coupons, payments, sales, alerts, users, pdfs, notifications]
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

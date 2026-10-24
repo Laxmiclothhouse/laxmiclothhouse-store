@@ -8,6 +8,7 @@ import Logo from './Logo.jsx';
 import AccountIcon from './AccountIcon.jsx';
 import FlashBanner from './FlashBanner.jsx';
 import SaleStartBanner from './SaleStartBanner.jsx';
+import AlertBanner from './AlertBanner.jsx';
 
 const links = [
   { to: '/', label: 'Home' },
@@ -21,7 +22,7 @@ export default function Navbar({ onCartOpen }) {
   const { user, isAdmin, isStaff, logout } = useAuth();
   const { totalItems } = useCart();
   const { count: savedCount } = useWishlist();
-  const { settings } = useData();
+  const { settings, alerts } = useData();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
@@ -35,6 +36,7 @@ export default function Navbar({ onCartOpen }) {
 
       <FlashBanner flashSale={settings.flashSale} />
       <SaleStartBanner alert={settings.saleStartAlert} />
+      <AlertBanner alerts={alerts} />
 
       <nav className="nav-inner">
                 <Link to="/" className="brand" onClick={closeMenu}>
