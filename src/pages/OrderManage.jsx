@@ -312,13 +312,22 @@ export default function OrderManage() {
       )}
 
       {order && (
-        <section className="card-box">
-          <div className="ord-head">
-            <strong style={{ fontSize: '1.05rem' }}>Order {order.id}</strong>
-            <span className="muted">{formatDateTime(order.orderDate)}</span>
-            <span className={`status-badge ${order.status}`}>{meta.label}</span>
-            <span className="ord-total">{formatINR(order.total)}</span>
-          </div>
+         <section className="card-box order-hero">
+           <div className="order-hero-top">
+             <div className="order-hero-id">
+               <p className="muted tiny order-eyebrow">Order details</p>
+               <h2 className="order-hero-number">{order.id}</h2>
+               <div className="order-hero-badges">
+                 <span className={`status-badge ${order.status}`}>{meta.label}</span>
+                 {order.payment?.mode && <span className="pay-badge paid">{order.payment.mode}</span>}
+               </div>
+             </div>
+             <div className="order-hero-total">
+               <span className="muted tiny">Total amount</span>
+               <strong>{formatINR(order.total)}</strong>
+               <span className="muted tiny">{formatDateTime(order.orderDate)}</span>
+             </div>
+           </div>
 
           {order.trackingNo && (
             <p className="muted" style={{ marginTop: 8 }}>
@@ -467,7 +476,7 @@ export default function OrderManage() {
           )}
 
           {stepIdx >= 0 && (
-            <div className="tl-row" style={{ marginTop: 16 }}>
+            <div className="timeline order-timeline" style={{ marginTop: 16 }}>
               {FLOW.map((t, i) => (
                 <div key={t.status} className={`tl-step ${i < stepIdx ? 'done' : i === stepIdx ? 'current' : ''}`}>
                   <div className="tl-dot">{i < stepIdx ? '✓' : i + 1}</div>
@@ -526,36 +535,49 @@ export default function OrderManage() {
           )}
 
           <div className="ord-body" style={{ marginTop: 14 }}>
-            <div>
-              <p className="muted">{order.customer?.name} · {order.customer?.phone}</p>
-              {order.customer?.email && <p className="muted tiny">{order.customer.email}</p>}
-              {order.customerEmail && order.customerEmail !== order.customer?.email && <p className="muted tiny">{order.customerEmail}</p>}
-              <p className="muted">
-                {order.shipping?.address}, {order.shipping?.city}, {order.shipping?.state} — {order.shipping?.pincode}
-              </p>
-              <ul className="sum-items">
-                {order.items.map((it, idx) => (
-                  <li key={it.id || idx} style={{ alignItems: 'center' }}>
-                    {it.image ? (
-                      <img
-                        src={it.image}
-                        alt={it.name || 'Product'}
-                        style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
-                      />
-                    ) : null}
-                    <span style={{ flex: 1 }}>
-                      {it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` (Size ${it.size})` : ''} × {it.qty}
-                    </span>
-                    <span className="muted">{formatINR(it.price * it.qty)}</span>
-                  </li>
-                ))}
-              </ul>
-              {(order.discount > 0 || order.couponCode) && (
-                <div className="sum-lines" style={{ marginTop: 8 }}>
-                  {order.discount > 0 && <div><span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span><span>-{formatINR(order.discount)}</span></div>}
-                </div>
-              )}
-            </div>
+             <div className="order-left">
+               <h3>Customer &amp; delivery</h3>
+               <div className="order-info-grid">
+                 <div>
+                   <span className="muted tiny">Name</span>
+                   <p>{order.customer?.name || '—'}</p>
+                 </div>
+                 <div>
+                   <span className="muted tiny">Phone</span>
+                   <p>{order.customer?.phone || '—'}</p>
+                 </div>
+                 {order.customer?.email && (
+                   <div>
+                     <span className="muted tiny">Email</span>
+                     <p>{order.customer.email}</p>
+                   </div>
+                 )}
+               </div>
+               <p className="order-address">{order.shipping?.address}, {order.shipping?.city}, {order.shipping?.state} — {order.shipping?.pincode}</p>
+
+               <h3 style={{ marginTop: 16 }}>Items</h3>
+               <ul className="order-items">
+                 {order.items.map((it, idx) => (
+                   <li key={it.id || idx}>
+                     {it.image ? (
+                       <img src={it.image} alt={it.name || 'Product'} />
+                     ) : (
+                       <span className="order-item-placeholder" />
+                     )}
+                     <div className="order-item-main">
+                       <span className="order-item-name">{it.name}{(it.colorName || it.color) ? ` (${it.colorName || it.color})` : ''}{it.size ? ` · Size ${it.size}` : ''}</span>
+                       <span className="muted tiny">Qty {it.qty} × {formatINR(it.price)}</span>
+                     </div>
+                     <span className="order-item-total">{formatINR(it.price * it.qty)}</span>
+                   </li>
+                 ))}
+               </ul>
+               {(order.discount > 0 || order.couponCode) && (
+                 <div className="sum-lines" style={{ marginTop: 8 }}>
+                   {order.discount > 0 && <div><span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span><span>-{formatINR(order.discount)}</span></div>}
+                 </div>
+               )}
+             </div>
             <div className="card-box inner">
               <h3>Payment</h3>
               <p>

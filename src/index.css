@@ -722,12 +722,13 @@ p { margin: 0 0 .8em; }
 .order-row { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
 .ord-head { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: #faf5f7; flex-wrap: wrap; }
 .ord-head .ord-total { margin-left: auto; font-weight: 600; }
-.ord-body { padding: 14px 16px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ord-body { padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
 .ord-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ord-id-btn { font-size: 1rem; }
 .invoice-modal iframe { display: block; }
 @media (max-width: 880px) {
   .modal-card.invoice-modal { max-width: 100%; }
+  .ord-body { grid-template-columns: 1fr; }
 }
 
 /* ── Fullscreen PDF viewer (invoice / slip / report) ── */
@@ -1791,3 +1792,35 @@ p { margin: 0 0 .8em; }
 /* ── Admin stock matrix ───────────────────────────── */
 .stock-matrix input[type="number"] { width: 76px; }
 .stock-matrix th:first-child, .stock-matrix td:first-child { white-space: nowrap; }
+
+/* -- Order detail page (OrderManage) -- */
+.order-hero { padding: 20px 24px; }
+.order-hero-top { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.order-hero-id { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.order-eyebrow { margin: 0; letter-spacing: .8px; text-transform: uppercase; font-weight: 600; color: var(--brand); }
+.order-hero-number { font-size: 2rem; margin: 0; color: var(--brand); word-break: break-word; }
+.order-hero-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.order-hero-total { text-align: right; display: flex; flex-direction: column; gap: 2px; min-width: 150px; align-items: flex-end; }
+.order-hero-total strong { font-size: 1.7rem; color: var(--ink); line-height: 1.1; }
+.order-hero-total span { line-height: 1.2; }
+.order-timeline { margin-top: 18px !important; }
+.order-left h3 { margin: 0 0 8px; color: var(--brand-dark); }
+.order-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; margin: 8px 0 12px; }
+.order-info-grid div { display: flex; flex-direction: column; gap: 2px; }
+.order-info-grid span { font-weight: 600; }
+.order-info-grid p { margin: 0; font-weight: 500; word-break: break-word; }
+.order-address { margin: 4px 0 0; line-height: 1.5; }
+.order-items { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.order-items li { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #faf5f7; }
+.order-items img { width: 58px; height: 58px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.order-item-placeholder { width: 58px; height: 58px; border-radius: 8px; background: var(--line); flex-shrink: 0; }
+.order-item-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.order-item-name { font-weight: 500; word-break: break-word; }
+.order-item-total { font-weight: 600; white-space: nowrap; }
+.order-payment-card { height: fit-content; }
+.order-payment-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.order-payment-head h3 { margin: 0; }
+@media (max-width: 760px) {
+  .order-hero-number { font-size: 1.6rem; }
+  .order-hero-total { align-items: flex-start; text-align: left; }
+}
