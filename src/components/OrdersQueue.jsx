@@ -140,7 +140,9 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
       // Admin must give a reason — it is stored on the order and sent to
       // the customer inside the WhatsApp cancellation message.
       const reason = window.prompt(
-        `Cancel order ${o.id}? This cannot be undone.\n\nReason for cancelling (required — the customer sees this):`
+        `Cancel order ${o.id}? This cannot be undone.
+
+Reason for cancelling (required — the customer sees this):`
       );
       if (reason === null) return;
       if (!String(reason).trim()) {
@@ -259,11 +261,24 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                 style={{ cursor: 'pointer' }}
                 onClick={() => navigate(`/order-manage/${o.id}`)}
               >
-                <div className="ord-head">
-                  <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }} onClick={(e) => e.stopPropagation()}>
-                    {o.id}
-                  </Link>
-                  <span className="muted">{formatDateTime(o.orderDate)}</span>
+                <div className="ord-head" style={{ alignItems: 'center', gap: 12 }}>
+                  {(() => {
+                    const first = Array.isArray(o.items) && o.items.length ? o.items[0] : null;
+                    return first?.image ? (
+                      <img src={first.image} alt={first.name || 'Product'} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 44, height: 44, borderRadius: 6, background: '#f2e8ec', display: 'grid', placeItems: 'center', fontSize: '.65rem', color: '#999', flexShrink: 0 }}>No img</div>
+                    );
+                  })()}
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }} onClick={(e) => e.stopPropagation()}>
+                      {(() => {
+                        const first = Array.isArray(o.items) && o.items.length ? o.items[0] : null;
+                        return (first?.name || o.id) + (Array.isArray(o.items) && o.items.length > 1 ? ` +${o.items.length - 1} more` : '');
+                      })()}
+                    </Link>
+                    <span className="muted tiny">{formatDateTime(o.orderDate)} · {o.customer?.name}</span>
+                  </div>
                   <span className={`status-badge ${o.status}`}>{meta.label}</span>
                   {(() => {
                     const rs = refundState(o);
@@ -275,16 +290,12 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                         {o.status === 'cancelled' && rs === 'refunded' && (
                           <span className="refund-badge refunded">Refunded</span>
                         )}
-                        {o.status === 'refunded' && (
-                          <span className="refund-badge refunded">Amount Refunded</span>
-                        )}
                         {o.status === 'cancelled' && rs === 'failed' && (
                           <span className="refund-badge failed">Refund failed — contact support</span>
                         )}
                       </>
                     );
                   })()}
-                  <span className="muted">{o.customer?.name}</span>
                   <span className="ord-total">{formatINR(o.total)}</span>
                 </div>
 
