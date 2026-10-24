@@ -705,6 +705,11 @@ export default function Admin() {
           </button>
         )}
         {isAdmin && (
+          <button className={tab === 'sales' ? 'chip active' : 'chip'} onClick={() => setTab('sales')}>
+            Sales {sales.length ? `(${sales.length})` : ''}
+          </button>
+        )}
+        {isAdmin && (
           <button className={tab === 'coupons' ? 'chip active' : 'chip'} onClick={() => setTab('coupons')}>
             Coupons {coupons.length ? `(${coupons.length})` : ''}
           </button>
