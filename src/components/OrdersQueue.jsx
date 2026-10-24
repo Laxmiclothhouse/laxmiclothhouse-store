@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { FLOW, statusMeta, payMeta, nextStatuses, REQUIRED_FIELDS, roleQueueScope, refundState } from '../orderFlow.js';
@@ -16,6 +16,7 @@ import Paginator from './Paginator.jsx';
  */
 export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, onPackSlip, initialFilter = 'all' }) {
   const { deleteRecords } = useData();
+  const navigate = useNavigate();
   const scope = roleQueueScope(role);
   const [filter, setFilter] = useState(initialFilter && initialFilter !== 'all' ? initialFilter : 'all');
   const [todayOnly, setTodayOnly] = useState(false);
@@ -252,9 +253,14 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
             const meta = statusMeta(o.status);
             const nexts = nextsFor(o);
             return (
-              <div className="order-row" key={o.id}>
+              <div
+                className="order-row"
+                key={o.id}
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/order-manage/${o.id}`)}
+              >
                 <div className="ord-head">
-                  <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }}>
+                  <Link to={`/order-manage/${o.id}`} className="linklike" style={{ fontWeight: 700 }} onClick={(e) => e.stopPropagation()}>
                     {o.id}
                   </Link>
                   <span className="muted">{formatDateTime(o.orderDate)}</span>
@@ -325,7 +331,7 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                     )}
                   </div>
 
-                  <div className="ord-actions">
+                  <div className="ord-actions" onClick={(e) => e.stopPropagation()}>
                     {nexts.map((t) =>
                       t === 'shipped' ? (
                         <button
@@ -348,14 +354,12 @@ export default function OrdersQueue({ orders, role, user, onUpdate, onInvoice, o
                         </button>
                       )
                     )}
-                    <Link to={`/order-manage/${o.id}`} className="linklike">Open →</Link>
-                    <button type="button" className="linklike" onClick={() => onInvoice(o)}>🧾 Invoice</button>
                     {onPackSlip && <button type="button" className="linklike" onClick={() => onPackSlip(o)}>📦 Slip</button>}
                   </div>
                 </div>
 
                 {shippingId === o.id && (
-                  <div className="track-form">
+                  <div className="track-form" onClick={(e) => e.stopPropagation()}>
                     <strong className="muted">Mark shipped:</strong>
                     <input
                       value={tf.courier}
