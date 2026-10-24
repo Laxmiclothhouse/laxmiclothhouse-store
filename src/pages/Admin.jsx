@@ -1370,6 +1370,44 @@ export default function Admin() {
               </label>
             </div>
 
+            <div className="flash-sale-settings">
+              <h3 style={{ margin: '6px 0 10px' }}>🗓️ Sale start alert</h3>
+              <label className="check-row" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={!!(s.saleStartAlert && s.saleStartAlert.active)}
+                  onChange={(e) =>
+                    setS({
+                      ...s,
+                      saleStartAlert: {
+                        ...(s.saleStartAlert || {}),
+                        active: e.target.checked,
+                        message: (s.saleStartAlert && s.saleStartAlert.message) || '',
+                        startsAt: (s.saleStartAlert && s.saleStartAlert.startsAt) || '',
+                      },
+                    })
+                  }
+                />
+                <span>Show a site-wide alert counting down to a sale start</span>
+              </label>
+              <label>Banner message
+                <input
+                  value={(s.saleStartAlert && s.saleStartAlert.message) || ''}
+                  onChange={(e) => setS({ ...s, saleStartAlert: { ...(s.saleStartAlert || {}), active: !!(s.saleStartAlert && s.saleStartAlert.active), message: e.target.value, startsAt: (s.saleStartAlert && s.saleStartAlert.startsAt) || '' } })}
+                  placeholder="e.g. NEW YEAR SALE starts soon — up to 40% off!"
+                  maxLength={120}
+                />
+              </label>
+              <label>Sale starts at
+                <input
+                  type="datetime-local"
+                  value={(s.saleStartAlert && s.saleStartAlert.startsAt) || ''}
+                  onChange={(e) => setS({ ...s, saleStartAlert: { ...(s.saleStartAlert || {}), active: !!(s.saleStartAlert && s.saleStartAlert.active), message: (s.saleStartAlert && s.saleStartAlert.message) || '', startsAt: e.target.value } })}
+                />
+                <span className="muted tiny">The alert disappears automatically once this time passes — on every visitor's screen. Save settings to apply.</span>
+              </label>
+            </div>
+
             <div className="grid2">
                  <label>Shipping cost source
                    <select value={s.shippingSource || 'product'} onChange={(e) => setSField('shippingSource')(e)}>

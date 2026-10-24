@@ -1564,6 +1564,91 @@ p { margin: 0 0 .8em; }
   border-radius: 999px;
 }
 
+/* Overlay content on the sale banner image */
+.sale-banner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 22px;
+  background: linear-gradient(120deg, rgba(20, 12, 16, .55) 0%, rgba(20, 12, 16, .15) 55%, rgba(20, 12, 16, .45) 100%);
+  pointer-events: none;
+}
+.sale-banner-overlay .sale-banner-pill { pointer-events: auto; }
+.sale-banner-content {
+  align-self: flex-end;
+  text-align: right;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .45);
+}
+.sale-banner-offer {
+  font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: .5px;
+  line-height: 1;
+}
+.sale-banner-scope { font-size: .95rem; opacity: .95; font-weight: 600; }
+.sale-banner-ends { font-size: .82rem; opacity: .9; }
+.sale-banner-cta {
+  margin-top: 6px;
+  display: inline-block;
+  background: #fff;
+  color: #9b1c3d;
+  font-weight: 700;
+  font-size: .85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  align-self: flex-end;
+}
+
+/* Home: upcoming sale alert */
+.sale-start-alert {
+  max-width: 1240px;
+  margin: 18px auto 0;
+  padding: 12px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  color: #fff;
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+.sale-start-alert-cta { color: #fff; text-decoration: underline; font-weight: 700; }
+
+/* Site-wide sale start banner (Navbar) */
+.sale-start-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  color: #fff;
+  padding: 8px 14px;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.sale-start-msg { flex: 1; text-align: center; }
+.sale-start-timer {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, monospace;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .sale-start-msg { font-size: .8rem; }
+  .sale-start-timer { font-size: .78rem; }
+}
+
 /* ── Catalog: note while a single sale is being shown ── */
 .sale-filter-note { margin: -10px 0 20px; font-size: .9rem; color: var(--muted); }
 .sale-filter-note strong { color: var(--brand); }

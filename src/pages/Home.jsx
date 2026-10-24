@@ -40,6 +40,33 @@ export default function Home() {
     return usable.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
   }, [sales]);
 
+  const upcomingSale = React.useMemo(() => {
+    const now = Date.now();
+    const usable = sales.filter(
+      (s) => s.active !== false && s.startsAt && new Date(s.startsAt).getTime() > now
+    );
+    return usable.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt))[0] || null;
+  }, [sales]);
+
+  const formatDiscount = (sale) => {
+    if (!sale) return '';
+    if (sale.discountType === 'percent') return `${sale.value}% OFF`;
+    return `₹${sale.value} OFF`;
+  };
+  const saleScope = (sale) => {
+    if (!sale) return '';
+    if (sale.type === 'category') return `On ${sale.category}`;
+    if (sale.type === 'product') return 'On selected styles';
+    if (sale.type === 'storewide') return 'Storewide';
+    if (sale.type === 'flash') return 'Flash sale';
+    return '';
+  };
+  const formatDate = (v) => {
+    if (!v) return '';
+    try { return new Date(v).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch { return ''; }
+  };
+
   return (
     <main>
       {/* hero */}
@@ -59,6 +86,15 @@ export default function Home() {
         </div>
       </section>
 
+      {upcomingSale && (
+        <section className="sale-start-alert">
+          <span className="sale-start-alert-msg">
+            🗓️ New sale starts {formatDate(upcomingSale.startsAt)}: {upcomingSale.name} — {formatDiscount(upcomingSale)}
+          </span>
+          <Link to="/catalog" className="sale-start-alert-cta">Preview collection →</Link>
+        </section>
+      )}
+
       {/* optional sale banner — rendered only when the admin attached an
           image to a running sale; clicking it opens that sale's products */}
       {bannerSale && (
@@ -69,7 +105,15 @@ export default function Home() {
             title={bannerSale.name ? `Shop ${bannerSale.name}` : 'Shop the sale'}
           >
             <img src={bannerSale.imageUrl} alt={bannerSale.name || 'Sale'} />
-            {bannerSale.name && <span className="sale-banner-pill">{bannerSale.name} →</span>}
+            <div className="sale-banner-overlay">
+              {bannerSale.name && <span className="sale-banner-pill">{bannerSale.name} →</span>}
+              <div className="sale-banner-content">
+                <span className="sale-banner-offer">{formatDiscount(bannerSale)}</span>
+                {saleScope(bannerSale) && <span className="sale-banner-scope">{saleScope(bannerSale)}</span>}
+                {bannerSale.endsAt && <span className="sale-banner-ends">Ends {formatDate(bannerSale.endsAt)}</span>}
+                <span className="sale-banner-cta">Shop now →</span>
+              </div>
+            </div>
           </Link>
         </section>
       )}

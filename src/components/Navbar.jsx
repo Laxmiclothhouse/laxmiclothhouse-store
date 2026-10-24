@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext.jsx';
 import Logo from './Logo.jsx';
 import AccountIcon from './AccountIcon.jsx';
 import FlashBanner from './FlashBanner.jsx';
+import SaleStartBanner from './SaleStartBanner.jsx';
 
 const links = [
   { to: '/', label: 'Home' },
@@ -33,6 +34,7 @@ export default function Navbar({ onCartOpen }) {
       </div>
 
       <FlashBanner flashSale={settings.flashSale} />
+      <SaleStartBanner alert={settings.saleStartAlert} />
 
       <nav className="nav-inner">
                 <Link to="/" className="brand" onClick={closeMenu}>
