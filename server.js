@@ -216,6 +216,39 @@ app.post('/api/razorpay', async (req, res) => {
       });
     }
 
+    if (action === 'refund-status') {
+      const { refundId, paymentRef } = req.body || {};
+      if (!refundId && !paymentRef) {
+        return res.status(400).json({ ok: false, error: 'Missing refundId or paymentRef' });
+      }
+      let refund = null;
+      let lastErr = null;
+      if (refundId) {
+        try { refund = await razorpay.refunds.fetch(refundId); }
+        catch (e) { lastErr = e; }
+      }
+      if (!refund && paymentRef && String(paymentRef).startsWith('pay_')) {
+        try {
+          const list = await razorpay.refunds.all({ payment_id: paymentRef, count: 10 });
+          const items = Array.isArray(list?.items) ? list.items : (Array.isArray(list) ? list : []);
+          refund = items.slice().sort((a, b) => Number(b?.created_at || 0) - Number(a?.created_at || 0))[0] || null;
+        } catch (e) { lastErr = e; }
+      }
+      if (!refund) {
+        const message = lastErr?.error?.description || lastErr?.details?.description || lastErr?.response?.description || lastErr?.message || 'No refund found on Razorpay for this order.';
+        return res.status(404).json({ ok: false, error: message });
+      }
+      return res.json({
+        ok: true,
+        refunded: refund.status === 'processed' || refund.status === 'refunded',
+        refundId: refund.id,
+        paymentId: refund.payment_id || paymentRef || null,
+        amount: refund.amount,
+        status: refund.status,
+      });
+    }
+
+
     return res.status(404).json({ error: 'Unknown action: ' + (action || '(none)') });
   } catch (err) {
     console.error(`[razorpay:${action}] error:`, err);

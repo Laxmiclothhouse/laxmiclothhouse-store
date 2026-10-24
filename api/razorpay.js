@@ -91,11 +91,64 @@ async function refund(req, res) {
     message: 'Refund initiated. The money will be credited back to your account in 5-7 working days.',
   });
 }
+  async function refundStatus(req, res) {
+    const { refundId, paymentRef } = req.body || {};
+    if (!refundId && !paymentRef) {
+      return res.status(400).json({ ok: false, error: 'Missing refundId or paymentRef' });
+    }
+
+    let refund = null;
+    let lastErr = null;
+
+    if (refundId) {
+      try {
+        refund = await razorpay.refunds.fetch(refundId);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    if (!refund && paymentRef && String(paymentRef).startsWith('pay_')) {
+      try {
+        const list = await razorpay.refunds.all({ payment_id: paymentRef, count: 10 });
+        const items = Array.isArray(list?.items)
+          ? list.items
+          : (Array.isArray(list) ? list : []);
+        refund = items
+          .slice()
+          .sort((a, b) => Number(b?.created_at || 0) - Number(a?.created_at || 0))[0] || null;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+
+    if (!refund) {
+      const message =
+        lastErr?.error?.description ||
+        lastErr?.details?.description ||
+        lastErr?.response?.description ||
+        lastErr?.message ||
+        'No refund found on Razorpay for this order.';
+      return res.status(404).json({ ok: false, error: message });
+    }
+
+    return res.json({
+      ok: true,
+      refunded: refund.status === 'processed' || refund.status === 'refunded',
+      refundId: refund.id,
+      paymentId: refund.payment_id || paymentRef || null,
+      amount: refund.amount,
+      status: refund.status,
+    });
+  }
+
+
 
 const ACTIONS = {
   'create-order': createOrder,
   'verify-payment': verifyPayment,
   refund,
+  'refund-status': refundStatus,
 };
 
 export default async function handler(req, res) {

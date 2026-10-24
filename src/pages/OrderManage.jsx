@@ -10,7 +10,7 @@ import PdfViewer from '../components/PdfViewer.jsx';
 
 export default function OrderManage() {
   const { user, isStaff } = useAuth();
-  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, resolveRefund, settings } = useData();
+  const { orders, updateOrderStatus, addOrderNote, mergeDelhivery, markOrderRefunded, settings } = useData();
   const { id } = useParams();
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [tracking, setTracking] = useState({ courier: '', trackingNo: '', open: false, labelUrl: '' });
@@ -19,6 +19,7 @@ export default function OrderManage() {
   const [dhlMsg, setDhlMsg] = useState('');
   const [refunding, setRefunding] = useState(false);
   const [refundMsg, setRefundMsg] = useState('');
+  const [refundChecking, setRefundChecking] = useState(false);
 
   // Scoped page: only THIS order is ever shown.
   const order = orders.find((o) => o.id.toLowerCase() === String(id || '').toLowerCase());
@@ -125,6 +126,84 @@ export default function OrderManage() {
       setRefunding(false);
     }
   };
+
+  // ── Auto-fetch refund status from Razorpay ─────────────────
+  // The "Amount Refunded" state must come from Razorpay, never from a
+  // manual admin click. Poll Razorpay for the real refund status and
+  // apply it (markOrderRefunded flips the order to "Amount Refunded"
+  // once Razorpay reports processed/refunded).
+  const refreshRefundStatus = async () => {
+    if (!order?.refundInfo || refundChecking) return;
+    const payRef = String(order?.payment?.ref || '');
+    const refundId = order.refundInfo.refundId || null;
+    if (!refundId && !payRef.startsWith('pay_')) return;
+    setRefundChecking(true);
+    setRefundMsg('');
+    try {
+      const res = await fetch('/api/razorpay?action=refund-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, paymentRef: payRef, refundId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        if (data.error) setRefundMsg(data.error);
+        return;
+      }
+      if (!data.status) return;
+      const rzStatus = String(data.status).toLowerCase();
+      const newStatus =
+        rzStatus === 'processed' || rzStatus === 'refunded'
+          ? 'refunded'
+          : rzStatus === 'failed'
+          ? 'failed'
+          : 'refunding';
+      const current = refundState(order);
+      // Only advance — never downgrade or duplicate the terminal state.
+      if (newStatus === current && !(newStatus === 'refunded' && order.status !== 'refunded')) {
+        setRefundMsg(`Refund status unchanged: ${rzStatus}.`);
+        return;
+      }
+      markOrderRefunded(order.id, {
+        type: 'razorpay_refund',
+        refundId: data.refundId || refundId,
+        gatewayStatus: data.status,
+        refundedAt:
+          newStatus === 'refunded'
+            ? order.refundInfo.refundedAt || new Date().toISOString()
+            : order.refundInfo.refundedAt,
+        by: 'Razorpay (auto)',
+        refundStatus: newStatus,
+        note:
+          newStatus === 'refunded'
+            ? 'Amount refunded to the original payment method (verified with Razorpay).'
+            : newStatus === 'failed'
+            ? 'Refund failed according to Razorpay — contact support.'
+            : 'Refund in process (verified with Razorpay).',
+      });
+      setRefundMsg(
+        newStatus === 'refunded'
+          ? 'Refund confirmed by Razorpay.'
+          : newStatus === 'failed'
+          ? 'Refund failed according to Razorpay.'
+          : 'Refund still processing.'
+      );
+    } catch (err) {
+      setRefundMsg(err.message || 'Could not check refund status.');
+    } finally {
+      setRefundChecking(false);
+    }
+  };
+
+  // Auto-check Razorpay whenever a refund is in flight.
+  useEffect(() => {
+    if (!order || !isStaff || !order.refundInfo) return;
+    if (refundState(order) === 'refunded' && order.status === 'refunded') return;
+    refreshRefundStatus();
+    const timer = setInterval(refreshRefundStatus, 15000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, order?.refundInfo?.refundId, order?.refundInfo?.refundStatus, order?.status, isStaff]);
 
   const addNote = () => {
     if (!noteText.trim()) return;
@@ -500,20 +579,15 @@ export default function OrderManage() {
                   {refunding ? 'Refunding...' : `Refund ${formatINR(order.total)} to customer`}
                 </button>
               )}
-              {order.refundInfo && refundState(order) === 'refunding' && (
+              {order.refundInfo && (refundState(order) === 'refunding' || refundState(order) === 'failed') && (
                 <button
                   type="button"
                   className="btn btn-sm"
                   style={{ marginTop: 8, marginLeft: 8 }}
-                  onClick={() => {
-                    resolveRefund(order.id, {
-                      note: 'Manually marked as refunded by admin.',
-                      gatewayStatus: 'processed',
-                    });
-                    setRefundMsg('Order marked as refunded.');
-                  }}
+                  onClick={refreshRefundStatus}
+                  disabled={refundChecking}
                 >
-                  Mark as refunded
+                  {refundChecking ? 'Checking…' : '↻ Check refund status'}
                 </button>
               )}
               {refundMsg && (
