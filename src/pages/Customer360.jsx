@@ -1,14 +1,33 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
 import { Navigate, Link } from 'react-router-dom';
+import Paginator from '../components/Paginator.jsx';
 
 export default function Customer360() {
   const { user, isStaff } = useAuth();
   const { orders } = useData();
   const [query, setQuery] = useState('');
   const [customer, setCustomer] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const buildProfile = (matches) => {
+    const sorted = [...matches].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
+    const lastOrder = sorted[0];
+    const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
+    const orderCount = matches.length;
+    return {
+      name: lastOrder.customer?.name || lastOrder.customerName || 'Unknown',
+      email: lastOrder.customerEmail || lastOrder.customer?.email || 'N/A',
+      phone: lastOrder.phone || lastOrder.customer?.phone || 'N/A',
+      totalSpent,
+      orderCount,
+      avgOrder: orderCount > 0 ? totalSpent / orderCount : 0,
+      orders: sorted,
+    };
+  };
 
   if (!user || !isStaff) {
     return <Navigate to="/admin" replace />;
@@ -27,18 +46,41 @@ export default function Customer360() {
       setCustomer({ error: 'No customer found with that email or phone.' });
       return;
     }
-    const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
-    const orderCount = matches.length;
-    const lastOrder = matches.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate))[0];
-    setCustomer({
-      name: lastOrder.customer?.name || lastOrder.customerName || 'Unknown',
-      email: lastOrder.customerEmail || lastOrder.customer?.email || 'N/A',
-      phone: lastOrder.phone || lastOrder.customer?.phone || 'N/A',
-      totalSpent, orderCount,
-      avgOrder: orderCount > 0 ? totalSpent / orderCount : 0,
-      orders: matches.sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)),
-    });
+    setCustomer(buildProfile(matches));
   };
+
+  // Build a unique list of all customers from orders, with basic stats.
+  const allCustomers = useMemo(() => {
+    const map = new Map();
+    for (const o of orders || []) {
+      const email = (o.customerEmail || o.customer?.email || '').trim().toLowerCase();
+      const phone = (o.phone || o.customer?.phone || '').replace(/\D/g, '');
+      const key = email || phone || o.customer?.name || o.id;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(o);
+    }
+    return [...map.entries()]
+      .map(([key, matches]) => {
+        const sorted = [...matches].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
+        const last = sorted[0];
+        const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
+        return {
+          key,
+          name: last.customer?.name || last.customerName || 'Unknown',
+          email: last.customerEmail || last.customer?.email || 'N/A',
+          phone: last.phone || last.customer?.phone || 'N/A',
+          orderCount: matches.length,
+          totalSpent,
+          lastOrderDate: last.orderDate,
+          orders: sorted,
+        };
+      })
+      .sort((a, b) => new Date(b.lastOrderDate) - new Date(a.lastOrderDate));
+  }, [orders]);
+
+  const pages = Math.max(1, Math.ceil(allCustomers.length / pageSize));
+  const safePage = Math.min(page, pages);
+  const pagedCustomers = allCustomers.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <main className="admin-main">
@@ -88,6 +130,60 @@ export default function Customer360() {
           </section>
         </>
       )}
+
+      <section className="card-box">
+        <h2>All customers ({allCustomers.length})</h2>
+        {allCustomers.length === 0 ? (
+          <p className="muted">No customers yet.</p>
+        ) : (
+          <>
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Orders</th>
+                    <th>Total spent</th>
+                    <th>Last order</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedCustomers.map((c) => (
+                    <tr key={c.key}>
+                      <td>{c.name}</td>
+                      <td>{c.email}</td>
+                      <td>{c.phone}</td>
+                      <td>{c.orderCount}</td>
+                      <td>{formatINR(c.totalSpent)}</td>
+                      <td>{formatDateTime(c.lastOrderDate)}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => setCustomer(buildProfile(c.orders))}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Paginator
+              total={allCustomers.length}
+              page={safePage}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+              unit="customers"
+            />
+          </>
+        )}
+      </section>
     </main>
   );
 }
