@@ -309,8 +309,8 @@ p { margin: 0 0 .8em; }
 }
 .wish-btn:hover { transform: scale(1.12); }
 .wish-btn.active { background: var(--brand); color: #fff; }
-.pc-body { padding: 10px 12px 12px; }
-.pc-body h3 { font-size: .95rem; margin-bottom: 4px; }
+.pc-body { padding: 8px 10px 10px; }
+.pc-body h3 { font-size: .85rem; margin-bottom: 4px; }
 .pc-body h3 a { color: var(--ink); }
 .pc-body h3 a:hover { color: var(--brand); }
 .pc-price { display: flex; align-items: baseline; gap: 8px; }
@@ -2045,7 +2045,7 @@ p { margin: 0 0 .8em; }
 }
 .pc-noimg { background: radial-gradient(circle at 30% 30%, #f7eef1, #e8d9de); }
 .pc-body h3 { font-weight: 600; }
-.pc-price .price { font-size: 1.15rem; font-weight: 700; color: var(--brand); }
+.pc-price .price { font-size: 1rem; font-weight: 700; color: var(--brand); }
 .pc-price .mrp { text-decoration: line-through; color: var(--muted); font-size: .85rem; }
 
 /* Home search bar */
