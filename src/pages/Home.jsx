@@ -6,7 +6,6 @@ import ProductCard from "../components/ProductCard.jsx";
 
 export default function Home() {
   const { products, settings, sales, getSalePrice } = useData();
-  const [q, setQ] = React.useState("");
   const rowRefs = React.useRef({});
 
   const homeCategories = Array.isArray(settings?.homeCategories) && settings.homeCategories.length
@@ -25,14 +24,6 @@ export default function Home() {
     })
     .slice(0, 8)
     .map(({ product, sale }) => ({ product, sale }));
-
-  const searchResults = React.useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(s) || (p.description || "").toLowerCase().includes(s)
-    );
-  }, [q, products]);
 
   const bannerSale = React.useMemo(() => {
     const now = Date.now();
@@ -78,38 +69,10 @@ export default function Home() {
             <Link to="/catalog" className="btn btn-gold">Shop the collection</Link>
             <Link to="/track" className="btn btn-ghost">Track your order</Link>
           </div>
-          <div className="home-search">
-            <svg className="home-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="search"
-              placeholder="Search products..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="home-search-input"
-            />
-          </div>
         </div>
       </section>
 
-      {q.trim() && (
-        <section className="section">
-          <div className="section-head">
-            <p className="eyebrow">Search results</p>
-            <h2>{searchResults.length} product{searchResults.length === 1 ? "" : "s"} for "{q.trim()}"</h2>
-          </div>
-          {searchResults.length === 0 ? (
-            <div className="center empty"><p>No products found.</p></div>
-          ) : (
-            <div className="product-grid">
-              {searchResults.map((p) => <ProductCard key={p.id} product={p} />)}
-            </div>
-          )}
-        </section>
-      )}
-      {!q.trim() && upcomingSale && (
+            {upcomingSale && (
         <section className="sale-start-alert">
           <span className="sale-start-alert-msg">
             New sale starts {formatDate(upcomingSale.startsAt)}: {upcomingSale.name} - {formatDiscount(upcomingSale)}
@@ -118,25 +81,40 @@ export default function Home() {
         </section>
       )}
 
-      {!q.trim() && bannerSale && (
+      {bannerSale && (
         <section className="sale-banner-wrap">
           <Link to={`/catalog?sale=${encodeURIComponent(bannerSale.id)}`} className="sale-banner" title={bannerSale.name ? `Shop ${bannerSale.name}` : "Shop the sale"}>
             <img src={bannerSale.imageUrl} alt={bannerSale.name || "Sale"} />
             <div className="sale-banner-overlay">
-              {bannerSale.name && <span className="sale-banner-pill">{bannerSale.name} -&gt;</span>}
+              <div className="sale-banner-top">
+                {bannerSale.name && <span className="sale-banner-pill">{bannerSale.name}</span>}
+                {saleScope(bannerSale) && <span className="sale-banner-chip">{saleScope(bannerSale)}</span>}
+              </div>
               <div className="sale-banner-content">
+                <span className="sale-banner-kicker">Limited time offer</span>
                 <span className="sale-banner-offer">{formatDiscount(bannerSale)}</span>
-                {saleScope(bannerSale) && <span className="sale-banner-scope">{saleScope(bannerSale)}</span>}
-                {bannerSale.endsAt && <span className="sale-banner-ends">Ends {formatDate(bannerSale.endsAt)}</span>}
-                <span className="sale-banner-cta">Shop now -&gt;</span>
+                <span className="sale-banner-scope">
+                  {bannerSale.type === "category"
+                    ? `On ${bannerSale.category} collection`
+                    : bannerSale.type === "product"
+                    ? "On handpicked styles"
+                    : bannerSale.type === "storewide"
+                    ? "Across the entire store"
+                    : "Flash savings"}
+                </span>
+                <div className="sale-banner-meta">
+                  {bannerSale.startsAt && <span>Starts {formatDate(bannerSale.startsAt)}</span>}
+                  {bannerSale.endsAt && <span>Ends {formatDate(bannerSale.endsAt)}</span>}
+                  {!bannerSale.endsAt && <span>While stocks last</span>}
+                </div>
+                <span className="sale-banner-cta">Shop the sale -&gt;</span>
               </div>
             </div>
           </Link>
         </section>
       )}
 
-      {!q.trim() && (
-        <>
+      <>
           <section className="section cat-title-section">
             <div className="section-head">
               <p className="eyebrow">Browse by</p>
@@ -220,7 +198,6 @@ export default function Home() {
             </section>
           )}
         </>
-      )}
     </main>
   );
 }

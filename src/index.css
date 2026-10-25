@@ -1648,6 +1648,42 @@ p { margin: 0 0 .8em; }
   gap: 4px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, .45);
 }
+.sale-banner-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sale-banner-chip {
+  background: rgba(255, 255, 255, .18);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .35);
+  backdrop-filter: blur(6px);
+}
+.sale-banner-kicker {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  opacity: .9;
+  font-weight: 600;
+}
+.sale-banner-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: .8rem;
+  opacity: .92;
+}
+.sale-banner-meta span {
+  background: rgba(255, 255, 255, .14);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .22);
+}
 .sale-banner-offer {
   font-size: clamp(1.6rem, 3.2vw, 2.6rem);
   font-weight: 800;
