@@ -383,7 +383,63 @@ p { margin: 0 0 .8em; }
 .success-txn .txn-line .ok-strong { color: var(--ok); font-weight: 700; }
 .success-card { text-align: center; }
 
-/* ── Catalog toolbar ────────────────────── */
+/* ── Catalog Flipkart-style filters ─────────────────────── */
+.catalog-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+.filters {
+  position: sticky;
+  top: 90px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.filters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.filters-head h3 { margin: 0; }
+.filter-section {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.filter-section h4 { margin: 0 0 8px; font-size: .95rem; }
+.filter-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: .92rem;
+}
+.filter-check input { width: auto; }
+.price-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.price-range input {
+  width: 90px;
+  padding: 6px 8px;
+}
+.filter-toggle { display: none; }
+.catalog-main { min-width: 0; }
+
+@media (max-width: 900px) {
+  .catalog-layout { grid-template-columns: 1fr; }
+  .filters {
+    position: static;
+    display: none;
+  }
+  .filters.open { display: block; }
+  .filter-toggle { display: inline-block; }
+}
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 26px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip {
