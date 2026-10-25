@@ -428,7 +428,9 @@ p { margin: 0 0 .8em; }
   width: 90px;
   padding: 6px 8px;
 }
-.filter-toggle { display: none; }
+.filter-toggle { display: none; align-items: center; justify-content: center; position: relative; min-width: 40px; padding: 6px 8px; }
+.filter-toggle svg { display: block; }
+.filter-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--gold, #c9a961); color: #fff; font-size: 10px; line-height: 16px; text-align: center; }
 .catalog-main { min-width: 0; }
 
 @media (max-width: 900px) {
@@ -438,7 +440,7 @@ p { margin: 0 0 .8em; }
     display: none;
   }
   .filters.open { display: block; }
-  .filter-toggle { display: inline-block; }
+  .filter-toggle { display: inline-flex; }
 }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 26px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
