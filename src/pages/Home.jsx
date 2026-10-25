@@ -4,17 +4,14 @@ import { Link } from "react-router-dom";
 import { useData } from "../context/DataContext.jsx";
 import ProductCard from "../components/ProductCard.jsx";
 
-const CATS = [
-  { name: "Suits", emoji: "Suits", blurb: "2D & 3D designer suits" },
-  { name: "Ethnic", emoji: "Ethnic", blurb: "Anarkalis & festive wear" },
-  { name: "Lehenga", emoji: "Lehenga", blurb: "Party & bridal sets" },
-  { name: "Saree", emoji: "Saree", blurb: "Silk & woven sarees" },
-];
-
 export default function Home() {
   const { products, settings, sales, getSalePrice } = useData();
   const [q, setQ] = React.useState("");
   const rowRefs = React.useRef({});
+
+  const homeCategories = Array.isArray(settings?.homeCategories) && settings.homeCategories.length
+    ? settings.homeCategories
+    : ['Suits', 'Ethnic', 'Lehenga', 'Saree'];
 
   const featured = products.filter((p) => p.featured);
 
@@ -146,29 +143,29 @@ export default function Home() {
               <h2>Categories</h2>
             </div>
           </section>
-          {CATS.map((c) => {
-            const items = products.filter((p) => p.category === c.name);
+          {homeCategories.map((c) => {
+            const items = products.filter((p) => p.category === c);
             if (!items.length) return null;
             return (
-              <section className="section cat-row-section" key={c.name}>
+              <section className="section cat-row-section" key={c}>
                 <div className="section-head cat-row-head">
-                  <h2 className="cat-row-title">{c.name}</h2>
+                  <h2 className="cat-row-title">{c}</h2>
                   <span className="cat-row-line" />
-                  <Link to={`/catalog?cat=${c.name}`} className="btn btn-outline tiny">View all</Link>
+                  <Link to={`/catalog?cat=${c}`} className="btn btn-outline tiny">View all</Link>
                 </div>
                 <div className="cat-row-wrap">
                   <button
                     type="button"
                     className="cat-scroll-btn left"
-                    aria-label={`Scroll ${c.name} left`}
+                    aria-label={`Scroll ${c} left`}
                     onClick={() => {
-                      const el = rowRefs.current[c.name];
+                      const el = rowRefs.current[c];
                       if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
                     }}
                   >
                     &lsaquo;
                   </button>
-                  <div className="cat-row" ref={(el) => { rowRefs.current[c.name] = el; }}>
+                  <div className="cat-row" ref={(el) => { rowRefs.current[c] = el; }}>
                     {items.map((p) => (
                       <div className="cat-row-item" key={p.id}>
                         <ProductCard product={p} />
@@ -178,9 +175,9 @@ export default function Home() {
                   <button
                     type="button"
                     className="cat-scroll-btn right"
-                    aria-label={`Scroll ${c.name} right`}
+                    aria-label={`Scroll ${c} right`}
                     onClick={() => {
-                      const el = rowRefs.current[c.name];
+                      const el = rowRefs.current[c];
                       if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
                     }}
                   >

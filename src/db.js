@@ -171,6 +171,7 @@ const DEFAULT_SETTINGS = {
       default: { same: 90, per500g: 50, codExtra: 40, minCharge: 120, freeAbove: 0 },
     },
   },
+  homeCategories: ['Suits', 'Ethnic', 'Lehenga', 'Saree'],
 };
 
 function seedSettings() {

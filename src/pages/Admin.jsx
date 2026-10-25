@@ -1327,6 +1327,25 @@ export default function Admin() {
             <label>Hero subheading (home page)
               <input value={s.heroSubheading} onChange={setSField('heroSubheading')} />
             </label>
+            <label>Categories shown on homepage
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6 }}>
+                {categories.map((c) => (
+                  <label key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 400 }}>
+                    <input
+                      type="checkbox"
+                      checked={Array.isArray(s.homeCategories) ? s.homeCategories.includes(c) : false}
+                      onChange={(e) => {
+                        const cur = Array.isArray(s.homeCategories) ? s.homeCategories : [];
+                        const next = e.target.checked ? [...cur, c] : cur.filter((x) => x !== c);
+                        setS({ ...s, homeCategories: next });
+                      }}
+                    />
+                    {c}
+                  </label>
+                ))}
+              </div>
+              <span className="muted tiny">Choose which category rows appear on the home page. Leave at least one selected.</span>
+            </label>
             <div className="grid2">
               <label>Contact phone
                 <input value={s.contactPhone} onChange={setSField('contactPhone')} />
