@@ -390,8 +390,8 @@ p { margin: 0 0 .8em; }
   gap: 24px;
   align-items: start;
 }
-.catalog-layout:has(.filters.open) {
-  grid-template-columns: 260px 1fr;
+@media (min-width: 901px) {
+  .catalog-layout:has(.filters.open) { grid-template-columns: 260px 1fr; }
 }
 .filters {
   display: none;
