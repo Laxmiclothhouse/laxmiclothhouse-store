@@ -2123,7 +2123,7 @@ p { margin: 0 0 .8em; }
 }
 .cat-row::-webkit-scrollbar { height: 8px; }
 .cat-row::-webkit-scrollbar-thumb { background: #d9c3c9; border-radius: 4px; }
-.cat-row-item { flex: 0 0 180px; max-width: 180px; }
+.cat-row-item { flex: 0 0 240px; max-width: 240px; }
 .cat-scroll-btn {
   position: absolute;
   top: 40%;
