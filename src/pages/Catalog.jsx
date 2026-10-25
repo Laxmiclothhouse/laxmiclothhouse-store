@@ -1,11 +1,23 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useData } from '../context/DataContext.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { formatINR } from '../utils/format.js';
+import { normalizeColors } from '../utils/colors.js';
+import { normalizeSizes } from '../utils/sizes.js';
+import { getTotalVariantStock } from '../utils/stock.js';
+
+function totalStock(p) {
+  const colors = normalizeColors(p);
+  const sizes = normalizeSizes(p);
+  const colorNames = colors.map((c) => c.name);
+  return colors.length > 0 || sizes.length > 0
+    ? getTotalVariantStock(p, colorNames, sizes)
+    : Number(p?.stock || 0);
+}
 
 export default function Catalog() {
-  const { products, sales, getSalePrice } = useData();
+  const { products, sales, getSalePrice, ratingFor } = useData();
   const [params, setParams] = useSearchParams();
   const initialCat = params.get('cat') || '';
 
@@ -16,6 +28,8 @@ export default function Catalog() {
   const [sort, setSort] = useState('featured');
   const [q, setQ] = useState('');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [minRating, setMinRating] = useState(0);
 
   React.useEffect(() => {
     setSaleFilter(params.get('sale') || '');
@@ -48,17 +62,34 @@ export default function Catalog() {
       res = res.filter(
         (p) =>
           p.name.toLowerCase().includes(s) ||
-          p.description.toLowerCase().includes(s)
+          (p.description || '').toLowerCase().includes(s)
       );
     }
+    if (inStockOnly) res = res.filter((p) => totalStock(p) > 0);
+    if (minRating > 0) {
+      res = res.filter((p) => ratingFor(p.id).avg >= minRating);
+    }
     switch (sort) {
-      case 'low': res.sort((a, b) => a.price - b.price); break;
-      case 'high': res.sort((a, b) => b.price - a.price); break;
-      case 'az': res.sort((a, b) => a.name.localeCompare(b.name)); break;
-      default: break;
+      case 'low':
+        res.sort((a, b) => a.price - b.price);
+        break;
+      case 'high':
+        res.sort((a, b) => b.price - a.price);
+        break;
+      case 'az':
+        res.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'za':
+        res.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      case 'rating':
+        res.sort((a, b) => ratingFor(b.id).avg - ratingFor(a.id).avg);
+        break;
+      default:
+        break;
     }
     return res;
-  }, [products, getSalePrice, saleFilter, selectedCats, priceMin, priceMax, q, sort]);
+  }, [products, getSalePrice, saleFilter, selectedCats, priceMin, priceMax, q, sort, inStockOnly, minRating, ratingFor]);
 
   const setSaleParam = (value) => {
     const next = new URLSearchParams(params);
@@ -86,7 +117,19 @@ export default function Catalog() {
     setQ('');
     setSaleFilter('');
     setSaleParam('');
+    setInStockOnly(false);
+    setMinRating(0);
+    setSort('featured');
   };
+
+  const activeFilterCount =
+    selectedCats.length +
+    (saleFilter ? 1 : 0) +
+    (priceMin || priceMax ? 1 : 0) +
+    (q.trim() ? 1 : 0) +
+    (inStockOnly ? 1 : 0) +
+    (minRating > 0 ? 1 : 0) +
+    (sort !== 'featured' ? 1 : 0);
   return (
     <main className="page">
       <div className="page-head">
@@ -97,8 +140,44 @@ export default function Catalog() {
       <div className="catalog-layout">
         <aside className={`filters ${filtersOpen ? 'open' : ''}`}>
           <div className="filters-head">
-            <h3>Filters</h3>
+            <h3>Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}</h3>
             <button className="linklike" onClick={clearAll}>Clear all</button>
+          </div>
+
+          <div className="filter-section">
+            <h4>Search</h4>
+            <input
+              type="search"
+              placeholder="Search products..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="search-input"
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          <div className="filter-section">
+            <h4>Sort by</h4>
+            <select value={sort} onChange={(e) => setSort(e.target.value)} className="select" style={{ width: '100%' }}>
+              <option value="featured">Featured</option>
+              <option value="low">Price: Low to High</option>
+              <option value="high">Price: High to Low</option>
+              <option value="az">Name: A-Z</option>
+              <option value="za">Name: Z-A</option>
+              <option value="rating">Rating: High to Low</option>
+            </select>
+          </div>
+
+          <div className="filter-section">
+            <h4>Availability</h4>
+            <label className="filter-check">
+              <input
+                type="checkbox"
+                checked={inStockOnly}
+                onChange={(e) => setInStockOnly(e.target.checked)}
+              />
+              <span>In stock only</span>
+            </label>
           </div>
 
           <div className="filter-section">
@@ -147,6 +226,30 @@ export default function Catalog() {
               />
             </div>
           </div>
+
+          <div className="filter-section">
+            <h4>Rating</h4>
+            {[4, 3, 2, 1].map((r) => (
+              <label key={r} className="filter-check">
+                <input
+                  type="radio"
+                  name="minRating"
+                  checked={minRating === r}
+                  onChange={() => setMinRating(r)}
+                />
+                <span>{r}★ &amp; up</span>
+              </label>
+            ))}
+            <label className="filter-check">
+              <input
+                type="radio"
+                name="minRating"
+                checked={minRating === 0}
+                onChange={() => setMinRating(0)}
+              />
+              <span>Any rating</span>
+            </label>
+          </div>
         </aside>
 
         <section className="catalog-main">
@@ -154,21 +257,7 @@ export default function Catalog() {
             <button className="btn btn-outline filter-toggle" onClick={() => setFiltersOpen((v) => !v)}>
               {filtersOpen ? 'Hide filters' : 'Show filters'}
             </button>
-            <div className="toolbar-right">
-              <input
-                type="search"
-                placeholder="Search products..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="search-input"
-              />
-              <select value={sort} onChange={(e) => setSort(e.target.value)} className="select">
-                <option value="featured">Sort - Featured</option>
-                <option value="low">Price: Low to High</option>
-                <option value="high">Price: High to Low</option>
-                <option value="az">Name: A-Z</option>
-              </select>
-            </div>
+            <span className="muted tiny">{list.length} product{list.length === 1 ? '' : 's'}</span>
           </div>
 
           {activeSale && (
