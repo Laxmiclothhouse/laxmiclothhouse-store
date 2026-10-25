@@ -14,6 +14,7 @@ const CATS = [
 export default function Home() {
   const { products, settings, sales, getSalePrice } = useData();
   const [q, setQ] = React.useState("");
+  const rowRefs = React.useRef({});
 
   const featured = products.filter((p) => p.featured);
 
@@ -139,21 +140,52 @@ export default function Home() {
 
       {!q.trim() && (
         <>
-          <section className="section">
-            <div className="section-head">
-              <p className="eyebrow">Shop by category</p>
-              <h2>Categories</h2>
-            </div>
-            <div className="cat-grid">
-              {CATS.map((c) => (
-                <Link to={`/catalog?cat=${c.name}`} key={c.name} className="cat-card">
-                  <span className="cat-emoji">{c.emoji}</span>
-                  <strong>{c.name}</strong>
-                  <span>{c.blurb}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
+          {CATS.map((c) => {
+            const items = products.filter((p) => p.category === c.name);
+            if (!items.length) return null;
+            return (
+              <section className="section cat-row-section" key={c.name}>
+                <div className="section-head cat-row-head">
+                  <div>
+                    <p className="eyebrow">Shop by category</p>
+                    <h2>{c.name}</h2>
+                  </div>
+                  <Link to={`/catalog?cat=${c.name}`} className="btn btn-outline tiny">View all</Link>
+                </div>
+                <div className="cat-row-wrap">
+                  <button
+                    type="button"
+                    className="cat-scroll-btn left"
+                    aria-label={`Scroll ${c.name} left`}
+                    onClick={() => {
+                      const el = rowRefs.current[c.name];
+                      if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
+                    }}
+                  >
+                    &lsaquo;
+                  </button>
+                  <div className="cat-row" ref={(el) => { rowRefs.current[c.name] = el; }}>
+                    {items.map((p) => (
+                      <div className="cat-row-item" key={p.id}>
+                        <ProductCard product={p} />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="cat-scroll-btn right"
+                    aria-label={`Scroll ${c.name} right`}
+                    onClick={() => {
+                      const el = rowRefs.current[c.name];
+                      if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
+                    }}
+                  >
+                    &rsaquo;
+                  </button>
+                </div>
+              </section>
+            );
+          })}
 
           <section className="section cream">
             <div className="section-head">

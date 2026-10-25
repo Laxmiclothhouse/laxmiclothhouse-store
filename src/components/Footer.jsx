@@ -28,15 +28,6 @@ export default function Footer() {
           </ul>
         </div>
         <div className="f-col">
-          <h4>Categories</h4>
-          <ul>
-            <li><Link to="/catalog?cat=Suits">Suits</Link></li>
-            <li><Link to="/catalog?cat=Ethnic">Ethnic</Link></li>
-            <li><Link to="/catalog?cat=Lehenga">Lehenga</Link></li>
-            <li><Link to="/catalog?cat=Saree">Saree</Link></li>
-          </ul>
-        </div>
-        <div className="f-col">
           <h4>Stay Connected</h4>
           <p>Follow us on social media for new drops and offers.</p>
           <div className="socials">
