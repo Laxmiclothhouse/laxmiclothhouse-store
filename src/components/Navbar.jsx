@@ -6,8 +6,6 @@ import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import Logo from './Logo.jsx';
 import AccountIcon from './AccountIcon.jsx';
-import FlashBanner from './FlashBanner.jsx';
-import SaleStartBanner from './SaleStartBanner.jsx';
 import AlertBanner from './AlertBanner.jsx';
 
 const links = [
@@ -34,8 +32,6 @@ export default function Navbar({ onCartOpen }) {
         <span>{settings.announcement}</span>
       </div>
 
-      <FlashBanner flashSale={settings.flashSale} />
-      <SaleStartBanner alert={settings.saleStartAlert} />
       <AlertBanner alerts={alerts} />
 
       <nav className="nav-inner">
