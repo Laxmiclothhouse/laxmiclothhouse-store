@@ -2104,8 +2104,8 @@ p { margin: 0 0 .8em; }
 /* Home category rows with horizontal scroll */
 
 .cat-row-section {
-  padding: 24px 18px;
-  margin: 18px 0;
+  padding: 14px 18px;
+  margin: 12px 0;
   border-radius: 18px;
   background: linear-gradient(135deg, #fbf4f6, #f3e9ec);
   box-shadow: 0 8px 24px rgba(43, 34, 38, .06);
@@ -2115,10 +2115,10 @@ p { margin: 0 0 .8em; }
 .cat-row-wrap { position: relative; }
 .cat-row {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   overflow-x: auto;
   scroll-behavior: smooth;
-  padding: 8px 4px 14px;
+  padding: 4px 4px 8px;
   scrollbar-width: thin;
 }
 .cat-row::-webkit-scrollbar { height: 8px; }
