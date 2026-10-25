@@ -3,18 +3,32 @@ import { Link } from 'react-router-dom';
 import { formatINR } from '../utils/format.js';
 import { useData } from '../context/DataContext.jsx';
 import { displayImage } from '../utils/colors.js';
+import { normalizeColors } from '../utils/colors.js';
+import { normalizeSizes } from '../utils/sizes.js';
+import { getTotalVariantStock } from '../utils/stock.js';
 
 export default function ProductCard({ product }) {
+  const colorOptions = normalizeColors(product);
+  const sizeOptions = normalizeSizes(product);
+  const colorNames = colorOptions.map((c) => c.name);
+  const totalStock = (colorOptions.length > 0 || sizeOptions.length > 0)
+    ? getTotalVariantStock(product, colorNames, sizeOptions)
+    : product.stock;
+  const soldOut = totalStock <= 0;
+
   const { getSalePrice } = useData();
   const sale = getSalePrice(product);
   const onSale = sale.hasSale;
+
   const imgSrc = displayImage(product);
   const [failedSrc, setFailedSrc] = React.useState(null);
   const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc;
 
+  const band = soldOut ? 'Sold out' : hasImage ? '' : 'No image';
+
   return (
     <div className="product-card">
-      <div className="pc-imgwrap">
+      <div className={`pc-imgwrap${soldOut ? ' is-soldout' : ''}`}>
         <Link to={`/product/${product.id}`} className="pc-imglink">
           {hasImage ? (
             <img
@@ -32,6 +46,22 @@ export default function ProductCard({ product }) {
               </svg>
             </span>
           )}
+          {band && (
+            <span className="soldout-band" role="status">
+              <span className="soldout-band-inner">{band}</span>
+            </span>
+          )}
+          {!soldOut && onSale && (
+            <span className="ribbon sale">
+              {sale.saleLabel || 'SALE'}
+              {sale.originalPrice > sale.price && (
+                <span className="ribbon-pct">
+                  {Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% OFF
+                </span>
+              )}
+            </span>
+          )}
+          {!soldOut && !onSale && product.shippingCost === 0 && <span className="ribbon free">Free ship</span>}
         </Link>
       </div>
       <div className="pc-body">
@@ -40,6 +70,9 @@ export default function ProductCard({ product }) {
         </h3>
         <div className="pc-price">
           <span className="price">{formatINR(onSale ? sale.price : product.price)}</span>
+          {onSale && sale.originalPrice > sale.price && (
+            <span className="mrp">{formatINR(sale.originalPrice)}</span>
+          )}
         </div>
       </div>
     </div>
