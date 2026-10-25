@@ -386,11 +386,15 @@ p { margin: 0 0 .8em; }
 /* ── Catalog Flipkart-style filters ─────────────────────── */
 .catalog-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
 }
+.catalog-layout:has(.filters.open) {
+  grid-template-columns: 260px 1fr;
+}
 .filters {
+  display: none;
   position: sticky;
   top: 90px;
   background: var(--white);
@@ -398,6 +402,7 @@ p { margin: 0 0 .8em; }
   border-radius: var(--radius);
   padding: 16px;
 }
+.filters.open { display: block; }
 .filters-head {
   display: flex;
   align-items: center;
