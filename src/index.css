@@ -2047,3 +2047,56 @@ p { margin: 0 0 .8em; }
 .pc-body h3 { font-weight: 600; }
 .pc-price .price { font-size: 1.15rem; font-weight: 700; color: var(--brand); }
 .pc-price .mrp { text-decoration: line-through; color: var(--muted); font-size: .85rem; }
+
+/* Home search bar */
+.home-search {
+  position: relative;
+  max-width: 420px;
+  margin: 22px auto 0;
+}
+.home-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.home-search-input {
+  width: 100%;
+  padding: 12px 14px 12px 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .95rem;
+}
+.home-search-input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(155, 28, 61, .12); }
+
+/* Catalog toolbar search */
+.catalog-search {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+  min-width: 160px;
+}
+.catalog-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.catalog-search-input {
+  width: 100%;
+  padding: 9px 12px 9px 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .9rem;
+}
+.catalog-search-input:focus { outline: none; border-color: var(--brand); }
+@media (max-width: 640px) {
+  .catalog-search { max-width: 100%; }
+  .toolbar { flex-wrap: wrap; }
+}
