@@ -13,7 +13,10 @@ export function DataProvider({ children }) {
   const [messages, setMessages] = useState(db.getMessages());
   const [coupons, setCoupons] = useState(db.getCoupons());
   const [payments, setPayments] = useState(db.getPayments());
-  const [sales, setSales] = useState(db.getSales());
+  const [sales, setSales] = useState(() => {
+    const rows = db.getSales();
+    return Array.isArray(rows) ? rows.filter((s) => s && s.id && (s.name || s.value != null)) : [];
+  });
   const [alerts, setAlerts] = useState(db.getAlerts());
   const [users, setUsers] = useState(db.getUsers());
   const [pdfs, setPdfs] = useState(db.getPdfs());
@@ -36,7 +39,7 @@ export function DataProvider({ children }) {
       else if (e.key === 'houselaxmicloth_messages') setMessages(db.getMessages());
       else if (e.key === 'houselaxmicloth_coupons') setCoupons(db.getCoupons());
       else if (e.key === 'houselaxmicloth_payments') setPayments(db.getPayments());
-      else if (e.key === 'houselaxmicloth_sales') setSales(db.getSales());
+      else if (e.key === 'houselaxmicloth_sales') setSales((() => { const rows = db.getSales(); return Array.isArray(rows) ? rows.filter((s) => s && s.id && (s.name || s.value != null)) : []; })());
       else if (e.key === 'houselaxmicloth_alerts') setAlerts(db.getAlerts());
       else if (e.key === 'houselaxmicloth_pdfs') setPdfs(db.getPdfs());
       else if (e.key === 'houselaxmicloth_notifications') setNotifications(db.getNotifications());
@@ -55,7 +58,7 @@ export function DataProvider({ children }) {
     const unsubMessages = listenFromFirestore('houselaxmicloth_messages', setMessages);
     const unsubCoupons = listenFromFirestore('houselaxmicloth_coupons', setCoupons);
     const unsubPayments = listenFromFirestore('houselaxmicloth_payments', setPayments);
-    const unsubSales = listenFromFirestore('houselaxmicloth_sales', setSales);
+    const unsubSales = listenFromFirestore('houselaxmicloth_sales', (d) => setSales(Array.isArray(d) ? d.filter((s) => s && s.id && (s.name || s.value != null)) : []));
     const unsubAlerts = listenFromFirestore('houselaxmicloth_alerts', setAlerts);
     const unsubUsers = listenFromFirestore('houselaxmicloth_users', setUsers);
     const unsubPdfs = listenFromFirestore('houselaxmicloth_pdfs', setPdfs);

@@ -292,7 +292,8 @@ export const db = {
   // sales: promotional discounts created by admin
   // { id, type: 'product'|'category'|'storewide'|'flash', name, discountType: 'percent'|'flat', value, productId?, category?, startsAt?, endsAt?, active }
   getSales() {
-    return read(KEYS.sales, []);
+    const rows = read(KEYS.sales, []);
+    return Array.isArray(rows) ? rows.filter((s) => s && typeof s === 'object' && s.id && (s.name || s.value != null)) : [];
   },
   saveSales(s) {
     write(KEYS.sales, s);

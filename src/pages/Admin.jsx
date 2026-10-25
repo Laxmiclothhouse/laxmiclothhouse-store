@@ -1453,29 +1453,6 @@ function SalesDashboard({ orders, payments, returns }) {
   const orderCount = completed.length;
   const avgOrder = orderCount > 0 ? revenue / orderCount : 0;
   const cancelledCount = filtered.filter((o) => o.status === 'cancelled').length;
-  const returnCount = returns.length;
-  const returnRate = orderCount > 0 ? ((returnCount / orderCount) * 100).toFixed(1) : '0.0';
-
-  // Top products
-  const productSales = {};
-  completed.forEach((o) => {
-    (o.items || []).forEach((it) => {
-      if (!productSales[it.id]) productSales[it.id] = { id: it.id, name: it.name, qty: 0, revenue: 0 };
-      productSales[it.id].qty += it.qty;
-      productSales[it.id].revenue += (it.price || 0) * (it.qty || 1);
-    });
-  });
-  const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-
-  // City breakdown
-  const citySales = {};
-  completed.forEach((o) => {
-    const city = o.shipping?.city || o.customer?.city || 'Unknown';
-    if (!citySales[city]) citySales[city] = { city, orders: 0, revenue: 0 };
-    citySales[city].orders += 1;
-    citySales[city].revenue += o.total || 0;
-  });
-  const topCities = Object.values(citySales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 
   return (
     <>
@@ -1514,56 +1491,9 @@ function SalesDashboard({ orders, payments, returns }) {
             <span className="sales-label">Cancelled</span>
             <span className="sales-value">{cancelledCount}</span>
           </div>
-          <div className="sales-card">
-            <span className="sales-label">Return rate</span>
-            <span className="sales-value">{returnRate}%</span>
-          </div>
         </div>
       </section>
 
-      <section className="card-box">
-        <h2>Top products by revenue</h2>
-        {topProducts.length === 0 ? (
-          <p className="muted">No sales data yet.</p>
-        ) : (
-          <div className="table-scroll">
-            <table className="table">
-              <thead><tr><th>Product</th><th>Units sold</th><th>Revenue</th></tr></thead>
-              <tbody>
-                {topProducts.map((p) => (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td>{p.qty}</td>
-                    <td>{formatINR(p.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="card-box">
-        <h2>Top cities by revenue</h2>
-        {topCities.length === 0 ? (
-          <p className="muted">No location data yet.</p>
-        ) : (
-          <div className="table-scroll">
-            <table className="table">
-              <thead><tr><th>City</th><th>Orders</th><th>Revenue</th></tr></thead>
-              <tbody>
-                {topCities.map((c) => (
-                  <tr key={c.city}>
-                    <td>{c.city}</td>
-                    <td>{c.orders}</td>
-                    <td>{formatINR(c.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </>
   );
 }
