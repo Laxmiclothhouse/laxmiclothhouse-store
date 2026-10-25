@@ -196,8 +196,8 @@ p { margin: 0 0 .8em; }
 
 /* ── Product cards ──────────────────────── */
 .product-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px;
-  margin-bottom: 34px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+  margin-bottom: 28px;
 }
 .product-card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; transition: .3s; }
 .ord-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -309,8 +309,8 @@ p { margin: 0 0 .8em; }
 }
 .wish-btn:hover { transform: scale(1.12); }
 .wish-btn.active { background: var(--brand); color: #fff; }
-.pc-body { padding: 14px 16px 18px; }
-.pc-body h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.pc-body { padding: 10px 12px 12px; }
+.pc-body h3 { font-size: .95rem; margin-bottom: 4px; }
 .pc-body h3 a { color: var(--ink); }
 .pc-body h3 a:hover { color: var(--brand); }
 .pc-price { display: flex; align-items: baseline; gap: 8px; }
@@ -2123,7 +2123,7 @@ p { margin: 0 0 .8em; }
 }
 .cat-row::-webkit-scrollbar { height: 8px; }
 .cat-row::-webkit-scrollbar-thumb { background: #d9c3c9; border-radius: 4px; }
-.cat-row-item { flex: 0 0 210px; max-width: 210px; }
+.cat-row-item { flex: 0 0 180px; max-width: 180px; }
 .cat-scroll-btn {
   position: absolute;
   top: 40%;
@@ -2147,4 +2147,36 @@ p { margin: 0 0 .8em; }
 @media (max-width: 640px) {
   .cat-row-item { flex: 0 0 210px; max-width: 210px; }
   .cat-scroll-btn { display: none; }
+}
+
+.cat-row .product-card { border-radius: 12px; box-shadow: 0 4px 12px rgba(43,34,38,.12); }
+.cat-row .pc-body { padding: 8px 10px 10px; }
+.cat-row .pc-body h3 { font-size: .85rem; }
+.cat-row .pc-price .price { font-size: 1rem; }
+
+/* Navbar search */
+.nav-search { display: flex; align-items: center; gap: 8px; position: relative; }
+.nav-search-form { position: absolute; right: 44px; top: 50%; transform: translateY(-50%); }
+.nav-search-input {
+  width: 200px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: .9rem;
+}
+.nav-search-input:focus { outline: none; border-color: var(--brand); }
+.nav-search-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.nav-search-btn:hover { color: var(--brand); }
+@media (max-width: 640px) {
+  .nav-search-form { right: 36px; }
+  .nav-search-input { width: 150px; }
 }

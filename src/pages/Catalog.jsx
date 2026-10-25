@@ -26,13 +26,14 @@ export default function Catalog() {
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
   const [sort, setSort] = useState('featured');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(params.get('q') || '');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [minRating, setMinRating] = useState(0);
 
   React.useEffect(() => {
     setSaleFilter(params.get('sale') || '');
+    setQ(params.get('q') || '');
   }, [params]);
 
   const cats = Array.from(new Set(products.map((p) => p.category))).sort();
