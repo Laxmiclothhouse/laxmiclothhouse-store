@@ -140,16 +140,20 @@ export default function Home() {
 
       {!q.trim() && (
         <>
+          <section className="section cat-title-section">
+            <div className="section-head">
+              <p className="eyebrow">Browse by</p>
+              <h2>Categories</h2>
+            </div>
+          </section>
           {CATS.map((c) => {
             const items = products.filter((p) => p.category === c.name);
             if (!items.length) return null;
             return (
               <section className="section cat-row-section" key={c.name}>
                 <div className="section-head cat-row-head">
-                  <div>
-                    <p className="eyebrow">Shop by category</p>
-                    <h2>{c.name}</h2>
-                  </div>
+                  <h2 className="cat-row-title">{c.name}</h2>
+                  <span className="cat-row-line" />
                   <Link to={`/catalog?cat=${c.name}`} className="btn btn-outline tiny">View all</Link>
                 </div>
                 <div className="cat-row-wrap">

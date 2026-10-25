@@ -2180,3 +2180,20 @@ p { margin: 0 0 .8em; }
   .nav-search-form { right: 36px; }
   .nav-search-input { width: 150px; }
 }
+
+/* Home category heading with horizontal line */
+.cat-title-section { padding-bottom: 0; }
+.cat-row-section { max-width: none; }
+.cat-row-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.cat-row-title { margin: 0; font-size: 1.25rem; white-space: nowrap; }
+.cat-row-line {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  min-width: 20px;
+}
