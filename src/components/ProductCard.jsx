@@ -1,56 +1,20 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { formatINR } from '../utils/format.js';
-import Stars from './Stars.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useWishlist } from '../context/WishlistContext.jsx';
 import { useData } from '../context/DataContext.jsx';
-import { normalizeColors, displayImage } from '../utils/colors.js';
-import { normalizeSizes } from '../utils/sizes.js';
-import { getTotalVariantStock } from '../utils/stock.js';
+import { displayImage } from '../utils/colors.js';
 
 export default function ProductCard({ product }) {
-  const colorOptions = normalizeColors(product);
-  const sizeOptions = normalizeSizes(product);
-  const colorNames = colorOptions.map((c) => c.name);
-  const totalStock = (colorOptions.length > 0 || sizeOptions.length > 0)
-    ? getTotalVariantStock(product, colorNames, sizeOptions)
-    : product.stock;
-  const soldOut = totalStock <= 0;
-  const { user } = useAuth();
-  const { isWishlisted, toggle } = useWishlist();
-  const { ratingFor, getSalePrice } = useData();
-  const nav = useNavigate();
-  const saved = isWishlisted(product.id);
-  const rating = ratingFor(product.id);
-
+  const { getSalePrice } = useData();
   const sale = getSalePrice(product);
-  // Only an admin-created sale counts as "on sale" — a struck-through MRP
-  // above the selling price is ordinary shop pricing, not a running sale.
   const onSale = sale.hasSale;
-
-  // Display photo: main image first; when the admin left the main
-  // gallery empty, show the first colour's first photo; when there is
-  // no photo anywhere, imgSrc is '' and the "No image" tile renders.
   const imgSrc = displayImage(product);
   const [failedSrc, setFailedSrc] = React.useState(null);
-  // Generated tiles are already filtered out of imgSrc by displayImage();
-  // only a genuinely missing/broken photo shows the placeholder.
   const hasImage = Boolean(imgSrc) && failedSrc !== imgSrc;
-  // One diagonal sash per card — "Sold out" wins if both states apply.
-  const band = soldOut ? 'Sold out' : hasImage ? '' : 'No image';
-
-  const onWish = () => {
-    if (!user) {
-      nav('/login');
-      return;
-    }
-    toggle(product.id);
-  };
 
   return (
     <div className="product-card">
-      <div className={`pc-imgwrap${soldOut ? ' is-soldout' : ''}`}>
+      <div className="pc-imgwrap">
         <Link to={`/product/${product.id}`} className="pc-imglink">
           {hasImage ? (
             <img
@@ -68,78 +32,15 @@ export default function ProductCard({ product }) {
               </svg>
             </span>
           )}
-          {band && (
-            <span className="soldout-band" role="status">
-              <span className="soldout-band-inner">{band}</span>
-            </span>
-          )}
-          {!soldOut && onSale && <span className="ribbon sale">{sale.saleLabel || 'SALE'}</span>}
-          {!soldOut && !onSale && product.shippingCost === 0 && <span className="ribbon free">Free ship</span>}
         </Link>
-        <button
-          className={`wish-btn ${saved ? 'active' : ''}`}
-          onClick={onWish}
-          aria-label={saved ? 'Remove from wishlist' : 'Add to wishlist'}
-          title={saved ? 'Saved' : 'Save to wishlist'}
-        >
-          {saved ? '♥' : '♡'}
-        </button>
       </div>
       <div className="pc-body">
         <h3>
           <Link to={`/product/${product.id}`}>{product.name}</Link>
         </h3>
         <div className="pc-price">
-          {onSale ? (
-            <>
-              <span className="price sale-price">{formatINR(sale.price)}</span>
-              <span className="mrp">{formatINR(sale.originalPrice)}</span>
-              <span className="sale-pct">
-                {sale.originalPrice > sale.price
-                  ? `${Math.round(((sale.originalPrice - sale.price) / sale.originalPrice) * 100)}% off`
-                  : ''}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="price">{formatINR(product.price)}</span>
-              {product.mrp > product.price && (
-                <span className="mrp">{formatINR(product.mrp)}</span>
-              )}
-            </>
-          )}
+          <span className="price">{formatINR(onSale ? sale.price : product.price)}</span>
         </div>
-        {product.shippingCost === 0 && (
-          <div className="pc-meta-row">
-            <span className="ship-badge">Free ship</span>
-          </div>
-        )}
-        {colorOptions.length > 0 && (
-          <div className="pc-colors" title={colorOptions.map((c) => c.name).join(', ')}>
-            {colorOptions.slice(0, 5).map((c) => (
-              <span key={c.name} className="color-dot sm" style={{ background: c.hex || '#9b1c3d' }} title={c.name} />
-            ))}
-            {colorOptions.length > 5 && (
-              <span className="muted tiny">+{colorOptions.length - 5}</span>
-            )}
-          </div>
-        )}
-        {sizeOptions.length > 0 && (
-          <div className="pc-sizes" title={'Sizes: ' + sizeOptions.join(', ')}>
-            <span className="muted tiny">Sizes:</span>
-            {sizeOptions.slice(0, 6).map((s) => (
-              <span key={s} className="pc-size">{s}</span>
-            ))}
-            {sizeOptions.length > 6 && (
-              <span className="muted tiny">+{sizeOptions.length - 6}</span>
-            )}
-          </div>
-        )}
-        {rating.count > 0 && (
-          <div className="pc-rating">
-            <Stars value={rating.avg} count={rating.count} size={13} />
-          </div>
-        )}
       </div>
     </div>
   );
