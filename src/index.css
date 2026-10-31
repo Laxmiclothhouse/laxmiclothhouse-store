@@ -1809,6 +1809,9 @@ p { margin: 0 0 .8em; }
   .sale-banner-pill { left: 10px; bottom: 10px; font-size: .74rem; padding: 6px 12px; }
   .sale-image-preview { flex-direction: column; }
   .sale-image-preview img { height: 128px; }
+  .sales-header { flex-wrap: wrap; gap: 8px; }
+  .sale-list { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+  .sale-row { min-width: 560px; }
 }
 
 /* ── Sales management form ── */
