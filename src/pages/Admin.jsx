@@ -354,6 +354,8 @@ export default function Admin() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [showCouponForm, setShowCouponForm] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [s, setS] = useState(settings);
   const [savedMsg, setSavedMsg] = useState('');
@@ -649,11 +651,13 @@ export default function Admin() {
     }
     setForm(emptyForm);
     setEditingId(null);
+    setShowProductForm(false);
     setTimeout(() => setMsg(''), 2000);
   };
 
   const startEdit = (p) => {
     setEditingId(p.id);
+    setShowProductForm(true);
     setForm({
       name: p.name,
       description: p.description,
@@ -746,8 +750,18 @@ export default function Admin() {
 
       {tab === 'products' && (
         <>
-          <section className="card-box">
-            <h2>{editingId ? 'Edit product' : 'Add a new product'}</h2>
+          {!showProductForm && !editingId && (
+            <section className="card-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <h2 style={{ margin: 0 }}>Products</h2>
+              <button type="button" className="btn btn-gold" onClick={() => { setForm(emptyForm); setEditingId(null); setShowProductForm(true); }}>+ Add product</button>
+            </section>
+          )}
+          {(showProductForm || editingId) && (
+            <section className="card-box">
+              <div className="sales-header">
+                <h2 style={{ margin: 0 }}>{editingId ? 'Edit product' : 'Add a new product'}</h2>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setForm(emptyForm); setEditingId(null); setShowProductForm(false); }}>Close</button>
+              </div>
             {msg && <p className="ok">{msg}</p>}
             <form onSubmit={submit} className="form">
               <div className="grid2">
@@ -1028,6 +1042,7 @@ export default function Admin() {
               </div>
             </form>
           </section>
+          )}
 
           <section className="card-box">
             <h2>All products</h2>
@@ -1093,14 +1108,25 @@ export default function Admin() {
 
       {tab === 'coupons' && (
         <>
-          <section className="card-box">
-            <h2>Create a coupon</h2>
-            <p className="muted small">
-              Customers can enter the code at checkout. Percent coupons take a % off the subtotal;
-              flat coupons take a fixed ₹ amount off. Minimum order (optional) must be met before the coupon applies.
-            </p>
-            <CouponForm addCoupon={addCoupon} />
-          </section>
+          {!showCouponForm && (
+            <section className="card-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <h2 style={{ margin: 0 }}>Coupons</h2>
+              <button type="button" className="btn btn-gold" onClick={() => setShowCouponForm(true)}>+ Create coupon</button>
+            </section>
+          )}
+          {showCouponForm && (
+            <section className="card-box">
+              <div className="sales-header">
+                <h2 style={{ margin: 0 }}>Create a coupon</h2>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCouponForm(false)}>Close</button>
+              </div>
+              <p className="muted small">
+                Customers can enter the code at checkout. Percent coupons take a % off the subtotal;
+                flat coupons take a fixed ₹ amount off. Minimum order (optional) must be met before the coupon applies.
+              </p>
+              <CouponForm addCoupon={(data) => { addCoupon(data); setShowCouponForm(false); }} />
+            </section>
+          )}
 
           <section className="card-box">
             <h2>All coupons</h2>

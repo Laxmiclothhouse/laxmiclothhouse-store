@@ -19,6 +19,7 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
     active: true,
   });
   const [editingId, setEditingId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const needsStart = form.type === 'sale_start' || form.type === 'maintenance';
@@ -44,9 +45,11 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
     else addAlert(payload);
     setSaving(false);
     reset();
+    setShowForm(false);
   };
 
   const startEdit = (a) => {
+    setShowForm(true);
     setEditingId(a.id);
     setForm({
       type: a.type || 'announcement',
@@ -64,7 +67,13 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
         Create site-wide alerts. Fields change based on the alert type; times are optional where not required.
       </p>
 
-      <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
+      {!showForm && (
+        <div style={{ marginBottom: 12 }}>
+          <button type="button" className="btn btn-gold" onClick={() => setShowForm(true)}>+ Add alert</button>
+        </div>
+      )}
+      {showForm && (
+        <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
           <label>
             Alert type
@@ -134,6 +143,7 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
           )}
         </div>
       </form>
+      )}
 
       <div style={{ display: 'grid', gap: 10 }}>
         {alerts.length === 0 && <p className="muted">No alerts yet.</p>}
@@ -159,7 +169,7 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
               <div>{a.message}</div>
               <div className="muted" style={{ fontSize: 12 }}>
                 {a.startsAt && <>Starts: {new Date(a.startsAt).toLocaleString()} </>}
-                {a.endsAt && <>• Ends: {new Date(a.endsAt).toLocaleString()}</>}
+                {a.endsAt && <>ï¿½ Ends: {new Date(a.endsAt).toLocaleString()}</>}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
