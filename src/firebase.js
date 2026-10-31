@@ -75,11 +75,15 @@ export async function firestoreSet(collection, docId, data) {
 export function firestoreListen(collection, docId, callback) {
   if (!db) return () => {};
   try {
-    return onSnapshot(doc(db, collection, docId), (snap) => {
-      if (snap.exists()) {
-        callback(snap.data());
-      }
-    });
+    return onSnapshot(
+      doc(db, collection, docId),
+      (snap) => {
+        if (snap.exists()) {
+          callback(snap.data());
+        }
+      },
+      (err) => console.warn('firestoreListen error:', err?.message || err)
+    );
   } catch (err) {
     console.warn('firestoreListen error:', err.message);
     return () => {};

@@ -34,11 +34,14 @@ service cloud.firestore {
         && myUserDoc().role == 'admin';
     }
 
-    // ── Shop data: readable by any signed-in user; writes stay locked down
-    //    except where the app already writes via its own paths. Tighten the
-    //    write side further once you confirm which collections the site edits.
+    // ── Shop data: public storefront data is readable by everyone (guests too);
+    //    signed-in users can also read the rest. Writes stay admin-only.
+    function isPublicStoreDoc(docId) {
+      return docId in ['products', 'settings', 'sales', 'alerts', 'reviews', 'coupons', 'messages'];
+    }
+
     match /store/{docId} {
-      allow read: if signedIn();
+      allow read: if isPublicStoreDoc(docId) || signedIn();
       allow write: if isAdmin();
     }
 
