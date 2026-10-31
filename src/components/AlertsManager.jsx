@@ -20,6 +20,7 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
   });
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
   const needsStart = form.type === 'sale_start' || form.type === 'maintenance';
@@ -67,11 +68,18 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
         Create site-wide alerts. Fields change based on the alert type; times are optional where not required.
       </p>
 
-      {!showForm && (
-        <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="search"
+          placeholder="Search alerts..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, minWidth: 180 }}
+        />
+        {!showForm && (
           <button type="button" className="btn btn-gold" onClick={() => setShowForm(true)}>+ Add alert</button>
-        </div>
-      )}
+        )}
+      </div>
       {showForm && (
         <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
@@ -146,8 +154,18 @@ export default function AlertsManager({ alerts = [], addAlert, updateAlert, dele
       )}
 
       <div style={{ display: 'grid', gap: 10 }}>
-        {alerts.length === 0 && <p className="muted">No alerts yet.</p>}
-        {alerts.map((a) => (
+        {alerts.filter((a) => {
+          const q = search.trim().toLowerCase();
+          if (!q) return true;
+          return String(a.message || '').toLowerCase().includes(q) || String(a.type || '').toLowerCase().includes(q);
+        }).length === 0 && <p className="muted">No alerts yet.</p>}
+        {alerts
+          .filter((a) => {
+            const q = search.trim().toLowerCase();
+            if (!q) return true;
+            return String(a.message || '').toLowerCase().includes(q) || String(a.type || '').toLowerCase().includes(q);
+          })
+          .map((a) => (
           <div
             key={a.id}
             style={{

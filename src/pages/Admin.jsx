@@ -356,6 +356,8 @@ export default function Admin() {
   const [msg, setMsg] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCouponForm, setShowCouponForm] = useState(false);
+  const [productQuery, setProductQuery] = useState('');
+  const [couponQuery, setCouponQuery] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [s, setS] = useState(settings);
   const [savedMsg, setSavedMsg] = useState('');
@@ -1045,14 +1047,30 @@ export default function Admin() {
           )}
 
           <section className="card-box">
-            <h2>All products</h2>
+            <div className="sales-header">
+              <h2 style={{ margin: 0 }}>All products</h2>
+              <input
+                type="search"
+                placeholder="Search products..."
+                value={productQuery}
+                onChange={(e) => setProductQuery(e.target.value)}
+                style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, minWidth: 200 }}
+              />
+            </div>
             <div className="table-scroll">
               <table className="table">
                 <thead>
                   <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {products.map((p) => (
+                  {products
+                    .filter((p) => {
+                      const q = productQuery.trim().toLowerCase();
+                      if (!q) return true;
+                      return String(p.name || '').toLowerCase().includes(q) ||
+                        String(p.category || '').toLowerCase().includes(q);
+                    })
+                    .map((p) => (
                     <tr key={p.id}>
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
@@ -1129,8 +1147,21 @@ export default function Admin() {
           )}
 
           <section className="card-box">
-            <h2>All coupons</h2>
-            {coupons.length === 0 ? (
+            <div className="sales-header">
+              <h2 style={{ margin: 0 }}>All coupons</h2>
+              <input
+                type="search"
+                placeholder="Search coupons..."
+                value={couponQuery}
+                onChange={(e) => setCouponQuery(e.target.value)}
+                style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, minWidth: 200 }}
+              />
+            </div>
+            {coupons.filter((c) => {
+              const q = couponQuery.trim().toLowerCase();
+              if (!q) return true;
+              return String(c.code || '').toLowerCase().includes(q);
+            }).length === 0 ? (
               <p className="muted">No coupons yet. Create your first one above.</p>
             ) : (
               <div className="table-scroll">
@@ -1139,7 +1170,13 @@ export default function Admin() {
                     <tr><th>Code</th><th>Discount</th><th>Min order</th><th>Used</th><th>Status</th><th>Actions</th></tr>
                   </thead>
                   <tbody>
-                    {coupons.map((c) => (
+                    {coupons
+                      .filter((c) => {
+                        const q = couponQuery.trim().toLowerCase();
+                        if (!q) return true;
+                        return String(c.code || '').toLowerCase().includes(q);
+                      })
+                      .map((c) => (
                       <tr key={c.id}>
                         <td><strong>{c.code}</strong></td>
                         <td>{c.type === 'percent' ? `${c.value}% off` : `${formatINR(c.value)} off`}</td>

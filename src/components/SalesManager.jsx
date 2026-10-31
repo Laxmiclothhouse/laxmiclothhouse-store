@@ -121,6 +121,7 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
   const [imageMsg, setImageMsg] = useState('');
   const [notifyState, setNotifyState] = useState({ busyId: '', message: '' });
   const [saleDelMode, setSaleDelMode] = useState(false);
+  const [search, setSearch] = useState('');
   const cats = Array.from(new Set(['Suits', 'Ethnic', 'Lehenga', 'Saree', 'Daily Wear', ...(products || []).map((p) => p?.category).filter(Boolean)]));
   let deletedCats = [];
   try { deletedCats = JSON.parse(localStorage.getItem('laxmiclothhouse_deleted_cats') || '[]'); } catch {}
@@ -194,15 +195,32 @@ export default function SalesManager({ sales, products, addSale, updateSale, del
   };
 
   const now = Date.now();
-  const active = sales.filter((s) => s.active !== false && (!s.endsAt || new Date(s.endsAt).getTime() > now));
-  const expired = sales.filter((s) => s.endsAt && new Date(s.endsAt).getTime() <= now);
-  const upcoming = sales.filter((s) => s.startsAt && new Date(s.startsAt).getTime() > now);
+  const matchSale = (s) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const scope = s.type === 'category' ? s.category : s.type === 'product' ? 'selected styles' : s.type;
+    return String(s.name || '').toLowerCase().includes(q) ||
+      String(s.type || '').toLowerCase().includes(q) ||
+      String(scope || '').toLowerCase().includes(q);
+  };
+  const active = sales.filter((s) => s.active !== false && (!s.endsAt || new Date(s.endsAt).getTime() > now)).filter(matchSale);
+  const expired = sales.filter((s) => s.endsAt && new Date(s.endsAt).getTime() <= now).filter(matchSale);
+  const upcoming = sales.filter((s) => s.startsAt && new Date(s.startsAt).getTime() > now).filter(matchSale);
 
   return (
     <section className="card-box">
       <div className="sales-header">
         <h2>Manage sales</h2>
-        {!showForm && <button className="btn btn-gold btn-sm" onClick={() => setShowForm(true)}>+ Create sale</button>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="search"
+            placeholder="Search sales..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, minWidth: 180 }}
+          />
+          {!showForm && <button className="btn btn-gold btn-sm" onClick={() => setShowForm(true)}>+ Create sale</button>}
+        </div>
         {sales.length > 0 && (
           <button
             className={`btn btn-sm danger ${saleDelMode ? 'active' : ''}`}
