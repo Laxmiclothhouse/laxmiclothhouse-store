@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../db.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit, orderBy, startAfter } from 'firebase/firestore';
 import { app } from '../firebase.js';
 import { STAFF_ROLES, ROLE_LABELS, isStaffRole } from '../orderFlow.js';
 
@@ -247,19 +247,26 @@ export function AuthProvider({ children }) {
     const now = Date.now();
     if (_usersDirCache && now - _usersDirAt < USERS_DIR_TTL) return _usersDirCache;
     try {
-      const q = query(collection(firestore, 'users'), limit(500));
-      const snap = await getDocs(q);
       const list = [];
-      snap.forEach((d) => {
-        const v = d.data() || {};
-        list.push({
-          uid: d.id,
-          name: v.name || '',
-          email: v.email || '',
-          phone: v.phone || '',
-          role: v.role || 'customer',
+      let last = null;
+      while (true) {
+        const q = last
+          ? query(collection(firestore, 'users'), orderBy('__name__'), startAfter(last), limit(500))
+          : query(collection(firestore, 'users'), orderBy('__name__'), limit(500));
+        const snap = await getDocs(q);
+        snap.forEach((d) => {
+          const v = d.data() || {};
+          list.push({
+            uid: d.id,
+            name: v.name || '',
+            email: v.email || '',
+            phone: v.phone || '',
+            role: v.role || 'customer',
+          });
         });
-      });
+        if (snap.size < 500) break;
+        last = snap.docs[snap.docs.length - 1];
+      }
       _usersDirCache = list;
       _usersDirAt = now;
       return list;

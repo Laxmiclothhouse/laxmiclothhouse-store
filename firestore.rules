@@ -34,6 +34,12 @@ service cloud.firestore {
         && myUserDoc().role == 'admin';
     }
 
+    function isStaff() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && myUserDoc().role in ['admin', 'manager', 'packer', 'shipper', 'support'];
+    }
+
     // ── Shop data: public storefront data is readable by everyone (guests too);
     //    signed-in users can also read the rest. Writes stay admin-only.
     function isPublicStoreDoc(docId) {
@@ -47,10 +53,10 @@ service cloud.firestore {
 
     // ── User profiles (doc id = Firebase Auth UID) ──
     match /users/{uid} {
-      // Own profile, or any profile for an admin (search + preview).
-      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
-      // Admin UID search needs the list query.
-      allow list: if isAdmin();
+      // Own profile, or any profile for staff (search + preview).
+      allow get: if signedIn() && (request.auth.uid == uid || isStaff());
+      // Staff needs the list query for the admin customer directory.
+      allow list: if isStaff();
       // Users may create or update their own doc, but can never grant
       // themselves a role (`role` is admin-written only), and `phone` is
       // fixed once set, so a normal profile update touching either field is
