@@ -1878,8 +1878,8 @@ function ReviewsAdmin() {
 
 // ── Customer accounts: view + delete account data ─────────────
 function CustomersAdmin() {
-  const { deleteUserAccount } = useData();
-  const { user, listAllUsers, deleteUserProfile } = useAuth();
+  const { user, listAllUsers, deleteUserProfile, getIdToken } = useAuth();
+  const { deleteUserAccount, postApi } = useData();
   const [users, setUsers] = useState(() => db.getUsers());
   const [query, setQuery] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -1982,18 +1982,32 @@ function CustomersAdmin() {
     setDeleting(true);
     setMsg(null);
     try {
-      // 1) remove the real Firestore profile (the account row the admin sees)
       const uid = String(pending.uid || pending.id || '').trim();
+      const idToken = typeof getIdToken === 'function' ? await getIdToken() : null;
       let profileDeleted = false;
-      if (uid && typeof deleteUserProfile === 'function' && !pending.fromOrders) {
+      let apiResult = null;
+      if (idToken) {
         try {
-          await deleteUserProfile(uid);
-          profileDeleted = true;
+          const resp = await postApi('/api/delete-user', {
+            uid: pending.fromOrders ? '' : uid,
+            email: pending.email || '',
+            idToken,
+          });
+          if (resp && resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            apiResult = data;
+            profileDeleted = true;
+          } else {
+            const data = resp ? await resp.json().catch(() => ({})) : {};
+            setMsg({ ok: false, text: data.error || 'Could not delete that account on the server.' });
+            return;
+          }
         } catch (err) {
-          setMsg({ ok: false, text: err.message || 'Could not delete that profile.' });
+          setMsg({ ok: false, text: err.message || 'Could not reach the delete service.' });
           return;
         }
       }
+
       // 2) remove local store copies (profile cache, reviews, wishlist)
       const res = deleteUserAccount(pending);
       const removedKey = String(pending.uid || pending.id || pending.email || '').toLowerCase();
@@ -2004,12 +2018,8 @@ function CustomersAdmin() {
       setConfirmText('');
       const removedCount = (profileDeleted ? 1 : 0) + (res.users || 0);
       setMsg({
-        ok: removedCount > 0 || (res.reviews || 0) > 0,
-        text: removedCount > 0
-          ? `Deleted: ${removedCount} profile${removedCount === 1 ? '' : 's'}, ${res.reviews} review(s)${res.wishlistRemoved ? ', wishlist' : ''}. ` +
-            'Note: the underlying Firebase login can only be fully removed with server-side setup.'
-          : `Nothing was deleted — no stored profile matched ${pending.email || 'that account'}. ` +
-            'Their Firebase login/profile may already be gone; reload the page to refresh the list.',
+        ok: true,
+        text: `Deleted account${apiResult?.deletedOrders ? `, ${apiResult.deletedOrders} order(s)` : ''}${apiResult?.deletedReviews ? `, ${apiResult.deletedReviews} review(s)` : ''}. The user can now sign up again with the same email.`,
       });
     } finally {
       setDeleting(false);
