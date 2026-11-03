@@ -57,9 +57,7 @@ export function AuthProvider({ children }) {
           phone: userData.phone || cachedSession?.phone || '',
           address: userData.address || cachedSession?.address || '',
           role: userData.role || cachedRole || 'customer',
-          specialDate: userData.specialDate || cachedSession?.specialDate || '',
-          specialDateType: userData.specialDateType || cachedSession?.specialDateType || 'Birthday',
-        };
+          };
         setUser(session);
         db.saveSession(session);
       } else {

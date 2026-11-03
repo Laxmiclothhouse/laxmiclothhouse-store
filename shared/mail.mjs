@@ -191,37 +191,7 @@ export function renderOrderMail(type, orderRaw) {
     },
   };
 
-  // Special-day wish (birthday / anniversary gift code) — own layout.
-  if (type === 'specialday') {
-    const giftCode = esc(o.code || 'GIFT');
-    const specialType = esc(o.specialType || 'Birthday');
-    const subject = `🎉 Happy ${specialType}! A gift inside from ${STORE_NAME}`;
-    const html = `<!doctype html>
-<html>
-<body style="font-family:'Segoe UI',Arial,Helvetica,sans-serif;background:${C.cream};padding:24px;max-width:640px;margin:0 auto">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border-radius:18px;border:1px solid ${C.line};overflow:hidden">
-    ${brandHeader()}
-    <tr>
-      <td style="background:${C.gold};padding:12px 40px;text-align:center">
-        <span style="color:#ffffff;font-size:14px;font-weight:700;letter-spacing:1.5px">🎂 A GIFT FOR YOU</span>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:34px 40px;text-align:center">
-        <div style="font-size:46px;line-height:1">🎂🎁</div>
-        <h1 style="font-family:Georgia,serif;font-size:23px;color:${C.ink};margin:14px 0 12px">Happy ${specialType}${name === 'there' ? '' : `, ${name}`}!</h1>
-        <p style="font-size:15px;line-height:1.7;color:#6b5f63;margin:0 0 20px">On your special day, we have a little gift for you — a discount code to celebrate in style.</p>
-        <div style="display:inline-block;background:#fdf0f4;border:2px dashed ${C.brand};color:${C.brand};font-size:24px;font-weight:800;letter-spacing:3px;padding:12px 28px;border-radius:12px">${giftCode}</div>
-        <p style="font-size:13px;color:${C.muted};margin:14px 0 22px">Enter this code at checkout. Valid during your special month.</p>
-        <a href="${APP_ORIGIN}/#/catalog" style="display:inline-block;background:${C.gold};color:#fff;text-decoration:none;padding:13px 34px;border-radius:50px;font-size:14px;font-weight:600;letter-spacing:0.5px">SHOP WITH YOUR GIFT →</a>
-      </td>
-    </tr>
-    ${brandFooter()}
-  </table>
-</body>
-</html>`;
-    return { subject, html };
-  }
+  
 
   const c = COPY[type] || COPY.confirmed;
   // Replace {{refundId}} placeholder in refund emails.

@@ -51,21 +51,7 @@ export default function Signup() {
             <input type="tel" value={form.phone}
               onChange={set('phone')} placeholder="+91 98765 43210" />
           </label>
-          <div className="grid2">
-            <label>
-              Birthday / Anniversary (optional)
-              <input type="date" value={form.specialDate || ''}
-                onChange={set('specialDate')} max="2100-12-31" />
-            </label>
-            <label>
-              It is a…
-              <select value={form.specialDateType || 'Birthday'}
-                onChange={set('specialDateType')}>
-                <option value="Birthday">Birthday</option>
-                <option value="Anniversary">Anniversary</option>
-              </select>
-            </label>
-          </div>
+         
           <p className="muted tiny" style={{ margin: 0 }}>
             Add your special date and we&apos;ll gift you a surprise coupon code every year — by email and right here on the site.
           </p>

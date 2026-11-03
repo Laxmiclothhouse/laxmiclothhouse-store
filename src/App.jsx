@@ -7,7 +7,6 @@ import { DataProvider } from './context/DataContext.jsx';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import CartDrawer from './components/CartDrawer.jsx';
-import SpecialDayCheck from './components/SpecialDayCheck.jsx';
 import ScrollToTop from './components/ScrollToTop.jsx';
 import TitleSync from './components/TitleSync.jsx';
 import PageTransition from './components/PageTransition.jsx';
@@ -52,7 +51,6 @@ export default function App() {
             <TitleSync />
                         <Navbar onCartOpen={() => setCartOpen(true)} />
             <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-            <SpecialDayCheck />
             <PageTransition>
             <Routes>
               <Route path="/" element={<Home />} />
