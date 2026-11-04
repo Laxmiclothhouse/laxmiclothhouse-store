@@ -11,9 +11,8 @@ export default function Profile() {
 
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [address, setAddress] = useState(user?.address || '');
-  const [specialDate, setSpecialDate] = useState(user?.specialDate || '');
-  const [specialDateType, setSpecialDateType] = useState(user?.specialDateType || 'Birthday');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -36,33 +35,18 @@ export default function Profile() {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    // Email is never sent — it cannot be changed in any case.
-    // Phone is identity-bound: it is set once at signup and can never be
-    // edited afterwards, even with no orders in process.
-    if (phone.trim() !== String(user?.phone || '').trim()) {
-      setPhone(user?.phone || '');
-      flash('Phone number cannot be changed. It is fixed to the number on your account.');
-      return;
-    }
-    // When an order is processing, name + address are frozen (phone is always frozen).
-    // When an order is processing, name + phone + address are all frozen.
     if (profileLocked) {
       // Revert any typed values back to the saved ones; nothing is saved.
       setName(user?.name || '');
       setPhone(user?.phone || '');
+      setEmail(user?.email || '');
       setAddress(user?.address || '');
       flash('Profile is locked while you have an order in process. You can edit it again once all orders are delivered or cancelled.');
       return;
     }
     setSaving(true);
     try {
-      await updateUserProfile({
-        name: name.trim(),
-        // NOTE: phone is deliberately NOT sent — it is immutable.
-        address: address.trim(),
-        specialDate: specialDate || '',
-        specialDateType: specialDateType || 'Birthday',
-      });
+      await updateUserProfile({ email: email.trim(), phone: phone.trim(), name: name.trim(), address: address.trim() });
       flash('Profile updated.');
     } catch (ex) {
       flash(ex.message);
@@ -101,18 +85,17 @@ export default function Profile() {
 
         <form onSubmit={saveProfile} className='form'>
           <h2>Personal details</h2>
-          <label>Email (cannot be changed)
-            <input value={user?.email || ''} disabled readOnly placeholder='Email' title='Email cannot be changed' />
+          <label>Email
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder='Email' title='Your email address' />
           </label>
           {profileLocked && (
             <p className='muted'>Name, mobile number and address are locked while you have an order in process. You can change them again once all orders are delivered or cancelled.</p>
           )}
           <label>Name *
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' required disabled={profileLocked} title={profileLocked ? 'Locked while an order is processing' : undefined} />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' required disabled title='Name cannot be changed' />
           </label>
           <label>Phone
-            <input type='tel' value={phone} readOnly disabled placeholder='+91 98765 43210' title='Phone number is fixed to your account and cannot be changed' />
-            <span className='muted tiny'>Phone number is fixed to your account and cannot be changed.</span>
+            <input type='tel' value={phone} onChange={(e) => setPhone(e.target.value)} placeholder='+91 98765 43210' title='Your phone number' />
           </label>
           <label>Address
             <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={3} placeholder='Street, city, postcode...' disabled={profileLocked} title={profileLocked ? 'Locked while an order is processing' : undefined} />

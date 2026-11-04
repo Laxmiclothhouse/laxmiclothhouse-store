@@ -52,9 +52,7 @@ export default function Signup() {
               onChange={set('phone')} placeholder="+91 98765 43210" />
           </label>
          
-          <p className="muted tiny" style={{ margin: 0 }}>
-            Add your special date and we&apos;ll gift you a surprise coupon code every year — by email and right here on the site.
-          </p>
+
           <label>
             Password
             <input type="password" required value={form.password}

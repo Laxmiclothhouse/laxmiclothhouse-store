@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../db.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit } from 'firebase/firestore';
@@ -9,7 +9,7 @@ const AuthContext = createContext(null);
 const auth = getAuth(app);
 const firestore = getFirestore(app);
 
-// ── Firestore `users` directory cache (module scope so it survives re-renders) ──
+// â”€â”€ Firestore `users` directory cache (module scope so it survives re-renders) â”€â”€
 // Doc id = Firebase UID. Refreshed at most once per minute.
 let _usersDirCache = null;
 let _usersDirAt = 0;
@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         // The profile lives in Firestore. That read may fail (offline, rules,
         // a transient error) and must never leave the app stuck on the
-        // "checking session" screen — fall back to the cached session.
+        // "checking session" screen â€” fall back to the cached session.
         const cachedSession = db.getSession();
         const cachedRole =
           cachedSession && cachedSession.id === firebaseUser.uid ? cachedSession.role : '';
@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
           const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
           userData = userDoc.data() || {};
         } catch (error) {
-          console.warn('[auth] user profile unavailable — using the cached session:', error?.message || error);
+          console.warn('[auth] user profile unavailable â€” using the cached session:', error?.message || error);
         }
         if (!alive) return;
         
@@ -161,7 +161,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ── Password change helpers ──────────────────────────────
+  // â”€â”€ Password change helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   // 1) Change password by verifying the current password first.
   const changePasswordWithCurrent = async (currentPassword, newPassword) => {
@@ -188,17 +188,15 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ── Profile update helper ──────────────────────────────
+  // â”€â”€ Profile update helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const updateUserProfile = async (data) => {
     try {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) throw new Error('No authenticated user.');
 
-      // Identity fields (login email, UID/role) can never be changed from the
-      // profile page. Phone is also identity-bound: it is set once at signup and
-      // can never be edited afterwards, so strip it anyway, and even a crafted
-      // call cannot overwrite the account phone number.
-      const { email, id, role, phone, ...safeData } = data || {};
+      // Identity fields that can never be changed from the profile page:
+      // UID, role, and name. Phone, email, address, etc. are editable.
+      const { name, id, role, ...safeData } = data || {};
       await setDoc(doc(firestore, 'users', firebaseUser.uid), safeData, { merge: true });
 
       const updated = { ...user, ...safeData };
@@ -210,7 +208,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ── Password reset ───────────────────────────────────────
+  // â”€â”€ Password reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const sendPasswordReset = async (email) => {
     try {
       const { sendPasswordResetEmail } = await import('firebase/auth');
@@ -233,8 +231,8 @@ export function AuthProvider({ children }) {
   const isStaff = isStaffRole(user?.role);
 
   // Admin-only: promote a Firebase user to a staff role by their UID.
-  // (UID visible in Firebase console → Authentication → Users.)
-  // ── Find a user's UID from Firestore by name / email / phone ──
+  // (UID visible in Firebase console â†’ Authentication â†’ Users.)
+  // â”€â”€ Find a user's UID from Firestore by name / email / phone â”€â”€
   // Client-side lookup over the `users` collection (doc id = UID).
   // We keep a small in-memory cache so repeated admin searches don't
   // re-download the directory every keystroke. The collection is read
@@ -262,15 +260,15 @@ export function AuthProvider({ children }) {
       _usersDirAt = now;
       return list;
     } catch (error) {
-      // Firestore rules often block list for non-admins — surface a clear error
+      // Firestore rules often block list for non-admins â€” surface a clear error
       // so the Admin UI can explain it (and fall back to orders below).
       throw new Error(error.message || 'Failed to read users directory.');
     }
   };
 
   // Search users by name / email / phone and return matching UIDs.
-  // Used in Admin → Staff so the admin never has to open the Firebase
-  // console: type a name, email or phone → pick the account → UID fills in.
+  // Used in Admin â†’ Staff so the admin never has to open the Firebase
+  // console: type a name, email or phone â†’ pick the account â†’ UID fills in.
   const searchUsers = async (text) => {
     const raw = String(text || '').trim();
     if (raw.length < 2) return [];
@@ -337,7 +335,7 @@ export function AuthProvider({ children }) {
   // Admin-only: delete a customer's Firestore profile doc.
   // Returns { deleted: true } when the doc existed. Firestore rules must
   // allow an admin to delete users/{uid} (see firestore.rules). The Auth
-  // login itself is never touched here — that needs the Admin SDK.
+  // login itself is never touched here â€” that needs the Admin SDK.
   const deleteUserProfile = async (uid) => {
     const id = String(uid || '').trim();
     if (!id) throw new Error('Missing user id.');
@@ -357,6 +355,10 @@ export function AuthProvider({ children }) {
       throw new Error(error.message || 'Failed to delete that profile.');
     }
   };
+  
+
+  
+
 
   const setUserRole = async (uid, role) => {
     try {
@@ -367,14 +369,14 @@ export function AuthProvider({ children }) {
         throw new Error('Unknown role.');
       }
       // setDoc+merge (not updateDoc) so promoting a user created directly in
-      // the Firebase console — who has no users/{uid} doc yet — also works.
+      // the Firebase console â€” who has no users/{uid} doc yet â€” also works.
       await setDoc(doc(firestore, 'users', String(uid).trim()), { role }, { merge: true });
       return { ok: true };
     } catch (error) {
       if (error?.code === 'permission-denied' || /missing or insufficient permissions/i.test(error?.message || '')) {
         throw new Error(
           'Missing or insufficient permissions: your Firestore rules block this write. ' +
-          'In Firebase console → Firestore → Rules, allow an admin to update the "role" field on users/{uid} ' +
+          'In Firebase console â†’ Firestore â†’ Rules, allow an admin to update the "role" field on users/{uid} ' +
           '(e.g. get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"), ' +
           'then Publish. Also confirm you are logged in as the admin account (the one whose users/{uid} doc has role "admin").'
         );
