@@ -1,7 +1,7 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db } from '../db.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, sendPasswordResetEmail } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, getDocs, query, limit, where } from 'firebase/firestore';
 import { app } from '../firebase.js';
 import { STAFF_ROLES, ROLE_LABELS, isStaffRole } from '../orderFlow.js';
 
@@ -197,6 +197,43 @@ export function AuthProvider({ children }) {
       // Identity fields that can never be changed from the profile page:
       // UID, role, and name. Phone, email, address, etc. are editable.
       const { name, id, role, ...safeData } = data || {};
+
+      const normalizePhone = (p) => String(p || '').replace(/\D/g, '');
+      const usersCol = collection(firestore, 'users');
+
+      // Uniqueness checks for email and phone (excluding the current user).
+      const newEmail = typeof safeData.email === 'string' ? safeData.email.trim() : '';
+      const newPhone = typeof safeData.phone === 'string' ? safeData.phone.trim() : '';
+
+      if (newEmail) {
+        const emailLower = newEmail.toLowerCase();
+        if (emailLower !== String(user?.email || '').trim().toLowerCase()) {
+          const snap = await getDocs(query(usersCol, where('email', '==', emailLower), limit(1)));
+          if (snap.docs.some((d) => d.id !== firebaseUser.uid)) {
+            throw new Error('An account with this email already exists. Please use a different email.');
+          }
+        }
+        safeData.email = emailLower;
+      }
+
+      if (newPhone) {
+        if (normalizePhone(newPhone) !== normalizePhone(user?.phone || '')) {
+          const snap = await getDocs(query(usersCol, where('phone', '==', newPhone), limit(1)));
+          if (snap.docs.some((d) => d.id !== firebaseUser.uid)) {
+            throw new Error('An account with this phone number already exists. Please use a different phone number.');
+          }
+          // Also catch the same number typed with different formatting.
+          try {
+            const dir = await readUsersDirectory();
+            if (dir.some((u) => u.uid !== firebaseUser.uid && normalizePhone(u.phone) === normalizePhone(newPhone))) {
+              throw new Error('An account with this phone number already exists. Please use a different phone number.');
+            }
+          } catch (e) {
+            if (e?.message && /already exists/i.test(e.message)) throw e;
+          }
+        }
+      }
+
       await setDoc(doc(firestore, 'users', firebaseUser.uid), safeData, { merge: true });
 
       const updated = { ...user, ...safeData };

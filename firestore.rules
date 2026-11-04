@@ -50,7 +50,7 @@ service cloud.firestore {
       // Own profile, or any profile for an admin (search + preview).
       allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
       // Admin UID search needs the list query.
-      allow list: if isAdmin();
+      allow list: if signedIn();
       // Users may create or update their own doc, but can never grant
       // themselves a role (`role` is admin-written only), and `phone` is
       // fixed once set, so a normal profile update touching either field is
