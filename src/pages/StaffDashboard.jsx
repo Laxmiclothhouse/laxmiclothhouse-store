@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
@@ -11,6 +11,7 @@ import { FLOW, payMeta, roleQueueScope } from '../orderFlow.js';
 export default function StaffDashboard() {
   const { user, isStaff } = useAuth();
   const { orders } = useData();
+  const [filter, setFilter] = useState(null);
 
   if (!user) return <Navigate to="/login" replace state={{ from: '/dashboard' }} />;
   if (!isStaff) return <Navigate to="/" replace />;
@@ -41,7 +42,12 @@ export default function StaffDashboard() {
   ];
 
   // Role-scoped recent list: packers see confirmed orders, shippers packed ones.
-  const recent = (scope ? list.filter((o) => scope.statuses.includes(o.status)) : list)
+const recentBase = (scope ? list.filter((o) => scope.statuses.includes(o.status)) : list);
+  const recent = (filter
+    ? recentBase.filter((o) => filter === 'today'
+        ? String(o.orderDate || '').slice(0, 10) === today
+        : o.status === filter)
+    : recentBase)
     .sort((a, b) => String(b.orderDate || '').localeCompare(String(a.orderDate || '')))
     .slice(0, 8);
 
@@ -55,9 +61,14 @@ export default function StaffDashboard() {
         </p>
       </div>
 
-      <div className="dash-grid">
+<div className="dash-grid">
         {cards.map((c) => (
-          <div key={c.key} className={`stat-card${c.warn ? ' warn' : ''}${c.hero ? ' hero' : ''}`}>
+          <div
+            key={c.key}
+            className={`stat-card${c.warn ? ' warn' : ''}${c.hero ? ' hero' : ''}${filter === c.key ? ' active' : ''}`}
+            style={{ cursor: 'pointer' }}
+            onClick={() => setFilter((f) => (f === c.key ? null : c.key))}
+          >
             <div className="num">{c.num}</div>
             <div className="lbl">{c.lbl}</div>
           </div>
