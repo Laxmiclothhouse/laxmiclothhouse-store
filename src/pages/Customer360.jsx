@@ -27,6 +27,9 @@ export default function Customer360() {
   }, [listAllUsers]);
 
   const buildProfile = (matches) => {
+    if (!matches || matches.length === 0) {
+      return { name: 'Unknown', email: 'N/A', phone: 'N/A', totalSpent: 0, orderCount: 0, avgOrder: 0, orders: [] };
+    }
     const sorted = [...matches].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
     const lastOrder = sorted[0];
     const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
@@ -201,7 +204,21 @@ export default function Customer360() {
                         <button
                           type="button"
                           className="btn btn-sm"
-                          onClick={() => setCustomer(buildProfile(c.orders))}
+                          onClick={() => {
+                          if (c.orders && c.orders.length) {
+                            setCustomer(buildProfile(c.orders));
+                          } else {
+                            setCustomer({
+                              name: c.name,
+                              email: c.email,
+                              phone: c.phone,
+                              totalSpent: 0,
+                              orderCount: 0,
+                              avgOrder: 0,
+                              orders: [],
+                            });
+                          }
+                        }}
                         >
                           View
                         </button>
