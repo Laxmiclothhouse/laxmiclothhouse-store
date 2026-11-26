@@ -229,6 +229,12 @@ export default function OrderManage() {
         ndr: Boolean(t.ndr),
         expectedDelivery: t.expectedDelivery || null,
       });
+      if (t.storeStatus === 'delivered' && order.status !== 'delivered') {
+        updateOrderStatus(order.id, 'delivered', 'Delivered', {
+          note: `Auto-synced from Delhivery: ${t.status}`,
+          by: { uid: user.id, name: user.name || user.email, role: user.role },
+        });
+      }
     })();
     return () => {
       cancelled = true;
@@ -272,15 +278,13 @@ export default function OrderManage() {
       expectedDelivery: t.expectedDelivery || null,
     });
     setDhlMsg(`Courier status: ${t.status}`);
-    if ((t.storeStatus === 'delivered') && t.storeStatus !== order.status) {
-      const label = 'Delivered';
-      if (window.confirm(`Delhivery reports this parcel as "${t.status}". Mark the order ${label.toLowerCase()}?`)) {
+if ((t.storeStatus === 'delivered') && t.storeStatus !== order.status) {
+        const label = 'Delivered';
         updateOrderStatus(order.id, t.storeStatus, label, {
           note: `Auto-synced from Delhivery: ${t.status}`,
           by: { uid: user.id, name: user.name || user.email, role: user.role },
         });
       }
-    }
     setDhlBusy(false);
   };
 
