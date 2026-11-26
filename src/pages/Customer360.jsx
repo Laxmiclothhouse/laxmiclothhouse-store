@@ -54,9 +54,11 @@ export default function Customer360() {
     const q = query.trim().toLowerCase();
     if (!q) return;
     const matches = orders.filter((o) => {
+      const name = (o.customer?.name || o.customerName || '').toLowerCase();
       const email = (o.customerEmail || o.customer?.email || '').toLowerCase();
       const phone = (o.phone || o.customer?.phone || '').replace(/\D/g, '');
-      return email === q || (phone && phone === q.replace(/\D/g, ''));
+      const qDigits = q.replace(/\D/g, '');
+      return name.includes(q) || email === q || (phone && phone === qDigits) || (qDigits && phone.includes(qDigits));
     });
     if (matches.length === 0) {
       setCustomer({ error: 'No customer found with that email or phone.' });
