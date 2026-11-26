@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useData } from '../context/DataContext.jsx';
 import { formatINR, formatDateTime } from '../utils/format.js';
@@ -6,12 +6,24 @@ import { Navigate, Link } from 'react-router-dom';
 import Paginator from '../components/Paginator.jsx';
 
 export default function Customer360() {
-  const { user, isStaff } = useAuth();
+  const { user, isStaff, listAllUsers } = useAuth();
   const { orders } = useData();
   const [query, setQuery] = useState('');
   const [customer, setCustomer] = useState(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [allUsers, setAllUsers] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const list = typeof listAllUsers === 'function' ? await listAllUsers() : [];
+        if (alive) setAllUsers(Array.isArray(list) ? list : []);
+      } catch {
+        if (alive) setAllUsers([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, [listAllUsers]);
 
   const buildProfile = (matches) => {
     const sorted = [...matches].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
@@ -59,8 +71,33 @@ export default function Customer360() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(o);
     }
+    // Include registered accounts that have no orders yet.
+    for (const u of allUsers || []) {
+      const email = String(u.email || '').trim().toLowerCase();
+      const phone = String(u.phone || '').replace(/\D/g, '');
+      const key = email || phone || u.name || u.uid;
+      if (!map.has(key)) map.set(key, []);
+      // attach user info to the matches array marker via a pseudo-order? Instead store on map separately.
+    }
     return [...map.entries()]
       .map(([key, matches]) => {
+        if (matches.length === 0) {
+          const u = (allUsers || []).find((x) => {
+            const e = String(x.email || '').trim().toLowerCase();
+            const p = String(x.phone || '').replace(/\D/g, '');
+            return (e && e === key) || (p && p === key) || (x.name && x.name === key) || (x.uid && x.uid === key);
+          });
+          return {
+            key,
+            name: u?.name || 'Unknown',
+            email: u?.email || 'N/A',
+            phone: u?.phone || 'N/A',
+            orderCount: 0,
+            totalSpent: 0,
+            lastOrderDate: u?.createdAt || new Date().toISOString(),
+            orders: [],
+          };
+        }
         const sorted = [...matches].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
         const last = sorted[0];
         const totalSpent = matches.reduce((s, o) => s + (o.total || 0), 0);
@@ -76,7 +113,7 @@ export default function Customer360() {
         };
       })
       .sort((a, b) => new Date(b.lastOrderDate) - new Date(a.lastOrderDate));
-  }, [orders]);
+  }, [orders, allUsers]);
 
   const pages = Math.max(1, Math.ceil(allCustomers.length / pageSize));
   const safePage = Math.min(page, pages);
