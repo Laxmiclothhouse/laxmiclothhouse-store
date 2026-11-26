@@ -752,11 +752,6 @@ export default function Admin() {
           </button>
         )}
         {isAdmin && (
-          <button className={tab === 'notifications' ? 'chip active' : 'chip'} onClick={() => setTab('notifications')}>
-            Notifications {notifications.length ? `(${notifications.length})` : ''}
-          </button>
-        )}
-        {isAdmin && (
           <button className={tab === 'payments' ? 'chip active' : 'chip'} onClick={() => setTab('payments')}>
             Payments
           </button>
@@ -1287,6 +1282,20 @@ export default function Admin() {
           <p className="muted small">
             Every payment attempt/callback is recorded when an order is placed. ✓ = Razorpay signature verified server-side.
           </p>
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            style={{ marginBottom: 10 }}
+            onClick={() => {
+              const demoIds = payments
+                .filter((p) => p.gateway !== 'Razorpay' || !p.verified)
+                .map((p) => p.id);
+              if (!demoIds.length) { alert('No demo payments found.'); return; }
+              if (window.confirm(`Delete ${demoIds.length} demo payment(s)?`)) deleteRecords('payments', demoIds);
+            }}
+          >
+            Delete demo payments
+          </button>
           {payments.length === 0 ? (
             <p className="muted">No payments recorded yet.</p>
           ) : (
@@ -1354,35 +1363,6 @@ export default function Admin() {
           )}
         </section>
       )}
-
-      {tab === 'notifications' && (
-        <section className="card-box">
-          <h2>Admin activity log</h2>
-          <p className="muted small">Recent actions performed in the admin panel.</p>
-          {notifications.length === 0 ? (
-            <p className="muted">No activity recorded yet.</p>
-          ) : (
-            <div className="table-scroll">
-              <table className="table">
-                <thead>
-                  <tr><th>When</th><th>Action</th><th>By</th><th>Details</th></tr>
-                </thead>
-                <tbody>
-                  {notifications.map((n) => (
-                    <tr key={n.id}>
-                      <td>{formatDateTime(n.time)}</td>
-                      <td>{n.action}</td>
-                      <td>{n.by || '—'}</td>
-                      <td><span className="muted tiny">{JSON.stringify(n.details || {})}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
 
       {tab === 'sales' && (
         <>
