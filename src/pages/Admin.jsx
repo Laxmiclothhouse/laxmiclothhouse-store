@@ -361,6 +361,7 @@ export default function Admin() {
   const [staffUsers, setStaffUsers] = useState([]);
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffRoleFilter, setStaffRoleFilter] = useState('all');
+  const [showStaffForm, setShowStaffForm] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -1121,7 +1122,10 @@ export default function Admin() {
             (Authentication &gt; Users) after the person logs in on the site once. The new role
             applies on their next login or page reload.
           </p>
-          <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} />
+          <button type="button" className="btn btn-gold" onClick={() => setShowStaffForm((v) => !v)} style={{ marginBottom: 12 }}>
+            {showStaffForm ? 'Hide form' : '+ Add role'}
+          </button>
+          {showStaffForm && <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} />}
 
           <h3 style={{ marginTop: 20 }}>Staff overview</h3>
           {staffLoading ? (
