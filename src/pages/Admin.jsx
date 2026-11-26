@@ -280,7 +280,7 @@ function StaffRoleForm({ setUserRole, searchUsers }) {
 }
 
 export default function Admin() {
-  const { user, isAdmin, isStaff, setUserRole, searchUsers } = useAuth();
+  const { user, isAdmin, isStaff, setUserRole, searchUsers, listAllUsers } = useAuth();
   const { products, orders, settings, updateSettings, addProduct, updateProduct, deleteProduct, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCoupon, deleteRecords } = useData();
   const { payments, returns = [], updateReturnStatus = () => {}, sales, addSale, updateSale, deleteSale, toggleSale, alerts = [], addAlert, updateAlert, deleteAlert, toggleAlert, pdfs = [], addPdfRecord, deletePdfRecord, notifications = [], logActivity } = useData();
   const [tab, setTabState] = useState(() => {
@@ -358,6 +358,8 @@ export default function Admin() {
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
   const [s, setS] = useState(settings);
+  const [staffUsers, setStaffUsers] = useState([]);
+  const [staffLoading, setStaffLoading] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -381,7 +383,22 @@ export default function Admin() {
     (deletedCats || []).forEach((c) => set.delete(c));
     return Array.from(set);
   }, [products, extraCats, deletedCats]);
-  const [params] = useSearchParams();
+  React.useEffect(() => {
+    if (tab !== 'staff') return;
+    let alive = true;
+    setStaffLoading(true);
+    (async () => {
+      try {
+        const list = typeof listAllUsers === 'function' ? await listAllUsers() : [];
+        if (alive) setStaffUsers(Array.isArray(list) ? list : []);
+      } catch {
+        if (alive) setStaffUsers([]);
+      } finally {
+        if (alive) setStaffLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [tab, listAllUsers]);
   const orderParam = params.get('order');
 
   React.useEffect(() => {
@@ -1103,6 +1120,43 @@ export default function Admin() {
             applies on their next login or page reload.
           </p>
           <StaffRoleForm setUserRole={setUserRole} searchUsers={searchUsers} />
+
+          <h3 style={{ marginTop: 20 }}>Staff overview</h3>
+          {staffLoading ? (
+            <p className="muted">Loading users…</p>
+          ) : (
+            <>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+                {['admin', 'manager', 'packer', 'shipper', 'support', 'customer'].map((r) => (
+                  <span key={r} className="chip" style={{ cursor: 'default' }}>
+                    {r} ({staffUsers.filter((u) => (u.role || 'customer') === r).length})
+                  </span>
+                ))}
+              </div>
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>UID</th></tr>
+                  </thead>
+                  <tbody>
+                    {staffUsers.length === 0 ? (
+                      <tr><td colSpan={5} className="muted">No users found.</td></tr>
+                    ) : (
+                      staffUsers.map((u, i) => (
+                        <tr key={u.uid || i}>
+                          <td>{u.name || '—'}</td>
+                          <td>{u.email || '—'}</td>
+                          <td>{u.phone || '—'}</td>
+                          <td>{u.role || 'customer'}</td>
+                          <td><code style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>{u.uid}</code></td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </section>
       )}
 
