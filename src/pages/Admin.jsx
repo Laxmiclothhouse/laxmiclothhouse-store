@@ -354,6 +354,7 @@ export default function Admin() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState('');
+  const [productSearch, setProductSearch] = useState('');
   const [showProductForm, setShowProductForm] = useState(false);
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState(null);
@@ -362,6 +363,7 @@ export default function Admin() {
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffRoleFilter, setStaffRoleFilter] = useState('all');
   const [showStaffForm, setShowStaffForm] = useState(false);
+  const [staffSearch, setStaffSearch] = useState('');
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -1066,13 +1068,26 @@ export default function Admin() {
 
           <section className="card-box">
             <h2>All products</h2>
+            <input
+              type="search"
+              placeholder="Search products by name or category…"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              style={{ marginBottom: 10, width: '100%', maxWidth: 320 }}
+            />
             <div className="table-scroll">
               <table className="table">
                 <thead>
                   <tr><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Featured</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {products.map((p) => (
+                  {products
+                    .filter((p) => {
+                      const q = productSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return String(p.name || '').toLowerCase().includes(q) || String(p.category || '').toLowerCase().includes(q);
+                    })
+                    .map((p) => (
                     <tr key={p.id}>
                       <td><Link to={`/product/${p.id}`}>{p.name}</Link></td>
                       <td>{p.category}</td>
@@ -1132,6 +1147,13 @@ export default function Admin() {
             <p className="muted">Loading users…</p>
           ) : (
             <>
+              <input
+                type="search"
+                placeholder="Search staff by name, email, phone or role…"
+                value={staffSearch}
+                onChange={(e) => setStaffSearch(e.target.value)}
+                style={{ marginBottom: 10, width: '100%', maxWidth: 320 }}
+              />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
                 {['all', 'admin', 'manager', 'packer', 'shipper', 'support', 'customer'].map((r) => (
                   <button
@@ -1151,10 +1173,28 @@ export default function Admin() {
                     <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>UID</th></tr>
                   </thead>
                   <tbody>
-                    {(staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter)).length === 0 ? (
+                    {(staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter))
+                      .filter((u) => {
+                        const q = staffSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return String(u.name || '').toLowerCase().includes(q) ||
+                          String(u.email || '').toLowerCase().includes(q) ||
+                          String(u.phone || '').toLowerCase().includes(q) ||
+                          String(u.role || '').toLowerCase().includes(q);
+                      })
+                      .length === 0 ? (
                       <tr><td colSpan={5} className="muted">No users found.</td></tr>
                     ) : (
-                      (staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter)).map((u, i) => (
+                      (staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter))
+                      .filter((u) => {
+                        const q = staffSearch.trim().toLowerCase();
+                        if (!q) return true;
+                        return String(u.name || '').toLowerCase().includes(q) ||
+                          String(u.email || '').toLowerCase().includes(q) ||
+                          String(u.phone || '').toLowerCase().includes(q) ||
+                          String(u.role || '').toLowerCase().includes(q);
+                      })
+                      .map((u, i) => (
                         <tr key={u.uid || i}>
                           <td>{u.name || '—'}</td>
                           <td>{u.email || '—'}</td>
