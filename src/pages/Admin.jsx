@@ -399,6 +399,7 @@ export default function Admin() {
     })();
     return () => { alive = false; };
   }, [tab, listAllUsers]);
+  const [params] = useSearchParams();
   const orderParam = params.get('order');
 
   React.useEffect(() => {
