@@ -360,6 +360,7 @@ export default function Admin() {
   const [s, setS] = useState(settings);
   const [staffUsers, setStaffUsers] = useState([]);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [staffRoleFilter, setStaffRoleFilter] = useState('all');
   const [savedMsg, setSavedMsg] = useState('');
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [autoOpened, setAutoOpened] = useState(false);
@@ -1128,10 +1129,16 @@ export default function Admin() {
           ) : (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
-                {['admin', 'manager', 'packer', 'shipper', 'support', 'customer'].map((r) => (
-                  <span key={r} className="chip" style={{ cursor: 'default' }}>
-                    {r} ({staffUsers.filter((u) => (u.role || 'customer') === r).length})
-                  </span>
+                {['all', 'admin', 'manager', 'packer', 'shipper', 'support', 'customer'].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`chip ${staffRoleFilter === r ? 'active' : ''}`}
+                    onClick={() => setStaffRoleFilter(r)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {r} ({r === 'all' ? staffUsers.length : staffUsers.filter((u) => (u.role || 'customer') === r).length})
+                  </button>
                 ))}
               </div>
               <div className="table-scroll">
@@ -1140,10 +1147,10 @@ export default function Admin() {
                     <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>UID</th></tr>
                   </thead>
                   <tbody>
-                    {staffUsers.length === 0 ? (
+                    {(staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter)).length === 0 ? (
                       <tr><td colSpan={5} className="muted">No users found.</td></tr>
                     ) : (
-                      staffUsers.map((u, i) => (
+                      (staffRoleFilter === 'all' ? staffUsers : staffUsers.filter((u) => (u.role || 'customer') === staffRoleFilter)).map((u, i) => (
                         <tr key={u.uid || i}>
                           <td>{u.name || '—'}</td>
                           <td>{u.email || '—'}</td>
