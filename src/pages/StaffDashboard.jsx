@@ -19,7 +19,6 @@ export default function StaffDashboard() {
   const scope = roleQueueScope(user?.role);
   const byStatus = {};
   list.forEach((o) => { byStatus[o.status] = (byStatus[o.status] || 0) + 1; });
-  const unpaid = list.filter((o) => !payMeta(o).paid).length;
   const today = new Date().toISOString().slice(0, 10);
   const todayOrders = list.filter((o) => String(o.orderDate || '').slice(0, 10) === today).length;
   const revenue = list
@@ -38,7 +37,6 @@ export default function StaffDashboard() {
       : []),
     ...FLOW.map((s) => ({ key: s.status, num: byStatus[s.status] || 0, lbl: s.label })),
     { key: 'cancelled', num: byStatus.cancelled || 0, lbl: 'Cancelled' },
-    { key: 'unpaid', num: unpaid, lbl: 'Payment pending', warn: true },
     { key: 'today', num: todayOrders, lbl: 'Orders today' },
   ];
 
