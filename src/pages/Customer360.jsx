@@ -11,6 +11,7 @@ export default function Customer360() {
   const [query, setQuery] = useState('');
   const [customer, setCustomer] = useState(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [allUsers, setAllUsers] = useState([]);
   useEffect(() => {
     let alive = true;
