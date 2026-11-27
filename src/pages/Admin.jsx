@@ -717,7 +717,9 @@ export default function Admin() {
         <p>Manage products & orders</p>
       </div>
 
-      <div className="admin-tabs">
+      <div className="admin-layout">
+        <aside className="admin-sidebar">
+          <div className="admin-tabs">
         {isAdmin && (
           <button className={tab === 'products' ? 'chip active' : 'chip'} onClick={() => setTab('products')}>
             Products ({products.length})
@@ -764,7 +766,8 @@ export default function Admin() {
         <Link to="/customer360" className="chip">Customer 360</Link>
         <Link to="/dashboard" className="chip">Live board</Link>
       </div>
-
+        </aside>
+        <div className="admin-content">
       {tab === 'products' && (
         <>
           {!showProductForm && !editingId && (
@@ -1556,6 +1559,8 @@ export default function Admin() {
         />
       )}
 
+        </div>
+      </div>
       </main>
   );
 }

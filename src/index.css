@@ -2236,3 +2236,8 @@ p { margin: 0 0 .8em; }
   background: var(--line);
   min-width: 20px;
 }
+
+.admin-layout { display: flex; gap: 16px; align-items: flex-start; }
+.admin-sidebar { width: 220px; flex-shrink: 0; }
+.admin-sidebar .admin-tabs { display: flex; flex-direction: column; gap: 6px; }
+.admin-content { flex: 1; min-width: 0; }
