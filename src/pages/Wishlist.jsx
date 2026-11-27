@@ -9,7 +9,7 @@ import ProductCard from '../components/ProductCard.jsx';
 export default function Wishlist() {
   const { user } = useAuth();
   const { products } = useData();
-  const { ids, count } = useWishlist();
+  const { ids, count, remove } = useWishlist();
   const { addItem } = useCart();
   const [moved, setMoved] = useState(false);
 
@@ -20,7 +20,7 @@ export default function Wishlist() {
   const items = products.filter((p) => ids.includes(p.id));
 
   const moveAll = () => {
-    items.forEach((p) => addItem(p, 1));
+    items.forEach((p) => { addItem(p, 1); remove(p.id); });
     setMoved(true);
     setTimeout(() => setMoved(false), 2500);
   };
