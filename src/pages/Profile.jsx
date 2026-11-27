@@ -74,7 +74,7 @@ export default function Profile() {
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder='Email' title='Your email address' />
           </label>
           <label>Name *
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' required disabled title='Name cannot be changed' />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder='Your name' required title='Your name' />
           </label>
           <label>Phone
             <input type='tel' value={phone} onChange={(e) => setPhone(e.target.value)} placeholder='+91 98765 43210' title='Your phone number' />

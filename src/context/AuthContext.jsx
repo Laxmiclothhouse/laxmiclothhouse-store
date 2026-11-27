@@ -196,7 +196,7 @@ export function AuthProvider({ children }) {
 
       // Identity fields that can never be changed from the profile page:
       // UID, role, and name. Phone, email, address, etc. are editable.
-      const { name, id, role, ...safeData } = data || {};
+      const { id, role, ...safeData } = data || {};
 
       const normalizePhone = (p) => String(p || '').replace(/\D/g, '');
       const usersCol = collection(firestore, 'users');

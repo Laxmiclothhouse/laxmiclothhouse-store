@@ -58,8 +58,7 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == uid
         && (!('role' in request.resource.data) || request.resource.data.role == 'customer');
       allow update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.name == resource.data.name;
+        && request.resource.data.role == resource.data.role;
       // Admin promoting/demoting: ONLY the `role` field may change, and only
       // to a known value. Everything else in the doc is untouched.
       allow update: if isAdmin()
