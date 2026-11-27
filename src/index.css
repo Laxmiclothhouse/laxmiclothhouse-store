@@ -2246,3 +2246,6 @@ p { margin: 0 0 .8em; }
 
 .table-scroll { -webkit-overflow-scrolling: touch; }
 .table-scroll code { word-break: break-all; white-space: normal; display: inline-block; max-width: 180px; }
+
+.admin-content, .page.admin { max-width: 100%; overflow-x: hidden; }
+.table-scroll { max-width: 100%; }
