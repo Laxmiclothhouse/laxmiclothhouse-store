@@ -210,7 +210,7 @@ export function AuthProvider({ children }) {
         if (emailLower !== String(user?.email || '').trim().toLowerCase()) {
           const snap = await getDocs(query(usersCol, where('email', '==', emailLower), limit(1)));
           if (snap.docs.some((d) => d.id !== firebaseUser.uid)) {
-            throw new Error('An account with this email already exists. Please use a different email.');
+            throw new Error('Email already registered to another account. Please use a different email.');
           }
         }
         safeData.email = emailLower;
@@ -220,13 +220,13 @@ export function AuthProvider({ children }) {
         if (normalizePhone(newPhone) !== normalizePhone(user?.phone || '')) {
           const snap = await getDocs(query(usersCol, where('phone', '==', newPhone), limit(1)));
           if (snap.docs.some((d) => d.id !== firebaseUser.uid)) {
-            throw new Error('An account with this phone number already exists. Please use a different phone number.');
+            throw new Error('Phone number already registered to another account. Please use a different phone number.');
           }
           // Also catch the same number typed with different formatting.
           try {
             const dir = await readUsersDirectory();
             if (dir.some((u) => u.uid !== firebaseUser.uid && normalizePhone(u.phone) === normalizePhone(newPhone))) {
-              throw new Error('An account with this phone number already exists. Please use a different phone number.');
+throw new Error('Phone number already registered to another account. Please use a different phone number.');
             }
           } catch (e) {
             if (e?.message && /already exists/i.test(e.message)) throw e;
