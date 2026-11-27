@@ -421,7 +421,7 @@ export default function ProductDetail() {
                      <ul className="rev-items">
                        {productReviews.map((r) => (
                          <li key={r.id} className="rev-item">
-                           <div className="rev-avatar">{r.userName.trim()[0].toUpperCase()}</div>
+                           <div className="rev-avatar">{(r.userName || 'U').trim().charAt(0).toUpperCase()}</div>
                            <div className="rev-body">
                              <div className="rev-head">
                                <strong>{r.userName}</strong>
