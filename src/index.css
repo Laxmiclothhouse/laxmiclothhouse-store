@@ -2243,3 +2243,6 @@ p { margin: 0 0 .8em; }
 .admin-content { flex: 1; min-width: 0; }
 
 @media (max-width: 768px) { .admin-layout { flex-direction: column; } .admin-sidebar { width: 100%; } .admin-sidebar .admin-tabs { flex-direction: row; flex-wrap: wrap; } }
+
+.table-scroll { -webkit-overflow-scrolling: touch; }
+.table-scroll code { word-break: break-all; white-space: normal; display: inline-block; max-width: 180px; }
