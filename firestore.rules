@@ -48,7 +48,7 @@ service cloud.firestore {
     // ── User profiles (doc id = Firebase Auth UID) ──
     match /users/{uid} {
       // Own profile, or any profile for an admin (search + preview).
-      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow get: if signedIn();
       // Admin UID search needs the list query.
       allow list: if signedIn();
       // Users may create or update their own doc, but can never grant
