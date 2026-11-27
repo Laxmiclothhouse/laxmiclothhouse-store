@@ -315,7 +315,7 @@ p { margin: 0 0 .8em; }
 .pc-body h3 a:hover { color: var(--brand); }
 .pc-price { display: flex; align-items: baseline; gap: 8px; }
 .price { font-weight: 600; color: var(--brand); font-size: 1.05rem; }
-.price.big { font-size: 1.7rem; font-family: var(--serif); font-weight: 700; }
+.price.big { font-size: 2.4rem; font-family: var(--serif); font-weight: 700; }
 .mrp { text-decoration: line-through; color: var(--muted); font-size: .88rem; }
 
 /* ── Stars / ratings ─────────────────────── */
