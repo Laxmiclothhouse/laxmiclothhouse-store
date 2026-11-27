@@ -291,7 +291,7 @@ export default function ProductDetail() {
               <span>{qty}</span>
               <button onClick={() => setQty(qty + 1)}>+</button>
             </div>
-            <button className="btn btn-gold" disabled={soldOut || selectionOut} onClick={onAdd} style={inCart ? { background: 'var(--ok)', borderColor: 'var(--ok)' } : undefined}>
+            <button className="btn btn-gold" disabled={soldOut || selectionOut || inCart} onClick={onAdd} style={inCart ? { background: 'var(--ok)', borderColor: 'var(--ok)' } : undefined}>
               {soldOut || selectionOut ? 'Sold out' : inCart ? '✓ Added' : 'Add to cart'}
             </button>
             <button className="btn btn-dark" disabled={soldOut || selectionOut} onClick={onBuyNow} title="Buy this item right away, without adding to cart">
